@@ -1,0 +1,2 @@
+#define IPTOS_LOWDELAY 0x10
+#define IPTOS_THROUGHPUT 0x08

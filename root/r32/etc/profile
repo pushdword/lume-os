@@ -1,0 +1,7 @@
+# Default login environment.
+export PATH=/bin:/usr/bin:/sbin
+export HOME=/root
+export USER=root
+export LOGNAME=root
+export TERM=lume
+export KEYMAP=pt-PT
