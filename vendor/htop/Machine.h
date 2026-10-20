@@ -23,7 +23,6 @@ in the source distribution for its full text.
 #include <hwloc.h>
 #endif
 
-
 #ifndef MAX_NAME
 #define MAX_NAME 128
 #endif
@@ -35,64 +34,64 @@ in the source distribution for its full text.
 typedef unsigned long long int memory_t;
 #define MEMORY_MAX ULLONG_MAX
 
-typedef struct Machine_ {
-   struct Settings_* settings;
+typedef struct Machine_
+{
+    struct Settings_ *settings;
 
-   struct timespec realtime;  /* time of the current sample */
-   uint64_t realtimeMs;       /* current time in milliseconds */
-   uint64_t monotonicMs;      /* same, but from monotonic clock */
-   uint64_t prevMonotonicMs;  /* time in milliseconds from monotonic clock of previous scan */
+    struct timespec realtime; /* time of the current sample */
+    uint64_t realtimeMs;      /* current time in milliseconds */
+    uint64_t monotonicMs;     /* same, but from monotonic clock */
+    uint64_t prevMonotonicMs; /* time in milliseconds from monotonic clock of previous scan */
 
-   int64_t iterationsRemaining;
+    int64_t iterationsRemaining;
 
-   #ifdef HAVE_LIBHWLOC
-   hwloc_topology_t topology;
-   bool topologyOk;
-   #endif
+#ifdef HAVE_LIBHWLOC
+    hwloc_topology_t topology;
+    bool topologyOk;
+#endif
 
-   memory_t totalMem;
+    memory_t totalMem;
 
-   memory_t totalSwap;
-   memory_t usedSwap;
-   memory_t cachedSwap;
+    memory_t totalSwap;
+    memory_t usedSwap;
+    memory_t cachedSwap;
 
-   unsigned int activeCPUs;
-   unsigned int existingCPUs;
+    unsigned int activeCPUs;
+    unsigned int existingCPUs;
 
-   UsersTable* usersTable;
-   uid_t htopUserId;
-   uid_t maxUserId;  /* recently observed */
-   uid_t userId;  /* selected row user ID */
+    UsersTable *usersTable;
+    uid_t htopUserId;
+    uid_t maxUserId; /* recently observed */
+    uid_t userId;    /* selected row user ID */
 
-   pid_t maxProcessId; /* largest PID seen at runtime */
+    pid_t maxProcessId; /* largest PID seen at runtime */
 
-   size_t tableCount;
-   Table **tables;
-   Table *activeTable;
-   Table *processTable;
+    size_t tableCount;
+    Table **tables;
+    Table *activeTable;
+    Table *processTable;
 } Machine;
 
+Machine *Machine_new(UsersTable *usersTable, uid_t userId);
 
-Machine* Machine_new(UsersTable* usersTable, uid_t userId);
+void Machine_init(Machine *this, UsersTable *usersTable, uid_t userId);
 
-void Machine_init(Machine* this, UsersTable* usersTable, uid_t userId);
+void Machine_delete(Machine *this);
 
-void Machine_delete(Machine* this);
+void Machine_done(Machine *this);
 
-void Machine_done(Machine* this);
+bool Machine_isCPUonline(const Machine *this, unsigned int id);
 
-bool Machine_isCPUonline(const Machine* this, unsigned int id);
+int Machine_getCPUPhysicalCoreID(const Machine *this, unsigned int id);
 
-int Machine_getCPUPhysicalCoreID(const Machine* this, unsigned int id);
+int Machine_getCPUThreadIndex(const Machine *this, unsigned int id);
 
-int Machine_getCPUThreadIndex(const Machine* this, unsigned int id);
+void Machine_populateTablesFromSettings(Machine *this, Settings *settings, Table *processTable);
 
-void Machine_populateTablesFromSettings(Machine* this, Settings* settings, Table* processTable);
+void Machine_setTablesPanel(Machine *this, Panel *panel);
 
-void Machine_setTablesPanel(Machine* this, Panel* panel);
+void Machine_scan(Machine *this);
 
-void Machine_scan(Machine* this);
-
-void Machine_scanTables(Machine* this);
+void Machine_scanTables(Machine *this);
 
 #endif

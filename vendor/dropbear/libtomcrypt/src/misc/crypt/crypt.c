@@ -12,7 +12,7 @@
   @file crypt.c
   Build strings, Tom St Denis
 */
-#define NAME_VALUE(s) #s"="NAME(s)
+#define NAME_VALUE(s) #s "=" NAME(s)
 #define NAME(s) #s
 
 #if 0 /* Dropbear */
@@ -31,13 +31,13 @@ const char *crypt_build_settings =
 #elif defined(ENDIAN_BIG)
    "big"
 #endif
-   #if defined(ENDIAN_32BITWORD)
+#if defined(ENDIAN_32BITWORD)
    " (32-bit words)\n"
-   #elif defined(ENDIAN_64BITWORD)
+#elif defined(ENDIAN_64BITWORD)
    " (64-bit words)\n"
-   #else
+#else
    " (no wordsize defined)\n"
-   #endif
+#endif
    "Clean stack: "
 #if defined(LTC_CLEAN_STACK)
    "enabled\n"
@@ -71,23 +71,23 @@ const char *crypt_build_settings =
 #endif
 #if defined(LTC_TWOFISH)
    "   Twofish "
-   #if defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_TABLES) && defined(LTC_TWOFISH_ALL_TABLES)
+#if defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_TABLES) && defined(LTC_TWOFISH_ALL_TABLES)
        "(small, tables, all_tables)\n"
-   #elif defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_TABLES)
+#elif defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_TABLES)
        "(small, tables)\n"
-   #elif defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_ALL_TABLES)
+#elif defined(LTC_TWOFISH_SMALL) && defined(LTC_TWOFISH_ALL_TABLES)
        "(small, all_tables)\n"
-   #elif defined(LTC_TWOFISH_TABLES) && defined(LTC_TWOFISH_ALL_TABLES)
+#elif defined(LTC_TWOFISH_TABLES) && defined(LTC_TWOFISH_ALL_TABLES)
        "(tables, all_tables)\n"
-   #elif defined(LTC_TWOFISH_SMALL)
+#elif defined(LTC_TWOFISH_SMALL)
        "(small)\n"
-   #elif defined(LTC_TWOFISH_TABLES)
+#elif defined(LTC_TWOFISH_TABLES)
        "(tables)\n"
-   #elif defined(LTC_TWOFISH_ALL_TABLES)
+#elif defined(LTC_TWOFISH_ALL_TABLES)
        "(all_tables)\n"
-   #else
+#else
        "\n"
-   #endif
+#endif
 #endif
 #if defined(LTC_DES)
    "   DES\n"
@@ -370,7 +370,7 @@ const char *crypt_build_settings =
     "   Clang compiler " __clang_version__ ".\n"
 #elif defined(INTEL_CC)
     "   Intel C Compiler " __VERSION__ ".\n"
-#elif defined(__GNUC__)         /* clang and icc also define __GNUC__ */
+#elif defined(__GNUC__) /* clang and icc also define __GNUC__ */
     "   GCC compiler " __VERSION__ ".\n"
 #endif
 
@@ -491,7 +491,6 @@ const char *crypt_build_settings =
     "\n"
     ;
 #endif /* Dropbear */
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

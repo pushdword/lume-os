@@ -29,35 +29,43 @@
 #include "listener.h"
 
 /* For TCP or stream listeners */
-struct FwdListener {
+struct FwdListener
+{
 
-	/* For a direct-tcpip request, it's the addr/port we want the other
+    /* For a direct-tcpip request, it's the addr/port we want the other
 	 * end to connect to */
-	char *sendaddr;
-	unsigned int sendport;
+    char *sendaddr;
+    unsigned int sendport;
 
-	/* This is the address/port that we listen on. The address has special
+    /* This is the address/port that we listen on. The address has special
 	 * meanings as per the rfc, "" for all interfaces, "localhost" for 
 	 * localhost, or a normal interface name. */
-	char *listenaddr;
-	unsigned int listenport;
-	/* The address that the remote host asked to listen on */
-	char *request_listenaddr;
-	char* interface;
+    char *listenaddr;
+    unsigned int listenport;
+    /* The address that the remote host asked to listen on */
+    char *request_listenaddr;
+    char *interface;
 
-	const struct ChanType *chantype;
-	enum {direct, forwarded} fwd_type;
-	/* For Unix socket forwarding, this is the socket path */
-	char *socket_path;
+    const struct ChanType *chantype;
+
+    enum
+    {
+        direct,
+        forwarded
+    } fwd_type;
+
+    /* For Unix socket forwarding, this is the socket path */
+    char *socket_path;
 };
 
 /* A forwarding entry */
-struct TCPFwdEntry {
-	const char *connectaddr;
-	unsigned int connectport;
-	const char *listenaddr;
-	unsigned int listenport;
-	unsigned int have_reply; /* is set to 1 after a reply has been received
+struct TCPFwdEntry
+{
+    const char *connectaddr;
+    unsigned int connectport;
+    const char *listenaddr;
+    unsigned int listenport;
+    unsigned int have_reply; /* is set to 1 after a reply has been received
 								when setting up the forwarding */
 };
 
@@ -90,9 +98,9 @@ void cli_recv_msg_request_success(void);
 void cli_recv_msg_request_failure(void);
 
 /* Common */
-int listen_tcpfwd(struct FwdListener* tcpinfo, struct Listener **ret_listener);
+int listen_tcpfwd(struct FwdListener *tcpinfo, struct Listener **ret_listener);
 #if DROPBEAR_SVR_REMOTESTREAMFWD
-int listen_streamlocal(struct FwdListener* tcpinfo, struct Listener **ret_listener);
+int listen_streamlocal(struct FwdListener *tcpinfo, struct Listener **ret_listener);
 #define CHANNEL_ID_STREAMLOCALFORWARDED 0x53747265
 #endif
 

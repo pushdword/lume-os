@@ -8,14 +8,15 @@ Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-typedef enum {
-   STATUS_OK,
-   STATUS_ERROR_EXIT,
-   STATUS_OK_EXIT
+typedef enum
+{
+    STATUS_OK,
+    STATUS_ERROR_EXIT,
+    STATUS_OK_EXIT
 } CommandLineStatus;
 
-extern const char* program;
+extern const char *program;
 
-int CommandLine_run(int argc, char** argv);
+int CommandLine_run(int argc, char **argv);
 
 #endif

@@ -34,9 +34,10 @@
 #include "runopts.h"
 #include "auth.h"
 
-void svr_recv_msg_global_request(void) {
+void svr_recv_msg_global_request(void)
+{
 
-    char* reqname = NULL;
+    char *reqname = NULL;
     unsigned int namelen;
     unsigned int wantreply = 0;
     int ret = DROPBEAR_FAILURE;
@@ -47,7 +48,8 @@ void svr_recv_msg_global_request(void) {
     wantreply = buf_getbool(ses.payload);
 
 #if DROPBEAR_SVR_REMOTEANYFWD
-    if (svr_opts.noremotefwd || !svr_pubkey_allows_tcpfwd()) {
+    if (svr_opts.noremotefwd || !svr_pubkey_allows_tcpfwd())
+    {
         TRACE(("remote forwarding is disabled"));
         goto out;
     }
@@ -56,38 +58,52 @@ void svr_recv_msg_global_request(void) {
     goto out;
 #endif
 
-    if (namelen > MAX_NAME_LEN) {
+    if (namelen > MAX_NAME_LEN)
+    {
         TRACE(("name len is wrong: %d", namelen))
         goto out;
     }
 
-    if (0) {}
+    if (0)
+    {
+    }
 #if DROPBEAR_SVR_REMOTETCPFWD
-    else if (strcmp("tcpip-forward", reqname) == 0) {
+    else if (strcmp("tcpip-forward", reqname) == 0)
+    {
         ret = svr_remotetcpreq(wantreply);
         /* svr_remotetcpreq sends its on reply if needed,
          * don't send another in out: below */
         wantreply = 0;
-    } else if (strcmp("cancel-tcpip-forward", reqname) == 0) {
+    }
+    else if (strcmp("cancel-tcpip-forward", reqname) == 0)
+    {
         ret = svr_cancelremotetcp();
     }
 #endif
 #if DROPBEAR_SVR_REMOTESTREAMFWD
-    else if (strcmp("streamlocal-forward@openssh.com", reqname) == 0) {
+    else if (strcmp("streamlocal-forward@openssh.com", reqname) == 0)
+    {
         ret = svr_remotestreamlocalreq();
-    } else if (strcmp("cancel-streamlocal-forward@openssh.com", reqname) == 0) {
+    }
+    else if (strcmp("cancel-streamlocal-forward@openssh.com", reqname) == 0)
+    {
         ret = svr_cancelremotestreamlocal();
     }
 #endif
-    else {
+    else
+    {
         TRACE(("unhandled request '%s'", reqname))
     }
 
 out:
-    if (wantreply) {
-        if (ret == DROPBEAR_SUCCESS) {
+    if (wantreply)
+    {
+        if (ret == DROPBEAR_SUCCESS)
+        {
             send_msg_request_success();
-        } else {
+        }
+        else
+        {
             send_msg_request_failure();
         }
     }

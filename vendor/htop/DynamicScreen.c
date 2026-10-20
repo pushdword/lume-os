@@ -18,51 +18,59 @@ in the source distribution for its full text.
 #include "Platform.h"
 #include "XUtils.h"
 
-
-Hashtable* DynamicScreens_new(void) {
-   return Platform_dynamicScreens();
+Hashtable *DynamicScreens_new(void)
+{
+    return Platform_dynamicScreens();
 }
 
-void DynamicScreens_delete(Hashtable* screens) {
-   if (screens) {
-      Platform_dynamicScreensDone(screens);
-      Hashtable_delete(screens);
-   }
+void DynamicScreens_delete(Hashtable *screens)
+{
+    if (screens)
+    {
+        Platform_dynamicScreensDone(screens);
+        Hashtable_delete(screens);
+    }
 }
 
-void DynamicScreen_done(DynamicScreen* this) {
-   free(this->caption);
-   free(this->fields);
-   free(this->heading);
-   free(this->sortKey);
-   free(this->columnKeys);
+void DynamicScreen_done(DynamicScreen *this)
+{
+    free(this->caption);
+    free(this->fields);
+    free(this->heading);
+    free(this->sortKey);
+    free(this->columnKeys);
 }
 
-typedef struct {
-   const char* name;
-   ht_key_t key;
-   bool found;
+typedef struct
+{
+    const char *name;
+    ht_key_t key;
+    bool found;
 } DynamicIterator;
 
-static void DynamicScreen_compare(ht_key_t key, void* value, void* data) {
-   const DynamicScreen* screen = (const DynamicScreen*)value;
-   DynamicIterator* iter = (DynamicIterator*)data;
-   if (String_eq(iter->name, screen->name)) {
-      iter->found = true;
-      iter->key = key;
-   }
+static void DynamicScreen_compare(ht_key_t key, void *value, void *data)
+{
+    const DynamicScreen *screen = (const DynamicScreen *)value;
+    DynamicIterator *iter = (DynamicIterator *)data;
+    if (String_eq(iter->name, screen->name))
+    {
+        iter->found = true;
+        iter->key = key;
+    }
 }
 
-bool DynamicScreen_search(Hashtable* screens, const char* name, ht_key_t* key) {
-   DynamicIterator iter = { .key = 0, .name = name, .found = false };
-   if (screens)
-      Hashtable_foreach(screens, DynamicScreen_compare, &iter);
-   if (key)
-      *key = iter.key;
-   return iter.found;
+bool DynamicScreen_search(Hashtable *screens, const char *name, ht_key_t *key)
+{
+    DynamicIterator iter = {.key = 0, .name = name, .found = false};
+    if (screens)
+        Hashtable_foreach(screens, DynamicScreen_compare, &iter);
+    if (key)
+        *key = iter.key;
+    return iter.found;
 }
 
-const char* DynamicScreen_lookup(Hashtable* screens, ht_key_t key) {
-   const DynamicScreen* screen = Hashtable_get(screens, key);
-   return screen ? screen->name : NULL;
+const char *DynamicScreen_lookup(Hashtable *screens, ht_key_t key)
+{
+    const DynamicScreen *screen = Hashtable_get(screens, key);
+    return screen ? screen->name : NULL;
 }

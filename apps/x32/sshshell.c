@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 extern char **environ;
+
 struct variable
 {
     char name[32], value[129];
@@ -11,8 +12,17 @@ struct variable
 };
 static struct variable variables[LUME_ENVS];
 static unsigned last_status;
-static int name_start(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }
-static int name_char(char c) { return name_start(c) || (c >= '0' && c <= '9'); }
+
+static int name_start(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static int name_char(char c)
+{
+    return name_start(c) || (c >= '0' && c <= '9');
+}
+
 static int name_valid(const char *s)
 {
     if (!name_start(*s) || strlen(s) > 31)
@@ -22,6 +32,7 @@ static int name_valid(const char *s)
             return 0;
     return 1;
 }
+
 static struct variable *find(const char *name)
 {
     for (unsigned i = 0; i < LUME_ENVS; i++)
@@ -29,6 +40,7 @@ static struct variable *find(const char *name)
             return &variables[i];
     return NULL;
 }
+
 static int assign(const char *name, const char *value, int exported)
 {
     if (!name_valid(name) || strlen(value) > 128)
@@ -55,11 +67,13 @@ static int assign(const char *name, const char *value, int exported)
         v->exported = (unsigned)exported;
     return 0;
 }
+
 static const char *value(const char *name)
 {
     struct variable *v = find(name);
     return v ? v->value : "";
 }
+
 static int assignment(char *text, int exported)
 {
     char *eq = strchr(text, '=');
@@ -70,6 +84,7 @@ static int assignment(char *text, int exported)
     *eq = '=';
     return r;
 }
+
 static int environment(char data[LUME_ENV_BYTES], const char **out)
 {
     unsigned used = 0, count = 0;
@@ -89,7 +104,12 @@ static int environment(char data[LUME_ENV_BYTES], const char **out)
     out[count] = NULL;
     return (int)count;
 }
-static uint32_t pointer(const void *p) { return (uint32_t)(uintptr_t)p; }
+
+static uint32_t pointer(const void *p)
+{
+    return (uint32_t)(uintptr_t)p;
+}
+
 static unsigned number(const char *s)
 {
     unsigned n = 0;
@@ -100,6 +120,7 @@ static unsigned number(const char *s)
     }
     return n;
 }
+
 static void ps(void)
 {
     app_puts("PID PPID UID STATE RUNS CORES NAME\n");
@@ -124,18 +145,19 @@ static void ps(void)
         app_puts("\n");
     }
 }
+
 /* Bounded shell grammar: quotes, escapes and scalar expansion. No word
  * splitting, globbing, command substitution, pipelines or job control yet. */
 static int split(const char *line, char output[LUME_ARG_BYTES], char **argv)
 {
     const char *read = line;
     unsigned used = 0, argc = 0;
-#define EMIT(c)                         \
-    do                                  \
-    {                                   \
-        if (used >= LUME_ARG_BYTES - 1) \
-            return -7;                  \
-        output[used++] = (c);           \
+#define EMIT(c)                                                                                    \
+    do                                                                                             \
+    {                                                                                              \
+        if (used >= LUME_ARG_BYTES - 1)                                                            \
+            return -7;                                                                             \
+        output[used++] = (c);                                                                      \
     } while (0)
     while (*read)
     {
@@ -220,11 +242,13 @@ static int split(const char *line, char output[LUME_ARG_BYTES], char **argv)
     return (int)argc;
 #undef EMIT
 }
+
 static int executable(const char *path)
 {
     struct lume_stat s;
     return app_stat(path, &s) == 0 && (s.mode & 0x8000);
 }
+
 static void execute(int argc, char **argv)
 {
     char path[128];
@@ -305,6 +329,7 @@ static void execute(int argc, char **argv)
     else
         last_status = status.code;
 }
+
 static void echo(int argc, char **argv)
 {
     int fd = 1, last = argc;
@@ -317,7 +342,8 @@ static void echo(int argc, char **argv)
                 last_status = 2;
                 return;
             }
-            fd = app_open(argv[i + 1], LUME_WRONLY | LUME_CREAT | (argv[i][1] ? LUME_APPEND : LUME_TRUNC));
+            fd = app_open(argv[i + 1],
+                          LUME_WRONLY | LUME_CREAT | (argv[i][1] ? LUME_APPEND : LUME_TRUNC));
             if (fd < 0)
             {
                 app_error("echo", fd);
@@ -365,6 +391,7 @@ static void echo(int argc, char **argv)
         last_status = 1;
     }
 }
+
 static void profile(void)
 {
     int fd = app_open("/etc/profile", LUME_RDONLY);
@@ -400,19 +427,22 @@ static void profile(void)
         line = end + 1;
     }
 }
+
 int app_main(unsigned argc, char **argv)
 {
-    unsigned command_mode=argc==3&&!strcmp(argv[1],"-c"),executed=0;
+    unsigned command_mode = argc == 3 && !strcmp(argv[1], "-c"), executed = 0;
     for (char **s = environ; *s; s++)
         if (assignment(*s, 1) < 0)
             app_puts("shell: initial environment exceeds limits\n");
     profile();
     (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
     (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
-    if(!command_mode)app_puts("LumeOS SSH shell / root / syscall ABI0\n");
+    if (!command_mode)
+        app_puts("LumeOS SSH shell / root / syscall ABI0\n");
     for (;;)
     {
-        if(command_mode&&executed)return (int)last_status;
+        if (command_mode && executed)
+            return (int)last_status;
         char cwd[128];
         if (lume_syscall(LUME_GETCWD, pointer(cwd), sizeof cwd, 0) < 0)
         {
@@ -429,17 +459,34 @@ int app_main(unsigned argc, char **argv)
             snprintf(size, sizeof size, "%u", (unsigned)geometry >> 16);
             (void)assign("LINES", size, 1);
         }
-        if(!command_mode){app_puts("root@lume:");app_puts(cwd);app_puts("# ");}
+        if (!command_mode)
+        {
+            app_puts("root@lume:");
+            app_puts(cwd);
+            app_puts("# ");
+        }
         char line[256];
         unsigned used = 0, overflow = 0, escape = 0;
-        if(command_mode){if(strlen(argv[2])>=sizeof line)return 2;strcpy(line,argv[2]);executed=1;goto ssh_line_ready;}
+        if (command_mode)
+        {
+            if (strlen(argv[2]) >= sizeof line)
+                return 2;
+            strcpy(line, argv[2]);
+            executed = 1;
+            goto ssh_line_ready;
+        }
         for (;;)
         {
-            unsigned char byte;int n=app_read(0,&byte,1);if(!n)return 0;int32_t ch=n<0?n:byte;
+            unsigned char byte;
+            int n = app_read(0, &byte, 1);
+            if (!n)
+                return 0;
+            int32_t ch = n < 0 ? n : byte;
             if (ch < 0)
             {
-                int wait=lume_syscall(LUME_SLEEP,10,0,0);
-                if(wait==-22||wait==-38||wait==-95)lume_syscall(LUME_YIELD,0,0,0);
+                int wait = lume_syscall(LUME_SLEEP, 10, 0, 0);
+                if (wait == -22 || wait == -38 || wait == -95)
+                    lume_syscall(LUME_YIELD, 0, 0, 0);
                 continue;
             }
             if (ch == 27)
@@ -496,7 +543,7 @@ int app_main(unsigned argc, char **argv)
             continue;
         }
         line[used] = 0;
-        ssh_line_ready:;
+    ssh_line_ready:;
         char expanded[LUME_ARG_BYTES], *argv[LUME_ARGS + 1];
         int argc = split(line, expanded, argv);
         if (argc < 0)
@@ -560,10 +607,12 @@ int app_main(unsigned argc, char **argv)
         {
             for (unsigned i = 0; i < LUME_ENVS; i++)
                 if (variables[i].used)
-                    printf("%s=%s%s\n", variables[i].name, variables[i].value, variables[i].exported ? " [exported]" : "");
+                    printf("%s=%s%s\n", variables[i].name, variables[i].value,
+                           variables[i].exported ? " [exported]" : "");
         }
         else if (app_equal(cmd, "help"))
-            app_puts("Builtins: help uname id ps uptime cd echo run export unset set sched protecttest rm mv exit\nPATH programs: busybox ls dir less cat head wc printenv basename dirname pwd true false\nMore programs: sort cut cmp cksum crc32 expand unexpand mkdir rmdir\nEditor: vi FILE; video [800x600|1024x768|font FILE]\n$NAME ${NAME} $?; quotes; FAT32/8.3; echo text > file or >> file.\nDiagnostics: run /usr/libexec/fstest.x32\n");
+            app_puts(
+                "Builtins: help uname id ps uptime cd echo run export unset set sched protecttest rm mv exit\nPATH programs: busybox ls dir less cat head wc printenv basename dirname pwd true false\nMore programs: sort cut cmp cksum crc32 expand unexpand mkdir rmdir\nEditor: vi FILE; video [800x600|1024x768|font FILE]\n$NAME ${NAME} $?; quotes; FAT32/8.3; echo text > file or >> file.\nDiagnostics: run /usr/libexec/fstest.x32\n");
         else if (app_equal(cmd, "uname"))
             app_puts("LumeOS / Lume Kernel / X32 ISA v1 / SMP2 / round-robin\n");
         else if (app_equal(cmd, "id"))

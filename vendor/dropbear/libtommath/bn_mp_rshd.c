@@ -6,29 +6,31 @@
 /* shift right a certain amount of digits */
 void mp_rshd(mp_int *a, int b)
 {
-   int     x;
-   mp_digit *bottom, *top;
+    int x;
+    mp_digit *bottom, *top;
 
-   /* if b <= 0 then ignore it */
-   if (b <= 0) {
-      return;
-   }
+    /* if b <= 0 then ignore it */
+    if (b <= 0)
+    {
+        return;
+    }
 
-   /* if b > used then simply zero it and return */
-   if (a->used <= b) {
-      mp_zero(a);
-      return;
-   }
+    /* if b > used then simply zero it and return */
+    if (a->used <= b)
+    {
+        mp_zero(a);
+        return;
+    }
 
-   /* shift the digits down */
+    /* shift the digits down */
 
-   /* bottom */
-   bottom = a->dp;
+    /* bottom */
+    bottom = a->dp;
 
-   /* top [offset into digits] */
-   top = a->dp + b;
+    /* top [offset into digits] */
+    top = a->dp + b;
 
-   /* this is implemented as a sliding window where
+    /* this is implemented as a sliding window where
     * the window is b-digits long and digits from
     * the top of the window are copied to the bottom
     *
@@ -38,14 +40,15 @@ void mp_rshd(mp_int *a, int b)
                 /\                   |      ---->
                  \-------------------/      ---->
     */
-   for (x = 0; x < (a->used - b); x++) {
-      *bottom++ = *top++;
-   }
+    for (x = 0; x < (a->used - b); x++)
+    {
+        *bottom++ = *top++;
+    }
 
-   /* zero the top digits */
-   MP_ZERO_DIGITS(bottom, a->used - x);
+    /* zero the top digits */
+    MP_ZERO_DIGITS(bottom, a->used - x);
 
-   /* remove excess digits */
-   a->used -= b;
+    /* remove excess digits */
+    a->used -= b;
 }
 #endif

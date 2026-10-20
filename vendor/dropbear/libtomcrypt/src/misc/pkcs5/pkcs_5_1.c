@@ -35,105 +35,117 @@
    @param openssl_compat   [in] Whether or not to grow the key to the buffer size ala OpenSSL
    @return CRYPT_OK if successful
 */
-static int _pkcs_5_alg1_common(const unsigned char *password,
-                       unsigned long password_len,
-                       const unsigned char *salt,
-                       int iteration_count,  int hash_idx,
-                       unsigned char *out,   unsigned long *outlen,
-                       int openssl_compat)
+static int _pkcs_5_alg1_common(const unsigned char *password, unsigned long password_len,
+                               const unsigned char *salt, int iteration_count, int hash_idx,
+                               unsigned char *out, unsigned long *outlen, int openssl_compat)
 {
-   int err;
-   unsigned long x;
-   hash_state    *md;
-   unsigned char *buf;
-   /* Storage vars in case we need to support > hashsize (OpenSSL compat) */
-   unsigned long block = 0, iter;
-   /* How many bytes to put in the outbut buffer (convenience calc) */
-   unsigned long outidx = 0, nb = 0;
+    int err;
+    unsigned long x;
+    hash_state *md;
+    unsigned char *buf;
+    /* Storage vars in case we need to support > hashsize (OpenSSL compat) */
+    unsigned long block = 0, iter;
+    /* How many bytes to put in the outbut buffer (convenience calc) */
+    unsigned long outidx = 0, nb = 0;
 
-   LTC_ARGCHK(password != NULL);
-   LTC_ARGCHK(salt     != NULL);
-   LTC_ARGCHK(out      != NULL);
-   LTC_ARGCHK(outlen   != NULL);
+    LTC_ARGCHK(password != NULL);
+    LTC_ARGCHK(salt != NULL);
+    LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(outlen != NULL);
 
-   /* test hash IDX */
-   if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
-      return err;
-   }
+    /* test hash IDX */
+    if ((err = hash_is_valid(hash_idx)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* allocate memory */
-   md  = XMALLOC(sizeof(hash_state));
-   buf = XMALLOC(MAXBLOCKSIZE);
-   if (md == NULL || buf == NULL) {
-      if (md != NULL) {
-         XFREE(md);
-      }
-      if (buf != NULL) {
-         XFREE(buf);
-      }
-      return CRYPT_MEM;
-   }
+    /* allocate memory */
+    md = XMALLOC(sizeof(hash_state));
+    buf = XMALLOC(MAXBLOCKSIZE);
+    if (md == NULL || buf == NULL)
+    {
+        if (md != NULL)
+        {
+            XFREE(md);
+        }
+        if (buf != NULL)
+        {
+            XFREE(buf);
+        }
+        return CRYPT_MEM;
+    }
 
-   while(block * hash_descriptor[hash_idx].hashsize < *outlen) {
+    while (block * hash_descriptor[hash_idx].hashsize < *outlen)
+    {
 
-      /* hash initial (maybe previous hash) + password + salt */
-      if ((err = hash_descriptor[hash_idx].init(md)) != CRYPT_OK) {
-          goto LBL_ERR;
-      }
-      /* in OpenSSL mode, we first hash the previous result for blocks 2-n */
-      if (openssl_compat && block) {
-          if ((err = hash_descriptor[hash_idx].process(md, buf, hash_descriptor[hash_idx].hashsize)) != CRYPT_OK) {
-              goto LBL_ERR;
-          }
-      }
-      if ((err = hash_descriptor[hash_idx].process(md, password, password_len)) != CRYPT_OK) {
-          goto LBL_ERR;
-      }
-      if ((err = hash_descriptor[hash_idx].process(md, salt, 8)) != CRYPT_OK) {
-          goto LBL_ERR;
-      }
-      if ((err = hash_descriptor[hash_idx].done(md, buf)) != CRYPT_OK) {
-          goto LBL_ERR;
-      }
-
-      iter = iteration_count;
-      while (--iter) {
-         /* code goes here. */
-         x = MAXBLOCKSIZE;
-         if ((err = hash_memory(hash_idx, buf, hash_descriptor[hash_idx].hashsize, buf, &x)) != CRYPT_OK) {
+        /* hash initial (maybe previous hash) + password + salt */
+        if ((err = hash_descriptor[hash_idx].init(md)) != CRYPT_OK)
+        {
             goto LBL_ERR;
-         }
-      }
+        }
+        /* in OpenSSL mode, we first hash the previous result for blocks 2-n */
+        if (openssl_compat && block)
+        {
+            if ((err = hash_descriptor[hash_idx].process(
+                     md, buf, hash_descriptor[hash_idx].hashsize)) != CRYPT_OK)
+            {
+                goto LBL_ERR;
+            }
+        }
+        if ((err = hash_descriptor[hash_idx].process(md, password, password_len)) != CRYPT_OK)
+        {
+            goto LBL_ERR;
+        }
+        if ((err = hash_descriptor[hash_idx].process(md, salt, 8)) != CRYPT_OK)
+        {
+            goto LBL_ERR;
+        }
+        if ((err = hash_descriptor[hash_idx].done(md, buf)) != CRYPT_OK)
+        {
+            goto LBL_ERR;
+        }
 
-      /* limit the size of the copy to however many bytes we have left in
+        iter = iteration_count;
+        while (--iter)
+        {
+            /* code goes here. */
+            x = MAXBLOCKSIZE;
+            if ((err = hash_memory(hash_idx, buf, hash_descriptor[hash_idx].hashsize, buf, &x)) !=
+                CRYPT_OK)
+            {
+                goto LBL_ERR;
+            }
+        }
+
+        /* limit the size of the copy to however many bytes we have left in
          the output buffer (and how many bytes we have to copy) */
-      outidx = block*hash_descriptor[hash_idx].hashsize;
-      nb = hash_descriptor[hash_idx].hashsize;
-      if(outidx+nb > *outlen)
-          nb = *outlen - outidx;
-      if(nb > 0)
-          XMEMCPY(out+outidx, buf, nb);
+        outidx = block * hash_descriptor[hash_idx].hashsize;
+        nb = hash_descriptor[hash_idx].hashsize;
+        if (outidx + nb > *outlen)
+            nb = *outlen - outidx;
+        if (nb > 0)
+            XMEMCPY(out + outidx, buf, nb);
 
-      block++;
-      if (!openssl_compat)
-          break;
-   }
-   /* In strict mode, we always return the hashsize, in compat we filled it
+        block++;
+        if (!openssl_compat)
+            break;
+    }
+    /* In strict mode, we always return the hashsize, in compat we filled it
       as much as was requested, so we leave it alone. */
-   if(!openssl_compat)
-      *outlen = hash_descriptor[hash_idx].hashsize;
+    if (!openssl_compat)
+        *outlen = hash_descriptor[hash_idx].hashsize;
 
-   err = CRYPT_OK;
+    err = CRYPT_OK;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
-   zeromem(buf, MAXBLOCKSIZE);
-   zeromem(md, sizeof(hash_state));
+    zeromem(buf, MAXBLOCKSIZE);
+    zeromem(md, sizeof(hash_state));
 #endif
 
-   XFREE(buf);
-   XFREE(md);
+    XFREE(buf);
+    XFREE(md);
 
-   return err;
+    return err;
 }
 
 /**
@@ -148,12 +160,11 @@ LBL_ERR:
    @return CRYPT_OK if successful
 */
 int pkcs_5_alg1(const unsigned char *password, unsigned long password_len,
-                const unsigned char *salt,
-                int iteration_count,  int hash_idx,
-                unsigned char *out,   unsigned long *outlen)
+                const unsigned char *salt, int iteration_count, int hash_idx, unsigned char *out,
+                unsigned long *outlen)
 {
-   return _pkcs_5_alg1_common(password, password_len, salt, iteration_count,
-                             hash_idx, out, outlen, 0);
+    return _pkcs_5_alg1_common(password, password_len, salt, iteration_count, hash_idx, out, outlen,
+                               0);
 }
 
 /**
@@ -170,14 +181,12 @@ int pkcs_5_alg1(const unsigned char *password, unsigned long password_len,
    @param outlen           [in/out] The max size and resulting size of the algorithm output
    @return CRYPT_OK if successful
 */
-int pkcs_5_alg1_openssl(const unsigned char *password,
-                        unsigned long password_len,
-                        const unsigned char *salt,
-                        int iteration_count,  int hash_idx,
-                        unsigned char *out,   unsigned long *outlen)
+int pkcs_5_alg1_openssl(const unsigned char *password, unsigned long password_len,
+                        const unsigned char *salt, int iteration_count, int hash_idx,
+                        unsigned char *out, unsigned long *outlen)
 {
-   return _pkcs_5_alg1_common(password, password_len, salt, iteration_count,
-                             hash_idx, out, outlen, 1);
+    return _pkcs_5_alg1_common(password, password_len, salt, iteration_count, hash_idx, out, outlen,
+                               1);
 }
 
 #endif

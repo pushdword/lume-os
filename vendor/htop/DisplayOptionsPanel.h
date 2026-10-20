@@ -12,17 +12,17 @@ in the source distribution for its full text.
 #include "ScreenManager.h"
 #include "Settings.h"
 
+typedef struct DisplayOptionsPanel_
+{
+    Panel super;
 
-typedef struct DisplayOptionsPanel_ {
-   Panel super;
-
-   Settings* settings;
-   ScreenManager* scr;
-   FunctionBar* decIncBar;
+    Settings *settings;
+    ScreenManager *scr;
+    FunctionBar *decIncBar;
 } DisplayOptionsPanel;
 
 extern const PanelClass DisplayOptionsPanel_class;
 
-DisplayOptionsPanel* DisplayOptionsPanel_new(Settings* settings, ScreenManager* scr);
+DisplayOptionsPanel *DisplayOptionsPanel_new(Settings *settings, ScreenManager *scr);
 
 #endif

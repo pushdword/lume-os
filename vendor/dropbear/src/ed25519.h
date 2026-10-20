@@ -29,26 +29,27 @@
 #include "buffer.h"
 #include "signkey.h"
 
-#if DROPBEAR_ED25519 
+#if DROPBEAR_ED25519
 
 #define CURVE25519_LEN 32
 
-typedef struct dropbear_ED25519_Key {
+typedef struct dropbear_ED25519_Key
+{
 
-	unsigned char priv[CURVE25519_LEN];
-	unsigned char pub[CURVE25519_LEN];
+    unsigned char priv[CURVE25519_LEN];
+    unsigned char pub[CURVE25519_LEN];
 
 } dropbear_ed25519_key;
 
-void buf_put_ed25519_sign(buffer* buf, const dropbear_ed25519_key *key, const buffer *data_buf);
+void buf_put_ed25519_sign(buffer *buf, const dropbear_ed25519_key *key, const buffer *data_buf);
 #if DROPBEAR_SIGNKEY_VERIFY
-int buf_ed25519_verify(buffer * buf, const dropbear_ed25519_key *key, const buffer *data_buf);
+int buf_ed25519_verify(buffer *buf, const dropbear_ed25519_key *key, const buffer *data_buf);
 #endif
 int buf_get_ed25519_pub_key(buffer *buf, dropbear_ed25519_key *key,
-        enum signkey_type expect_keytype);
-int buf_get_ed25519_priv_key(buffer* buf, dropbear_ed25519_key *key);
-void buf_put_ed25519_pub_key(buffer* buf, const dropbear_ed25519_key *key);
-void buf_put_ed25519_priv_key(buffer* buf, const dropbear_ed25519_key *key);
+                            enum signkey_type expect_keytype);
+int buf_get_ed25519_priv_key(buffer *buf, dropbear_ed25519_key *key);
+void buf_put_ed25519_pub_key(buffer *buf, const dropbear_ed25519_key *key);
+void buf_put_ed25519_priv_key(buffer *buf, const dropbear_ed25519_key *key);
 void ed25519_key_free(dropbear_ed25519_key *key);
 
 #endif /* DROPBEAR_ED25519 */

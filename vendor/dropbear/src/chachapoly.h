@@ -31,9 +31,10 @@
 
 #if DROPBEAR_CHACHA20POLY1305
 
-typedef struct {
-	chacha_state chacha;
-	chacha_state header;
+typedef struct
+{
+    chacha_state chacha;
+    chacha_state header;
 } dropbear_chachapoly_state;
 
 extern const struct dropbear_cipher dropbear_chachapoly;

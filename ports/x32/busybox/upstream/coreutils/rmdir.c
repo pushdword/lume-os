@@ -35,61 +35,66 @@
 
 /* This is a NOFORK applet. Be very careful! */
 
-
-#define PARENTS          (1 << 0)
-#define VERBOSE          ((1 << 1) * ENABLE_FEATURE_VERBOSE)
+#define PARENTS (1 << 0)
+#define VERBOSE ((1 << 1) * ENABLE_FEATURE_VERBOSE)
 #define IGNORE_NON_EMPTY ((1 << 2) * ENABLE_LONG_OPTS)
 
 int rmdir_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+
 int rmdir_main(int argc UNUSED_PARAM, char **argv)
 {
-	int status = EXIT_SUCCESS;
-	int flags;
-	char *path;
+    int status = EXIT_SUCCESS;
+    int flags;
+    char *path;
 
-	flags = getopt32long(argv, "pv",
-		"parents\0"                  No_argument "p"
-		/* Debian etch: many packages fail to be purged or installed
+    flags = getopt32long(argv, "pv",
+                         "parents\0" No_argument "p"
+                         /* Debian etch: many packages fail to be purged or installed
 		 * because they desperately want this option: */
-		"ignore-fail-on-non-empty\0" No_argument "\xff"
-		IF_FEATURE_VERBOSE(
-		"verbose\0"                  No_argument "v"
-		)
-	);
-	argv += optind;
+                         "ignore-fail-on-non-empty\0" No_argument
+                         "\xff" IF_FEATURE_VERBOSE("verbose\0" No_argument "v"));
+    argv += optind;
 
-	if (!*argv) {
-		bb_show_usage();
-	}
+    if (!*argv)
+    {
+        bb_show_usage();
+    }
 
-	do {
-		path = *argv;
+    do
+    {
+        path = *argv;
 
-		while (1) {
-			if (flags & VERBOSE) {
-				printf("rmdir: removing directory, '%s'\n", path);
-			}
+        while (1)
+        {
+            if (flags & VERBOSE)
+            {
+                printf("rmdir: removing directory, '%s'\n", path);
+            }
 
-			if (rmdir(path) < 0) {
+            if (rmdir(path) < 0)
+            {
 #if ENABLE_LONG_OPTS
-				if ((flags & IGNORE_NON_EMPTY) && errno == ENOTEMPTY)
-					break;
+                if ((flags & IGNORE_NON_EMPTY) && errno == ENOTEMPTY)
+                    break;
 #endif
-				bb_perror_msg("'%s'", path);  /* Match gnu rmdir msg. */
-				status = EXIT_FAILURE;
-			} else if (flags & PARENTS) {
-				/* Note: path was not "" since rmdir succeeded. */
-				path = dirname(path);
-				/* Path is now just the parent component.  Dirname
+                bb_perror_msg("'%s'", path); /* Match gnu rmdir msg. */
+                status = EXIT_FAILURE;
+            }
+            else if (flags & PARENTS)
+            {
+                /* Note: path was not "" since rmdir succeeded. */
+                path = dirname(path);
+                /* Path is now just the parent component.  Dirname
 				 * returns "." if there are no parents.
 				 */
-				if (NOT_LONE_CHAR(path, '.')) {
-					continue;
-				}
-			}
-			break;
-		}
-	} while (*++argv);
+                if (NOT_LONE_CHAR(path, '.'))
+                {
+                    continue;
+                }
+            }
+            break;
+        }
+    } while (*++argv);
 
-	return status;
+    return status;
 }

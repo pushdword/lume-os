@@ -1,4 +1,5 @@
 #include "api.h"
+
 int app_main(int argc, char **argv)
 {
     const char *path = ".";
@@ -22,7 +23,8 @@ int app_main(int argc, char **argv)
     for (;;)
     {
         struct lume_directory_entry e;
-        int n = lume_syscall(LUME_READDIR, (uint32_t)(uintptr_t)path, (uint32_t)(uintptr_t)&e, cursor);
+        int n =
+            lume_syscall(LUME_READDIR, (uint32_t)(uintptr_t)path, (uint32_t)(uintptr_t)&e, cursor);
         if (n < 0)
         {
             app_error("ls", n);
@@ -33,8 +35,9 @@ int app_main(int argc, char **argv)
         cursor = (uint32_t)n;
         if (detailed)
         {
-            app_puts((e.mode & 0x4000u) ? "drwxr-xr-x root root " : (e.mode & 0200u) ? "-rw-r--r-- root root "
-                                                                                     : "-r--r--r-- root root ");
+            app_puts((e.mode & 0x4000u) ? "drwxr-xr-x root root "
+                     : (e.mode & 0200u) ? "-rw-r--r-- root root "
+                                        : "-r--r--r-- root root ");
             app_number(e.size);
             app_puts(" ");
         }

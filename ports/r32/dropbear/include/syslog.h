@@ -6,4 +6,6 @@
 #define LOG_WARNING 4
 #define LOG_NOTICE 5
 #define LOG_PID 1
-void openlog(const char *,int,int);void syslog(int,const char *,...);void closelog(void);
+void openlog(const char *, int, int);
+void syslog(int, const char *, ...);
+void closelog(void);

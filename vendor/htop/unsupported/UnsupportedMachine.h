@@ -9,11 +9,11 @@ in the source distribution for its full text.
 
 #include "Machine.h"
 
-
-typedef struct UnsupportedMachine_ {
-   Machine super;
-   memory_t usedMem;
-   memory_t cachedMem;
+typedef struct UnsupportedMachine_
+{
+    Machine super;
+    memory_t usedMem;
+    memory_t cachedMem;
 } UnsupportedMachine;
 
 #endif

@@ -14,21 +14,21 @@ in the source distribution for its full text.
 #include "Platform.h"
 #include "Table.h"
 
-
-typedef struct InDomTable_ {
-   Table super;
-   pmInDom id;  /* shared by metrics in the table */
-   unsigned int metricKey;  /* representative metric using this indom */
+typedef struct InDomTable_
+{
+    Table super;
+    pmInDom id;             /* shared by metrics in the table */
+    unsigned int metricKey; /* representative metric using this indom */
 } InDomTable;
 
 extern const TableClass InDomTable_class;
 
-InDomTable* InDomTable_new(Machine* host, pmInDom indom, int metricKey);
+InDomTable *InDomTable_new(Machine *host, pmInDom indom, int metricKey);
 
-void InDomTable_done(InDomTable* this);
+void InDomTable_done(InDomTable *this);
 
-RowField RowField_keyAt(const Settings* settings, int at);
+RowField RowField_keyAt(const Settings *settings, int at);
 
-void InDomTable_scan(Table* super);
+void InDomTable_scan(Table *super);
 
 #endif

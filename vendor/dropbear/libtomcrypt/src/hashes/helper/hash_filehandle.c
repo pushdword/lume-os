@@ -29,35 +29,42 @@ int hash_filehandle(int hash, FILE *in, unsigned char *out, unsigned long *outle
     size_t x;
     int err;
 
-    LTC_ARGCHK(out    != NULL);
+    LTC_ARGCHK(out != NULL);
     LTC_ARGCHK(outlen != NULL);
-    LTC_ARGCHK(in     != NULL);
+    LTC_ARGCHK(in != NULL);
 
-    if ((buf = XMALLOC(LTC_FILE_READ_BUFSIZE)) == NULL) {
+    if ((buf = XMALLOC(LTC_FILE_READ_BUFSIZE)) == NULL)
+    {
         return CRYPT_MEM;
     }
 
-    if ((err = hash_is_valid(hash)) != CRYPT_OK) {
+    if ((err = hash_is_valid(hash)) != CRYPT_OK)
+    {
         goto LBL_ERR;
     }
 
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
-       err = CRYPT_BUFFER_OVERFLOW;
-       goto LBL_ERR;
+    if (*outlen < hash_descriptor[hash].hashsize)
+    {
+        *outlen = hash_descriptor[hash].hashsize;
+        err = CRYPT_BUFFER_OVERFLOW;
+        goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash].init(&md)) != CRYPT_OK) {
-       goto LBL_ERR;
+    if ((err = hash_descriptor[hash].init(&md)) != CRYPT_OK)
+    {
+        goto LBL_ERR;
     }
 
-    do {
+    do
+    {
         x = fread(buf, 1, LTC_FILE_READ_BUFSIZE, in);
-        if ((err = hash_descriptor[hash].process(&md, buf, (unsigned long)x)) != CRYPT_OK) {
-           goto LBL_CLEANBUF;
+        if ((err = hash_descriptor[hash].process(&md, buf, (unsigned long)x)) != CRYPT_OK)
+        {
+            goto LBL_CLEANBUF;
         }
     } while (x == LTC_FILE_READ_BUFSIZE);
-    if ((err = hash_descriptor[hash].done(&md, out)) == CRYPT_OK) {
-       *outlen = hash_descriptor[hash].hashsize;
+    if ((err = hash_descriptor[hash].done(&md, out)) == CRYPT_OK)
+    {
+        *outlen = hash_descriptor[hash].hashsize;
     }
 
 LBL_CLEANBUF:
@@ -67,7 +74,6 @@ LBL_ERR:
     return err;
 }
 #endif /* #ifndef LTC_NO_FILE */
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

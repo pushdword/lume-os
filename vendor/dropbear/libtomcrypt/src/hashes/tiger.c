@@ -16,30 +16,37 @@
 
 #ifdef LTC_TIGER
 
-const struct ltc_hash_descriptor tiger_desc =
-{
-    "tiger",
-    1,
-    24,
-    64,
+const struct ltc_hash_descriptor tiger_desc = {"tiger",
+                                               1,
+                                               24,
+                                               64,
 
-    /* OID */
-   { 1, 3, 6, 1, 4, 1, 11591, 12, 2,  },
-   9,
+                                               /* OID */
+                                               {
+                                                   1,
+                                                   3,
+                                                   6,
+                                                   1,
+                                                   4,
+                                                   1,
+                                                   11591,
+                                                   12,
+                                                   2,
+                                               },
+                                               9,
 
-    &tiger_init,
-    &tiger_process,
-    &tiger_done,
-    &tiger_test,
-    NULL
-};
+                                               &tiger_init,
+                                               &tiger_process,
+                                               &tiger_done,
+                                               &tiger_test,
+                                               NULL};
 
 #define t1 (table)
-#define t2 (table+256)
-#define t3 (table+256*2)
-#define t4 (table+256*3)
+#define t2 (table + 256)
+#define t3 (table + 256 * 2)
+#define t4 (table + 256 * 3)
 
-static const ulong64 table[4*256] = {
+static const ulong64 table[4 * 256] = {
     CONST64(0x02AAB17CF7E90C5E) /*    0 */, CONST64(0xAC424B03E243A8EC) /*    1 */,
     CONST64(0x72CD5BE30DD5FCD3) /*    2 */, CONST64(0x6D019B93F6F97F3A) /*    3 */,
     CONST64(0xCD9978FFD21F9193) /*    4 */, CONST64(0x7573A1C9708029E2) /*    5 */,
@@ -554,9 +561,9 @@ static const ulong64 table[4*256] = {
     CONST64(0xC83223F1720AEF96) /* 1022 */, CONST64(0xC3A0396F7363A51F) /* 1023 */};
 
 #ifdef _MSC_VER
-   #define INLINE __inline
+#define INLINE __inline
 #else
-   #define INLINE
+#define INLINE
 #endif
 
 /* one round of the hash function */
@@ -564,26 +571,33 @@ INLINE static void tiger_round(ulong64 *a, ulong64 *b, ulong64 *c, ulong64 x, in
 {
     ulong64 tmp;
     tmp = (*c ^= x);
-           *a -= t1[byte(tmp, 0)] ^ t2[byte(tmp, 2)] ^ t3[byte(tmp, 4)] ^ t4[byte(tmp, 6)];
-    tmp = (*b += t4[byte(tmp, 1)] ^ t3[byte(tmp, 3)] ^ t2[byte(tmp,5)] ^ t1[byte(tmp,7)]);
-    switch (mul) {
-        case 5:  *b = (tmp << 2) + tmp; break;
-        case 7:  *b = (tmp << 3) - tmp; break;
-        case 9:  *b = (tmp << 3) + tmp; break;
+    *a -= t1[byte(tmp, 0)] ^ t2[byte(tmp, 2)] ^ t3[byte(tmp, 4)] ^ t4[byte(tmp, 6)];
+    tmp = (*b += t4[byte(tmp, 1)] ^ t3[byte(tmp, 3)] ^ t2[byte(tmp, 5)] ^ t1[byte(tmp, 7)]);
+    switch (mul)
+    {
+    case 5:
+        *b = (tmp << 2) + tmp;
+        break;
+    case 7:
+        *b = (tmp << 3) - tmp;
+        break;
+    case 9:
+        *b = (tmp << 3) + tmp;
+        break;
     }
 }
 
 /* one complete pass */
 static void pass(ulong64 *a, ulong64 *b, ulong64 *c, ulong64 *x, int mul)
 {
-   tiger_round(a,b,c,x[0],mul);
-   tiger_round(b,c,a,x[1],mul);
-   tiger_round(c,a,b,x[2],mul);
-   tiger_round(a,b,c,x[3],mul);
-   tiger_round(b,c,a,x[4],mul);
-   tiger_round(c,a,b,x[5],mul);
-   tiger_round(a,b,c,x[6],mul);
-   tiger_round(b,c,a,x[7],mul);
+    tiger_round(a, b, c, x[0], mul);
+    tiger_round(b, c, a, x[1], mul);
+    tiger_round(c, a, b, x[2], mul);
+    tiger_round(a, b, c, x[3], mul);
+    tiger_round(b, c, a, x[4], mul);
+    tiger_round(c, a, b, x[5], mul);
+    tiger_round(a, b, c, x[6], mul);
+    tiger_round(b, c, a, x[7], mul);
 }
 
 /* The key mixing schedule */
@@ -592,16 +606,16 @@ static void key_schedule(ulong64 *x)
     x[0] -= x[7] ^ CONST64(0xA5A5A5A5A5A5A5A5);
     x[1] ^= x[0];
     x[2] += x[1];
-    x[3] -= x[2] ^ ((~x[1])<<19);
+    x[3] -= x[2] ^ ((~x[1]) << 19);
     x[4] ^= x[3];
     x[5] += x[4];
-    x[6] -= x[5] ^ ((~x[4])>>23);
+    x[6] -= x[5] ^ ((~x[4]) >> 23);
     x[7] ^= x[6];
     x[0] += x[7];
-    x[1] -= x[0] ^ ((~x[7])<<19);
+    x[1] -= x[0] ^ ((~x[7]) << 19);
     x[2] ^= x[1];
     x[3] += x[2];
-    x[4] -= x[3] ^ ((~x[2])>>23);
+    x[4] -= x[3] ^ ((~x[2]) >> 23);
     x[5] ^= x[4];
     x[6] += x[5];
     x[7] -= x[6] ^ CONST64(0x0123456789ABCDEF);
@@ -610,25 +624,26 @@ static void key_schedule(ulong64 *x)
 #ifdef LTC_CLEAN_STACK
 static int _tiger_compress(hash_state *md, unsigned char *buf)
 #else
-static int  tiger_compress(hash_state *md, unsigned char *buf)
+static int tiger_compress(hash_state *md, unsigned char *buf)
 #endif
 {
     ulong64 a, b, c, x[8];
     unsigned long i;
 
     /* load words */
-    for (i = 0; i < 8; i++) {
-        LOAD64L(x[i],&buf[8*i]);
+    for (i = 0; i < 8; i++)
+    {
+        LOAD64L(x[i], &buf[8 * i]);
     }
     a = md->tiger.state[0];
     b = md->tiger.state[1];
     c = md->tiger.state[2];
 
-    pass(&a,&b,&c,x,5);
+    pass(&a, &b, &c, x, 5);
     key_schedule(x);
-    pass(&c,&a,&b,x,7);
+    pass(&c, &a, &b, x, 7);
     key_schedule(x);
-    pass(&b,&c,&a,x,9);
+    pass(&b, &c, &a, x, 9);
 
     /* store state */
     md->tiger.state[0] = a ^ md->tiger.state[0];
@@ -641,10 +656,10 @@ static int  tiger_compress(hash_state *md, unsigned char *buf)
 #ifdef LTC_CLEAN_STACK
 static int tiger_compress(hash_state *md, unsigned char *buf)
 {
-   int err;
-   err = _tiger_compress(md, buf);
-   burn_stack(sizeof(ulong64) * 11 + sizeof(unsigned long));
-   return err;
+    int err;
+    err = _tiger_compress(md, buf);
+    burn_stack(sizeof(ulong64) * 11 + sizeof(unsigned long));
+    return err;
 }
 #endif
 
@@ -679,13 +694,14 @@ HASH_PROCESS(tiger_process, tiger_compress, tiger, 64)
    @param out [out] The destination of the hash (24 bytes)
    @return CRYPT_OK if successful
 */
-int tiger_done(hash_state * md, unsigned char *out)
+int tiger_done(hash_state *md, unsigned char *out)
 {
-    LTC_ARGCHK(md  != NULL);
+    LTC_ARGCHK(md != NULL);
     LTC_ARGCHK(out != NULL);
 
-    if (md->tiger.curlen >= sizeof(md->tiger.buf)) {
-       return CRYPT_INVALID_ARG;
+    if (md->tiger.curlen >= sizeof(md->tiger.buf))
+    {
+        return CRYPT_INVALID_ARG;
     }
 
     /* increase the length of the message */
@@ -697,8 +713,10 @@ int tiger_done(hash_state * md, unsigned char *out)
     /* if the length is currently above 56 bytes we append zeros
      * then compress.  Then we can fall back to padding zeros and length
      * encoding like normal. */
-    if (md->tiger.curlen > 56) {
-        while (md->tiger.curlen < 64) {
+    if (md->tiger.curlen > 56)
+    {
+        while (md->tiger.curlen < 64)
+        {
             md->tiger.buf[md->tiger.curlen++] = (unsigned char)0;
         }
         tiger_compress(md, md->tiger.buf);
@@ -706,12 +724,13 @@ int tiger_done(hash_state * md, unsigned char *out)
     }
 
     /* pad upto 56 bytes of zeroes */
-    while (md->tiger.curlen < 56) {
+    while (md->tiger.curlen < 56)
+    {
         md->tiger.buf[md->tiger.curlen++] = (unsigned char)0;
     }
 
     /* store length */
-    STORE64L(md->tiger.length, md->tiger.buf+56);
+    STORE64L(md->tiger.length, md->tiger.buf + 56);
     tiger_compress(md, md->tiger.buf);
 
     /* copy output */
@@ -729,56 +748,46 @@ int tiger_done(hash_state * md, unsigned char *out)
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
 */
-int  tiger_test(void)
+int tiger_test(void)
 {
- #ifndef LTC_TEST
+#ifndef LTC_TEST
     return CRYPT_NOP;
- #else
-  static const struct {
-      const char *msg;
-      unsigned char hash[24];
-  } tests[] = {
-    { "",
-     { 0x32, 0x93, 0xac, 0x63, 0x0c, 0x13, 0xf0, 0x24,
-       0x5f, 0x92, 0xbb, 0xb1, 0x76, 0x6e, 0x16, 0x16,
-       0x7a, 0x4e, 0x58, 0x49, 0x2d, 0xde, 0x73, 0xf3 }
-    },
-    { "abc",
-     { 0x2a, 0xab, 0x14, 0x84, 0xe8, 0xc1, 0x58, 0xf2,
-       0xbf, 0xb8, 0xc5, 0xff, 0x41, 0xb5, 0x7a, 0x52,
-       0x51, 0x29, 0x13, 0x1c, 0x95, 0x7b, 0x5f, 0x93 }
-    },
-    { "Tiger",
-     { 0xdd, 0x00, 0x23, 0x07, 0x99, 0xf5, 0x00, 0x9f,
-       0xec, 0x6d, 0xeb, 0xc8, 0x38, 0xbb, 0x6a, 0x27,
-       0xdf, 0x2b, 0x9d, 0x6f, 0x11, 0x0c, 0x79, 0x37 }
-    },
-    { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
-     { 0xf7, 0x1c, 0x85, 0x83, 0x90, 0x2a, 0xfb, 0x87,
-       0x9e, 0xdf, 0xe6, 0x10, 0xf8, 0x2c, 0x0d, 0x47,
-       0x86, 0xa3, 0xa5, 0x34, 0x50, 0x44, 0x86, 0xb5 }
-    },
-    { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
-     { 0xc5, 0x40, 0x34, 0xe5, 0xb4, 0x3e, 0xb8, 0x00,
-       0x58, 0x48, 0xa7, 0xe0, 0xae, 0x6a, 0xac, 0x76,
-       0xe4, 0xff, 0x59, 0x0a, 0xe7, 0x15, 0xfd, 0x25 }
-    },
-  };
+#else
+    static const struct
+    {
+        const char *msg;
+        unsigned char hash[24];
+    } tests[] = {
+        {"", {0x32, 0x93, 0xac, 0x63, 0x0c, 0x13, 0xf0, 0x24, 0x5f, 0x92, 0xbb, 0xb1,
+              0x76, 0x6e, 0x16, 0x16, 0x7a, 0x4e, 0x58, 0x49, 0x2d, 0xde, 0x73, 0xf3}},
+        {"abc", {0x2a, 0xab, 0x14, 0x84, 0xe8, 0xc1, 0x58, 0xf2, 0xbf, 0xb8, 0xc5, 0xff,
+                 0x41, 0xb5, 0x7a, 0x52, 0x51, 0x29, 0x13, 0x1c, 0x95, 0x7b, 0x5f, 0x93}},
+        {"Tiger", {0xdd, 0x00, 0x23, 0x07, 0x99, 0xf5, 0x00, 0x9f, 0xec, 0x6d, 0xeb, 0xc8,
+                   0x38, 0xbb, 0x6a, 0x27, 0xdf, 0x2b, 0x9d, 0x6f, 0x11, 0x0c, 0x79, 0x37}},
+        {"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
+         {0xf7, 0x1c, 0x85, 0x83, 0x90, 0x2a, 0xfb, 0x87, 0x9e, 0xdf, 0xe6, 0x10,
+          0xf8, 0x2c, 0x0d, 0x47, 0x86, 0xa3, 0xa5, 0x34, 0x50, 0x44, 0x86, 0xb5}},
+        {"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
+         {0xc5, 0x40, 0x34, 0xe5, 0xb4, 0x3e, 0xb8, 0x00, 0x58, 0x48, 0xa7, 0xe0,
+          0xae, 0x6a, 0xac, 0x76, 0xe4, 0xff, 0x59, 0x0a, 0xe7, 0x15, 0xfd, 0x25}},
+    };
 
-  int i;
-  unsigned char tmp[24];
-  hash_state md;
+    int i;
+    unsigned char tmp[24];
+    hash_state md;
 
-  for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
-      tiger_init(&md);
-      tiger_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
-      tiger_done(&md, tmp);
-      if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "TIGER", i)) {
-          return CRYPT_FAIL_TESTVECTOR;
-      }
-  }
-  return CRYPT_OK;
-  #endif
+    for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++)
+    {
+        tiger_init(&md);
+        tiger_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+        tiger_done(&md, tmp);
+        if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "TIGER", i))
+        {
+            return CRYPT_FAIL_TESTVECTOR;
+        }
+    }
+    return CRYPT_OK;
+#endif
 }
 
 #endif
@@ -803,9 +812,6 @@ Hash of "Tiger - A Fast New Hash Function, by Ross Anderson and Eli Biham, proce
 Hash of "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-":
         00B83EB4E53440C5 76AC6AAEE0A74858 25FD15E70A59FFE4
 */
-
-
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

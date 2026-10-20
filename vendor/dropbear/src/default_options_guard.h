@@ -262,7 +262,6 @@ IMPORTANT: Some options will require "make clean" after changes */
 #define DROPBEAR_DELAY_HOSTKEY 1
 #endif
 
-
 /* Key exchange algorithm.
 
  * group14_sha1 - 2048 bit, sha1
@@ -508,7 +507,6 @@ group1 in Dropbear server too */
 #ifndef XAUTH_COMMAND
 #define XAUTH_COMMAND "/usr/bin/xauth -q"
 #endif
-
 
 /* If you want to enable running an sftp server (such as the one included with
  * OpenSSH), set the path below and set DROPBEAR_SFTPSERVER.

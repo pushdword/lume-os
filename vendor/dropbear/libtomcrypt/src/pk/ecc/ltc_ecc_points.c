@@ -27,16 +27,18 @@
 */
 ecc_point *ltc_ecc_new_point(void)
 {
-   ecc_point *p;
-   p = XCALLOC(1, sizeof(*p));
-   if (p == NULL) {
-      return NULL;
-   }
-   if (mp_init_multi(&p->x, &p->y, &p->z, NULL) != CRYPT_OK) {
-      XFREE(p);
-      return NULL;
-   }
-   return p;
+    ecc_point *p;
+    p = XCALLOC(1, sizeof(*p));
+    if (p == NULL)
+    {
+        return NULL;
+    }
+    if (mp_init_multi(&p->x, &p->y, &p->z, NULL) != CRYPT_OK)
+    {
+        XFREE(p);
+        return NULL;
+    }
+    return p;
 }
 
 /** Free an ECC point from memory
@@ -44,15 +46,16 @@ ecc_point *ltc_ecc_new_point(void)
 */
 void ltc_ecc_del_point(ecc_point *p)
 {
-   /* prevents free'ing null arguments */
-   if (p != NULL) {
-      mp_clear_multi(p->x, p->y, p->z, NULL); /* note: p->z may be NULL but that's ok with this function anyways */
-      XFREE(p);
-   }
+    /* prevents free'ing null arguments */
+    if (p != NULL)
+    {
+        mp_clear_multi(p->x, p->y, p->z,
+                       NULL); /* note: p->z may be NULL but that's ok with this function anyways */
+        XFREE(p);
+    }
 }
 
 #endif
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */
 /* commit time: $Format:%ai$ */
-

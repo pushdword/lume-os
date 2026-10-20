@@ -26,62 +26,72 @@
 #include "dbutil.h"
 #include "queue.h"
 
-void initqueue(struct Queue* queue) {
+void initqueue(struct Queue *queue)
+{
 
-	queue->head = NULL;
-	queue->tail = NULL;
-	queue->count = 0;
+    queue->head = NULL;
+    queue->tail = NULL;
+    queue->count = 0;
 }
 
-int isempty(const struct Queue* queue) {
+int isempty(const struct Queue *queue)
+{
 
-	return (queue->head == NULL);
-}
-	
-void* dequeue(struct Queue* queue) {
-
-	void* ret;
-	struct Link* oldhead;
-	dropbear_assert(!isempty(queue));
-	
-	ret = queue->head->item;
-	oldhead = queue->head;
-	
-	if (oldhead->link != NULL) {
-		queue->head = oldhead->link;
-	} else {
-		queue->head = NULL;
-		queue->tail = NULL;
-		TRACE(("empty queue dequeing"))
-	}
-
-	m_free(oldhead);
-	queue->count--;
-	return ret;
+    return (queue->head == NULL);
 }
 
-void *examine(const struct Queue* queue) {
+void *dequeue(struct Queue *queue)
+{
 
-	dropbear_assert(!isempty(queue));
-	return queue->head->item;
+    void *ret;
+    struct Link *oldhead;
+    dropbear_assert(!isempty(queue));
+
+    ret = queue->head->item;
+    oldhead = queue->head;
+
+    if (oldhead->link != NULL)
+    {
+        queue->head = oldhead->link;
+    }
+    else
+    {
+        queue->head = NULL;
+        queue->tail = NULL;
+        TRACE(("empty queue dequeing"))
+    }
+
+    m_free(oldhead);
+    queue->count--;
+    return ret;
 }
 
-void enqueue(struct Queue* queue, void* item) {
+void *examine(const struct Queue *queue)
+{
 
-	struct Link* newlink;
+    dropbear_assert(!isempty(queue));
+    return queue->head->item;
+}
 
-	newlink = (struct Link*)m_malloc(sizeof(struct Link));
+void enqueue(struct Queue *queue, void *item)
+{
 
-	newlink->item = item;
-	newlink->link = NULL;
+    struct Link *newlink;
 
-	if (queue->tail != NULL) {
-		queue->tail->link = newlink;
-	}
-	queue->tail = newlink;
+    newlink = (struct Link *)m_malloc(sizeof(struct Link));
 
-	if (queue->head == NULL) {
-		queue->head = newlink;
-	}
-	queue->count++;
+    newlink->item = item;
+    newlink->link = NULL;
+
+    if (queue->tail != NULL)
+    {
+        queue->tail->link = newlink;
+    }
+    queue->tail = newlink;
+
+    if (queue->head == NULL)
+    {
+        queue->head = newlink;
+    }
+    queue->count++;
 }

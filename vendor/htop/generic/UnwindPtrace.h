@@ -11,9 +11,8 @@ in the source distribution for its full text.
 
 #include "Vector.h"
 
-
 #ifdef HAVE_LIBUNWIND_PTRACE
-void UnwindPtrace_makeBacktrace(Vector* frames, pid_t pid, char** error);
+void UnwindPtrace_makeBacktrace(Vector *frames, pid_t pid, char **error);
 #endif
 
 #endif

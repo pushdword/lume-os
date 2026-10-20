@@ -18,12 +18,13 @@
   LB - Mar 2014 - added endianness and word size
 */
 
-typedef struct {
+typedef struct
+{
     const char *name;
     const int value;
 } crypt_constant;
 
-#define _C_STRINGIFY(s) { #s, s }
+#define _C_STRINGIFY(s) {#s, s}
 
 static const crypt_constant _crypt_constants[] = {
 
@@ -110,7 +111,7 @@ static const crypt_constant _crypt_constants[] = {
 #endif
 
 #ifdef LTC_DER
-/* DER handling */
+    /* DER handling */
     {"LTC_DER", 1},
     _C_STRINGIFY(LTC_ASN1_EOL),
     _C_STRINGIFY(LTC_ASN1_BOOLEAN),
@@ -192,46 +193,48 @@ static const crypt_constant _crypt_constants[] = {
 #endif
 
 #ifdef ENDIAN_LITTLE
-    {"ENDIAN_LITTLE",             1},
+    {"ENDIAN_LITTLE", 1},
 #else
-    {"ENDIAN_LITTLE",             0},
+    {"ENDIAN_LITTLE", 0},
 #endif
 
 #ifdef ENDIAN_BIG
-    {"ENDIAN_BIG",                1},
+    {"ENDIAN_BIG", 1},
 #else
-    {"ENDIAN_BIG",                0},
+    {"ENDIAN_BIG", 0},
 #endif
 
 #ifdef ENDIAN_32BITWORD
-    {"ENDIAN_32BITWORD",          1},
+    {"ENDIAN_32BITWORD", 1},
 #else
-    {"ENDIAN_32BITWORD",          0},
+    {"ENDIAN_32BITWORD", 0},
 #endif
 
 #ifdef ENDIAN_64BITWORD
-    {"ENDIAN_64BITWORD",          1},
+    {"ENDIAN_64BITWORD", 1},
 #else
-    {"ENDIAN_64BITWORD",          0},
+    {"ENDIAN_64BITWORD", 0},
 #endif
 
 #ifdef ENDIAN_NEUTRAL
-    {"ENDIAN_NEUTRAL",            1},
+    {"ENDIAN_NEUTRAL", 1},
 #else
-    {"ENDIAN_NEUTRAL",            0},
+    {"ENDIAN_NEUTRAL", 0},
 #endif
 };
-
 
 /* crypt_get_constant()
  * valueout will be the value of the named constant
  * return -1 if named item not found
  */
-int crypt_get_constant(const char* namein, int *valueout) {
+int crypt_get_constant(const char *namein, int *valueout)
+{
     int i;
     int _crypt_constants_len = sizeof(_crypt_constants) / sizeof(_crypt_constants[0]);
-    for (i=0; i<_crypt_constants_len; i++) {
-        if (XSTRCMP(_crypt_constants[i].name, namein) == 0) {
+    for (i = 0; i < _crypt_constants_len; i++)
+    {
+        if (XSTRCMP(_crypt_constants[i].name, namein) == 0)
+        {
             *valueout = _crypt_constants[i].value;
             return 0;
         }
@@ -249,7 +252,8 @@ int crypt_get_constant(const char* namein, int *valueout) {
  *     written.
  * a -1 return value signifies insufficient space made available
  */
-int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
+int crypt_list_all_constants(char *names_list, unsigned int *names_list_size)
+{
     int i;
     unsigned int total_len = 0;
     char *ptr;
@@ -257,25 +261,35 @@ int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
     int count = sizeof(_crypt_constants) / sizeof(_crypt_constants[0]);
 
     /* calculate amount of memory required for the list */
-    for (i=0; i<count; i++) {
-        number_len = snprintf(NULL, 0, "%s,%d\n", _crypt_constants[i].name, _crypt_constants[i].value);
+    for (i = 0; i < count; i++)
+    {
+        number_len =
+            snprintf(NULL, 0, "%s,%d\n", _crypt_constants[i].name, _crypt_constants[i].value);
         if (number_len < 0)
-          return -1;
+            return -1;
         total_len += number_len;
     }
 
-    if (names_list == NULL) {
+    if (names_list == NULL)
+    {
         *names_list_size = total_len;
-    } else {
-        if (total_len > *names_list_size) {
+    }
+    else
+    {
+        if (total_len > *names_list_size)
+        {
             return -1;
         }
         /* build the names list */
         ptr = names_list;
-        for (i=0; i<count; i++) {
-            number_len = snprintf(ptr, total_len, "%s,%d\n", _crypt_constants[i].name, _crypt_constants[i].value);
-            if (number_len < 0) return -1;
-            if ((unsigned int)number_len > total_len) return -1;
+        for (i = 0; i < count; i++)
+        {
+            number_len = snprintf(ptr, total_len, "%s,%d\n", _crypt_constants[i].name,
+                                  _crypt_constants[i].value);
+            if (number_len < 0)
+                return -1;
+            if ((unsigned int)number_len > total_len)
+                return -1;
             total_len -= number_len;
             ptr += number_len;
         }
@@ -285,7 +299,6 @@ int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
     }
     return 0;
 }
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

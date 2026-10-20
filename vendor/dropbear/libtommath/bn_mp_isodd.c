@@ -5,6 +5,6 @@
 
 mp_bool mp_isodd(const mp_int *a)
 {
-   return MP_IS_ODD(a) ? MP_YES : MP_NO;
+    return MP_IS_ODD(a) ? MP_YES : MP_NO;
 }
 #endif

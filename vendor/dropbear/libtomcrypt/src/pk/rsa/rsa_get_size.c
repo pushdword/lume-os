@@ -22,15 +22,15 @@
 */
 int rsa_get_size(rsa_key *key)
 {
-  int ret = INT_MAX;
-  LTC_ARGCHK(key != NULL);
+    int ret = INT_MAX;
+    LTC_ARGCHK(key != NULL);
 
-  if (key)
-  {
-    ret = mp_unsigned_bin_size(key->N);
-  } /* if */
+    if (key)
+    {
+        ret = mp_unsigned_bin_size(key->N);
+    } /* if */
 
-  return ret;
+    return ret;
 }
 
 #endif

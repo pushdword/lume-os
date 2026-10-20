@@ -10,16 +10,17 @@ in the source distribution for its full text.
 #include "Hashtable.h"
 #include "Panel.h"
 
-
-typedef struct AvailableColumnsPanel_ {
-   Panel super;
-   Panel* columns;
+typedef struct AvailableColumnsPanel_
+{
+    Panel super;
+    Panel *columns;
 } AvailableColumnsPanel;
 
 extern const PanelClass AvailableColumnsPanel_class;
 
-AvailableColumnsPanel* AvailableColumnsPanel_new(Panel* columns, Hashtable* dynamicColumns);
+AvailableColumnsPanel *AvailableColumnsPanel_new(Panel *columns, Hashtable *dynamicColumns);
 
-void AvailableColumnsPanel_fill(AvailableColumnsPanel* this, const char* dynamicScreen, Hashtable* dynamicColumns);
+void AvailableColumnsPanel_fill(AvailableColumnsPanel *this, const char *dynamicScreen,
+                                Hashtable *dynamicColumns);
 
 #endif

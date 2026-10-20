@@ -15,18 +15,19 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "ScreenManager.h"
 
-
-typedef struct AvailableMetersPanel_ {
-   Panel super;
-   ScreenManager* scr;
-   Machine* host;
-   Header* header;
-   size_t columns;
-   MetersPanel** meterPanels;
+typedef struct AvailableMetersPanel_
+{
+    Panel super;
+    ScreenManager *scr;
+    Machine *host;
+    Header *header;
+    size_t columns;
+    MetersPanel **meterPanels;
 } AvailableMetersPanel;
 
 extern const PanelClass AvailableMetersPanel_class;
 
-AvailableMetersPanel* AvailableMetersPanel_new(Machine* host, Header* header, size_t columns, MetersPanel** meterPanels, ScreenManager* scr);
+AvailableMetersPanel *AvailableMetersPanel_new(Machine *host, Header *header, size_t columns,
+                                               MetersPanel **meterPanels, ScreenManager *scr);
 
 #endif

@@ -26,18 +26,18 @@
  */
 int chacha_ivctr32(chacha_state *st, const unsigned char *iv, unsigned long ivlen, ulong32 counter)
 {
-   LTC_ARGCHK(st != NULL);
-   LTC_ARGCHK(iv != NULL);
-   /* 96bit IV + 32bit counter */
-   LTC_ARGCHK(ivlen == 12);
+    LTC_ARGCHK(st != NULL);
+    LTC_ARGCHK(iv != NULL);
+    /* 96bit IV + 32bit counter */
+    LTC_ARGCHK(ivlen == 12);
 
-   st->input[12] = counter;
-   LOAD32L(st->input[13], iv + 0);
-   LOAD32L(st->input[14], iv + 4);
-   LOAD32L(st->input[15], iv + 8);
-   st->ksleft = 0;
-   st->ivlen = ivlen;
-   return CRYPT_OK;
+    st->input[12] = counter;
+    LOAD32L(st->input[13], iv + 0);
+    LOAD32L(st->input[14], iv + 4);
+    LOAD32L(st->input[15], iv + 8);
+    st->ksleft = 0;
+    st->ivlen = ivlen;
+    return CRYPT_OK;
 }
 
 #endif

@@ -55,8 +55,8 @@ int svr_pubkey_allows_local_tcpfwd(const char *host, unsigned int port);
 int svr_pubkey_allows_remote_tcpfwd(const char *host, unsigned int port);
 void svr_pubkey_set_forced_command(struct ChanSess *chansess);
 void svr_pubkey_options_cleanup(struct PubKeyOptions *pubkey_options);
-struct PubKeyOptions*
-svr_parse_pubkey_options(buffer *options_buf, int line_num, const char* filename);
+struct PubKeyOptions *svr_parse_pubkey_options(buffer *options_buf, int line_num,
+                                               const char *filename);
 #else
 /* no option : success */
 #define svr_pubkey_allows_agentfwd() 1
@@ -64,19 +64,32 @@ svr_parse_pubkey_options(buffer *options_buf, int line_num, const char* filename
 #define svr_pubkey_allows_x11fwd() 1
 #define svr_pubkey_allows_pty() 1
 #define svr_pubkey_has_forced_command() 0
-static inline int svr_pubkey_allows_local_tcpfwd(const char *host, unsigned int port)
-	{ (void)host; (void)port; return 1; }
-static inline int svr_pubkey_allows_remote_tcpfwd(const char *host, unsigned int port)
-	{ (void)host; (void)port; return 1; }
 
-static inline void svr_pubkey_set_forced_command(struct ChanSess *chansess) {
-	(void)chansess;
+static inline int svr_pubkey_allows_local_tcpfwd(const char *host, unsigned int port)
+{
+    (void)host;
+    (void)port;
+    return 1;
 }
-static inline void svr_pubkey_options_cleanup(struct PubKeyOptions *pubkey_options) {
-	(void)pubkey_options;
+
+static inline int svr_pubkey_allows_remote_tcpfwd(const char *host, unsigned int port)
+{
+    (void)host;
+    (void)port;
+    return 1;
 }
-struct PubKeyOptions*
-svr_parse_pubkey_options(buffer *options_buf, int line_num, const char* filename);
+
+static inline void svr_pubkey_set_forced_command(struct ChanSess *chansess)
+{
+    (void)chansess;
+}
+
+static inline void svr_pubkey_options_cleanup(struct PubKeyOptions *pubkey_options)
+{
+    (void)pubkey_options;
+}
+struct PubKeyOptions *svr_parse_pubkey_options(buffer *options_buf, int line_num,
+                                               const char *filename);
 #endif
 
 /* Client functions */
@@ -93,16 +106,15 @@ void cli_pubkeyfail(void);
 void cli_auth_password(void);
 int cli_auth_pubkey(void);
 void cli_auth_interactive(void);
-char* getpass_or_cancel(const char* prompt);
+char *getpass_or_cancel(const char *prompt);
 void cli_auth_pubkey_cleanup(void);
-
 
 #define MAX_USERNAME_LEN 100 /* arbitrary for the moment */
 
-#define AUTH_TYPE_NONE      1
-#define AUTH_TYPE_PUBKEY    (1 << 1)
-#define AUTH_TYPE_PASSWORD  (1 << 2)
-#define AUTH_TYPE_INTERACT  (1 << 3)
+#define AUTH_TYPE_NONE 1
+#define AUTH_TYPE_PUBKEY (1 << 1)
+#define AUTH_TYPE_PASSWORD (1 << 2)
+#define AUTH_TYPE_INTERACT (1 << 3)
 
 #define AUTH_METHOD_NONE "none"
 #define AUTH_METHOD_NONE_LEN 4
@@ -115,72 +127,74 @@ void cli_auth_pubkey_cleanup(void);
 
 #define PUBKEY_OPTIONS_ANY_PORT UINT_MAX
 
-
 /* This structure is shared between server and client - it contains
  * relatively little extraneous bits when used for the client rather than the
  * server */
-struct AuthState {
-	char *username; /* This is the username the client presents to check. It
+struct AuthState
+{
+    char *username;          /* This is the username the client presents to check. It
 					   is updated each run through, used for auth checking */
-	unsigned char authtypes; /* Flags indicating which auth types are still 
+    unsigned char authtypes; /* Flags indicating which auth types are still 
 								valid */
-	unsigned int failcount; /* Number of (failed) authentication attempts.*/
-	unsigned int authdone; /* 0 if we haven't authed, 1 if we have. Applies for
+    unsigned int failcount;  /* Number of (failed) authentication attempts.*/
+    unsigned int authdone;   /* 0 if we haven't authed, 1 if we have. Applies for
 							  client and server (though has differing 
 							  meanings). */
 
-	unsigned int perm_warn; /* Server only, set if bad permissions on 
+    unsigned int perm_warn;            /* Server only, set if bad permissions on 
 							   ~/.ssh/authorized_keys have already been
 							   logged. */
-	unsigned int checkusername_failed;  /* Server only, set if checkusername
+    unsigned int checkusername_failed; /* Server only, set if checkusername
 	                                has already failed */
-	struct timespec auth_starttime; /* Server only, time of receiving current 
+    struct timespec auth_starttime;    /* Server only, time of receiving current 
 									SSH_MSG_USERAUTH_REQUEST */
 
-	 /* Count of public keys attempted, limited by MAX_PUBKEY_QUERIES */
-	unsigned int serv_pubkey_query_count;
+    /* Count of public keys attempted, limited by MAX_PUBKEY_QUERIES */
+    unsigned int serv_pubkey_query_count;
 
-	/* These are only used for the server */
-	uid_t pw_uid;
-	gid_t pw_gid;
-	char *pw_dir;
-	char *pw_shell;
-	char *pw_name;
-	char *pw_passwd;
-	struct PubKeyOptions* pubkey_options;
+    /* These are only used for the server */
+    uid_t pw_uid;
+    gid_t pw_gid;
+    char *pw_dir;
+    char *pw_shell;
+    char *pw_name;
+    char *pw_passwd;
+    struct PubKeyOptions *pubkey_options;
 };
 
 #if DROPBEAR_SVR_PUBKEY_OPTIONS_BUILT
-struct PubKeyOptions {
-	/* Flags */
-	int no_port_forwarding_flag;
-	int no_agent_forwarding_flag;
-	int no_x11_forwarding_flag;
-	int no_pty_flag;
-	/* "command=" option. */
-	char * forced_command;
-	/* "permitopen=" option */
-	m_list *permit_open_destinations;
-	/* "permitlisten=" option */
-	m_list *permit_listens;
+struct PubKeyOptions
+{
+    /* Flags */
+    int no_port_forwarding_flag;
+    int no_agent_forwarding_flag;
+    int no_x11_forwarding_flag;
+    int no_pty_flag;
+    /* "command=" option. */
+    char *forced_command;
+    /* "permitopen=" option */
+    m_list *permit_open_destinations;
+    /* "permitlisten=" option */
+    m_list *permit_listens;
 
 #if DROPBEAR_SK_ECDSA || DROPBEAR_SK_ED25519
-	int no_touch_required_flag;
-	int verify_required_flag;
+    int no_touch_required_flag;
+    int verify_required_flag;
 #endif
 
-	/* String from the end of authorized_keys entry, for SSH_PUBKEYINFO
+    /* String from the end of authorized_keys entry, for SSH_PUBKEYINFO
 	   environment variable. May be omitted (NULL) if
 	   options contain non-shell-safe characters.
 	   This is not involved in pubkey option restrictions, but is
 	   parsed and kept similarly so is stored here. */
-	char * info_env;
+    char *info_env;
 };
 
-struct PermitTCPFwdEntry {
-	/* host may be NULL for permitlisten entries */
-	char *host;
-	unsigned int port;
+struct PermitTCPFwdEntry
+{
+    /* host may be NULL for permitlisten entries */
+    char *host;
+    unsigned int port;
 };
 #endif
 

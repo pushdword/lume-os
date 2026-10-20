@@ -9,10 +9,11 @@ in the source distribution for its full text.
 
 #include "ProcessTable.h"
 
-typedef struct ZramStats_ {
-   memory_t totalZram;
-   memory_t usedZramComp;
-   memory_t usedZramOrig;
+typedef struct ZramStats_
+{
+    memory_t totalZram;
+    memory_t usedZramComp;
+    memory_t usedZramOrig;
 } ZramStats;
 
 #endif

@@ -17,19 +17,18 @@
   LB - Dec 2013 - revised to include compiler define options
 */
 
-
-typedef struct {
+typedef struct
+{
     const char *name;
     const unsigned int size;
 } crypt_size;
 
-#define _SZ_STRINGIFY_S(s) { #s, sizeof(struct s) }
-#define _SZ_STRINGIFY_T(s) { #s, sizeof(s) }
+#define _SZ_STRINGIFY_S(s) {#s, sizeof(struct s)}
+#define _SZ_STRINGIFY_T(s) {#s, sizeof(s)}
 
 static const crypt_size _crypt_sizes[] = {
     /* hash state sizes */
-    _SZ_STRINGIFY_S(ltc_hash_descriptor),
-    _SZ_STRINGIFY_T(hash_state),
+    _SZ_STRINGIFY_S(ltc_hash_descriptor), _SZ_STRINGIFY_T(hash_state),
 #ifdef LTC_CHC_HASH
     _SZ_STRINGIFY_S(chc_state),
 #endif
@@ -80,8 +79,7 @@ static const crypt_size _crypt_sizes[] = {
 #endif
 
     /* block cipher key sizes */
-    _SZ_STRINGIFY_S(ltc_cipher_descriptor),
-    _SZ_STRINGIFY_T(symmetric_key),
+    _SZ_STRINGIFY_S(ltc_cipher_descriptor), _SZ_STRINGIFY_T(symmetric_key),
 #ifdef LTC_ANUBIS
     _SZ_STRINGIFY_S(anubis_key),
 #endif
@@ -95,8 +93,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_S(cast5_key),
 #endif
 #ifdef LTC_DES
-    _SZ_STRINGIFY_S(des_key),
-    _SZ_STRINGIFY_S(des3_key),
+    _SZ_STRINGIFY_S(des_key), _SZ_STRINGIFY_S(des3_key),
 #endif
 #ifdef LTC_KASUMI
     _SZ_STRINGIFY_S(kasumi_key),
@@ -141,7 +138,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_S(twofish_key),
 #endif
 
-    /* mode sizes */
+/* mode sizes */
 #ifdef LTC_ECB_MODE
     _SZ_STRINGIFY_T(symmetric_ECB),
 #endif
@@ -167,7 +164,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_T(symmetric_xts),
 #endif
 
-    /* stream cipher sizes */
+/* stream cipher sizes */
 #ifdef LTC_CHACHA
     _SZ_STRINGIFY_T(chacha_state),
 #endif
@@ -178,7 +175,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_T(sober128_state),
 #endif
 
-    /* MAC sizes            -- no states for ccm, lrw */
+/* MAC sizes            -- no states for ccm, lrw */
 #ifdef LTC_HMAC
     _SZ_STRINGIFY_T(hmac_state),
 #endif
@@ -219,7 +216,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_T(chacha20poly1305_state),
 #endif
 
-    /* asymmetric keys */
+/* asymmetric keys */
 #ifdef LTC_MRSA
     _SZ_STRINGIFY_T(rsa_key),
 #endif
@@ -230,24 +227,20 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_T(dh_key),
 #endif
 #ifdef LTC_MECC
-    _SZ_STRINGIFY_T(ltc_ecc_set_type),
-    _SZ_STRINGIFY_T(ecc_point),
-    _SZ_STRINGIFY_T(ecc_key),
+    _SZ_STRINGIFY_T(ltc_ecc_set_type), _SZ_STRINGIFY_T(ecc_point), _SZ_STRINGIFY_T(ecc_key),
 #endif
 #ifdef LTC_MKAT
     _SZ_STRINGIFY_T(katja_key),
 #endif
 
-    /* DER handling */
+/* DER handling */
 #ifdef LTC_DER
-    _SZ_STRINGIFY_T(ltc_asn1_list),  /* a list entry */
-    _SZ_STRINGIFY_T(ltc_utctime),
-    _SZ_STRINGIFY_T(ltc_generalizedtime),
+    _SZ_STRINGIFY_T(ltc_asn1_list), /* a list entry */
+    _SZ_STRINGIFY_T(ltc_utctime), _SZ_STRINGIFY_T(ltc_generalizedtime),
 #endif
 
     /* prng state sizes */
-    _SZ_STRINGIFY_S(ltc_prng_descriptor),
-    _SZ_STRINGIFY_T(prng_state),
+    _SZ_STRINGIFY_S(ltc_prng_descriptor), _SZ_STRINGIFY_T(prng_state),
 #ifdef LTC_FORTUNA
     _SZ_STRINGIFY_S(fortuna_prng),
 #endif
@@ -263,8 +256,8 @@ static const crypt_size _crypt_sizes[] = {
 #ifdef LTC_YARROW
     _SZ_STRINGIFY_S(yarrow_prng),
 #endif
-    /* sprng has no state as it uses other potentially available sources */
-    /* like /dev/random.  See Developers Guide for more info. */
+/* sprng has no state as it uses other potentially available sources */
+/* like /dev/random.  See Developers Guide for more info. */
 
 #ifdef LTC_ADLER32
     _SZ_STRINGIFY_T(adler32_state),
@@ -273,8 +266,7 @@ static const crypt_size _crypt_sizes[] = {
     _SZ_STRINGIFY_T(crc32_state),
 #endif
 
-    _SZ_STRINGIFY_T(ltc_mp_digit),
-    _SZ_STRINGIFY_T(ltc_math_descriptor)
+    _SZ_STRINGIFY_T(ltc_mp_digit), _SZ_STRINGIFY_T(ltc_math_descriptor)
 
 };
 
@@ -282,11 +274,14 @@ static const crypt_size _crypt_sizes[] = {
  * sizeout will be the size (bytes) of the named struct or union
  * return -1 if named item not found
  */
-int crypt_get_size(const char* namein, unsigned int *sizeout) {
+int crypt_get_size(const char *namein, unsigned int *sizeout)
+{
     int i;
     int count = sizeof(_crypt_sizes) / sizeof(_crypt_sizes[0]);
-    for (i=0; i<count; i++) {
-        if (XSTRCMP(_crypt_sizes[i].name, namein) == 0) {
+    for (i = 0; i < count; i++)
+    {
+        if (XSTRCMP(_crypt_sizes[i].name, namein) == 0)
+        {
             *sizeout = _crypt_sizes[i].size;
             return 0;
         }
@@ -304,7 +299,8 @@ int crypt_get_size(const char* namein, unsigned int *sizeout) {
  *     written.
  * a -1 return value signifies insufficient space made available
  */
-int crypt_list_all_sizes(char *names_list, unsigned int *names_list_size) {
+int crypt_list_all_sizes(char *names_list, unsigned int *names_list_size)
+{
     int i;
     unsigned int total_len = 0;
     char *ptr;
@@ -312,26 +308,35 @@ int crypt_list_all_sizes(char *names_list, unsigned int *names_list_size) {
     int count = sizeof(_crypt_sizes) / sizeof(_crypt_sizes[0]);
 
     /* calculate amount of memory required for the list */
-    for (i=0; i<count; i++) {
+    for (i = 0; i < count; i++)
+    {
         number_len = snprintf(NULL, 0, "%s,%u\n", _crypt_sizes[i].name, _crypt_sizes[i].size);
         if (number_len < 0)
-          return -1;
+            return -1;
         total_len += number_len;
         /* this last +1 is for newlines (and ending NULL) */
     }
 
-    if (names_list == NULL) {
+    if (names_list == NULL)
+    {
         *names_list_size = total_len;
-    } else {
-        if (total_len > *names_list_size) {
+    }
+    else
+    {
+        if (total_len > *names_list_size)
+        {
             return -1;
         }
         /* build the names list */
         ptr = names_list;
-        for (i=0; i<count; i++) {
-            number_len = snprintf(ptr, total_len, "%s,%u\n", _crypt_sizes[i].name, _crypt_sizes[i].size);
-            if (number_len < 0) return -1;
-            if ((unsigned int)number_len > total_len) return -1;
+        for (i = 0; i < count; i++)
+        {
+            number_len =
+                snprintf(ptr, total_len, "%s,%u\n", _crypt_sizes[i].name, _crypt_sizes[i].size);
+            if (number_len < 0)
+                return -1;
+            if ((unsigned int)number_len > total_len)
+                return -1;
             total_len -= number_len;
             ptr += number_len;
         }
@@ -341,7 +346,6 @@ int crypt_list_all_sizes(char *names_list, unsigned int *names_list_size) {
     }
     return 0;
 }
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

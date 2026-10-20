@@ -32,202 +32,202 @@
 #include "forward.h"
 #include "dbhelpers.h"
 
-typedef struct runopts {
+typedef struct runopts
+{
 
-	int disable_ip_tos;
-#if DROPBEAR_SVR_REMOTETCPFWD || DROPBEAR_CLI_LOCALTCPFWD \
-    || DROPBEAR_CLI_REMOTETCPFWD
-	int listen_fwd_all;
+    int disable_ip_tos;
+#if DROPBEAR_SVR_REMOTETCPFWD || DROPBEAR_CLI_LOCALTCPFWD || DROPBEAR_CLI_REMOTETCPFWD
+    int listen_fwd_all;
 #endif
-	unsigned int recv_window;
-	long keepalive_secs; /* Time between sending keepalives. 0 is off */
-	long idle_timeout_secs; /* Exit if no traffic is sent/received in this time */
-	long max_duration_secs; /* Exit after this time */
-	int usingsyslog;
+    unsigned int recv_window;
+    long keepalive_secs;    /* Time between sending keepalives. 0 is off */
+    long idle_timeout_secs; /* Exit if no traffic is sent/received in this time */
+    long max_duration_secs; /* Exit after this time */
+    int usingsyslog;
 
 #ifndef DISABLE_ZLIB
-	/* whether compression should be advertised */
-	int compression;
+    /* whether compression should be advertised */
+    int compression;
 #endif
 
 #if DROPBEAR_USER_ALGO_LIST
-	const char *cipher_list;
-	const char *mac_list;
+    const char *cipher_list;
+    const char *mac_list;
 #endif
 
 } runopts;
 
 extern runopts opts;
 
-int readhostkey(const char * filename, sign_key * hostkey,
-	enum signkey_type *type);
+int readhostkey(const char *filename, sign_key *hostkey, enum signkey_type *type);
 void load_all_hostkeys(void);
 void disable_sig_except(enum signature_type sig_type);
 
-typedef struct svr_runopts {
+typedef struct svr_runopts
+{
 
-	char * bannerfile;
+    char *bannerfile;
 
-	int forkbg;
+    int forkbg;
 
-	/* ports and addresses are arrays of the portcount
+    /* ports and addresses are arrays of the portcount
 	listening ports. strings are malloced. */
-	char *ports[DROPBEAR_MAX_PORTS];
-	unsigned int portcount;
-	char *addresses[DROPBEAR_MAX_PORTS];
+    char *ports[DROPBEAR_MAX_PORTS];
+    unsigned int portcount;
+    char *addresses[DROPBEAR_MAX_PORTS];
 
-	int inetdmode;
-	/* Hidden "-2 childpipe_fd" flag indicates it's re-executing itself,
+    int inetdmode;
+    /* Hidden "-2 childpipe_fd" flag indicates it's re-executing itself,
 	   stores the childpipe preauth file descriptor. Set to -1 otherwise. */
-	int reexec_childpipe;
+    int reexec_childpipe;
 
-	/* Flags indicating whether to use ipv4 and ipv6 */
-	/* not used yet
+    /* Flags indicating whether to use ipv4 and ipv6 */
+    /* not used yet
 	int ipv4;
 	int ipv6;
 	*/
 
 #if DO_MOTD
-	/* whether to print the MOTD */
-	int domotd;
+    /* whether to print the MOTD */
+    int domotd;
 #endif
-	int norootlogin;
+    int norootlogin;
 
 #ifdef HAVE_GETGROUPLIST
-	/* restrict_group is the group name if group restriction was enabled,
+    /* restrict_group is the group name if group restriction was enabled,
 	NULL otherwise */
-	char *restrict_group;
-	/* restrict_group_gid is only valid if restrict_group is set */
-	gid_t restrict_group_gid;
+    char *restrict_group;
+    /* restrict_group_gid is only valid if restrict_group is set */
+    gid_t restrict_group_gid;
 #endif
 
-	int noauthpass;
-	int norootpass;
-	int allowblankpass;
-	int multiauthmethod;
-	unsigned int maxauthtries;
+    int noauthpass;
+    int norootpass;
+    int allowblankpass;
+    int multiauthmethod;
+    unsigned int maxauthtries;
 
 #if DROPBEAR_SVR_REMOTEANYFWD
-	int noremotefwd;
+    int noremotefwd;
 #endif
 #if DROPBEAR_SVR_LOCALANYFWD
-	int nolocaltcp;
+    int nolocaltcp;
 #endif
 
-	sign_key *hostkey;
+    sign_key *hostkey;
 
-	int delay_hostkey;
+    int delay_hostkey;
 
-	char *hostkey_files[MAX_HOSTKEYS];
-	int num_hostkey_files;
+    char *hostkey_files[MAX_HOSTKEYS];
+    int num_hostkey_files;
 
-	buffer * banner;
-	char * pidfile;
+    buffer *banner;
+    char *pidfile;
 
-	char * authorized_keys_dir;
+    char *authorized_keys_dir;
 
-	char * forced_command;
-	char* interface;
+    char *forced_command;
+    char *interface;
 
 #if DROPBEAR_PLUGIN
-	/* malloced */
-	char *pubkey_plugin;
-	/* points into pubkey_plugin */
-	char *pubkey_plugin_options;
+    /* malloced */
+    char *pubkey_plugin;
+    /* points into pubkey_plugin */
+    char *pubkey_plugin_options;
 #endif
 
-	int pass_on_env;
+    int pass_on_env;
 
 } svr_runopts;
 
 extern svr_runopts svr_opts;
 
-void svr_getopts(int argc, char ** argv);
+void svr_getopts(int argc, char **argv);
 void loadhostkeys(void);
 
-typedef struct cli_runopts {
-	/* All non-const strings are malloced */
+typedef struct cli_runopts
+{
+    /* All non-const strings are malloced */
 
-	const char *progname;
-	char *remotehost;
-	int remotehostfixed;
-	char *remoteport;
+    const char *progname;
+    char *remotehost;
+    int remotehostfixed;
+    char *remoteport;
 
-	char *own_user;
-	char *username;
+    char *own_user;
+    char *username;
 
-	char *cmd;
-	int wantpty;
-	int always_accept_key;
-	int no_hostkey_check;
-	int ask_hostkey;
-	int no_cmd;
-	int quiet;
-	int backgrounded;
-	int is_subsystem;
+    char *cmd;
+    int wantpty;
+    int always_accept_key;
+    int no_hostkey_check;
+    int ask_hostkey;
+    int no_cmd;
+    int quiet;
+    int backgrounded;
+    int is_subsystem;
 #if DROPBEAR_CLI_PUBKEY_AUTH
-	m_list *privkeys; /* Keys to use for public-key auth */
+    m_list *privkeys; /* Keys to use for public-key auth */
 #endif
 #if DROPBEAR_CLI_ANYTCPFWD
-	int exit_on_fwd_failure;
+    int exit_on_fwd_failure;
 #endif
-	int disable_trivial_auth;
-	/** Use a password authentication or a key auth only.
+    int disable_trivial_auth;
+    /** Use a password authentication or a key auth only.
 	For a BatchMode it's always -o PasswordAuthentication=no */
-	int password_authentication;
-	/* -o BatchMode=yes, suppress interactive questions */
-	int batch_mode;
+    int password_authentication;
+    /* -o BatchMode=yes, suppress interactive questions */
+    int batch_mode;
 #if DROPBEAR_CLI_REMOTETCPFWD
-	m_list * remotefwds;
+    m_list *remotefwds;
 #endif
 #if DROPBEAR_CLI_LOCALTCPFWD
-	m_list * localfwds;
+    m_list *localfwds;
 #endif
 #if DROPBEAR_CLI_AGENTFWD
-	int agent_fwd;
-	int agent_keys_loaded; /* whether pubkeys has been populated with a
+    int agent_fwd;
+    int agent_keys_loaded; /* whether pubkeys has been populated with a
 							  list of keys held by the agent */
-	int agent_fd; /* The agent fd is only set during authentication. Forwarded
+    int agent_fd;          /* The agent fd is only set during authentication. Forwarded
 	                 agent sessions have their own file descriptors */
 #endif
 
 #if DROPBEAR_CLI_NETCAT
-	char *netcat_host;
-	unsigned int netcat_port;
+    char *netcat_host;
+    unsigned int netcat_port;
 #endif
 #if DROPBEAR_CLI_PROXYCMD
-	/* A proxy command to run via the user's shell */
-	char *proxycmd;
+    /* A proxy command to run via the user's shell */
+    char *proxycmd;
 #endif
 #if DROPBEAR_CLI_MULTIHOP
-	/* Similar to proxycmd, but is arguments for execve(), not shell */
-	char **proxyexec;
+    /* Similar to proxycmd, but is arguments for execve(), not shell */
+    char **proxyexec;
 #endif
-	const char *bind_arg;
-	char *bind_address;
-	char *bind_port;
-	const char *keepalive_arg;
+    const char *bind_arg;
+    char *bind_address;
+    char *bind_port;
+    const char *keepalive_arg;
 } cli_runopts;
 
 extern cli_runopts cli_opts;
-void cli_getopts(int argc, char ** argv);
+void cli_getopts(int argc, char **argv);
 
 #if DROPBEAR_USER_ALGO_LIST
 void parse_ciphers_macs(void);
 #endif
-void print_algos(const char* algo) ATTRIB_NORETURN;
+void print_algos(const char *algo) ATTRIB_NORETURN;
 
 void print_version(void);
-void parse_recv_window(const char* recv_window_arg);
-int split_address_port(const char* spec, char **first, char ** second);
+void parse_recv_window(const char *recv_window_arg);
+int split_address_port(const char *spec, char **first, char **second);
 
 #if DROPBEAR_CLI_PUBKEY_AUTH
-void loadidentityfile(const char* filename, int warnfail);
+void loadidentityfile(const char *filename, int warnfail);
 #endif
 
 #if DROPBEAR_USE_SSH_CONFIG
-void read_config_file(char* filename, FILE* config_file, cli_runopts* options);
+void read_config_file(char *filename, FILE *config_file, cli_runopts *options);
 #endif
-
 
 #endif /* DROPBEAR_RUNOPTS_H_ */

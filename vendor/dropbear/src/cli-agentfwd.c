@@ -44,58 +44,56 @@
 /* The protocol implemented to talk to OpenSSH's SSH2 agent is documented in
    PROTOCOL.agent in recent OpenSSH source distributions (5.1p1 has it). */
 
-static int new_agent_chan(struct Channel * channel);
+static int new_agent_chan(struct Channel *channel);
 
 const struct ChanType cli_chan_agent = {
-	"auth-agent@openssh.com",
-	new_agent_chan,
-	NULL,
-	NULL,
-	NULL,
-	NULL
-};
+    "auth-agent@openssh.com", new_agent_chan, NULL, NULL, NULL, NULL};
 
-static int connect_agent() {
+static int connect_agent()
+{
 
-	int fd = -1;
-	char* agent_sock = NULL;
+    int fd = -1;
+    char *agent_sock = NULL;
 
-	agent_sock = getenv("SSH_AUTH_SOCK");
-	if (agent_sock == NULL)
-		return -1;
+    agent_sock = getenv("SSH_AUTH_SOCK");
+    if (agent_sock == NULL)
+        return -1;
 
-	fd = connect_unix(agent_sock);
+    fd = connect_unix(agent_sock);
 
-	if (fd < 0) {
-		dropbear_log(LOG_INFO, "Failed to connect to agent");
-	}
+    if (fd < 0)
+    {
+        dropbear_log(LOG_INFO, "Failed to connect to agent");
+    }
 
-	return fd;
+    return fd;
 }
 
 /* handle a request for a connection to the locally running ssh-agent
    or forward. */
-static int new_agent_chan(struct Channel * channel) {
+static int new_agent_chan(struct Channel *channel)
+{
 
-	int fd = -1;
+    int fd = -1;
 
-	if (!cli_opts.agent_fwd)
-		return SSH_OPEN_ADMINISTRATIVELY_PROHIBITED;
+    if (!cli_opts.agent_fwd)
+        return SSH_OPEN_ADMINISTRATIVELY_PROHIBITED;
 
-	fd = connect_agent();
-	if (fd < 0) {
-		return SSH_OPEN_CONNECT_FAILED;
-	}
+    fd = connect_agent();
+    if (fd < 0)
+    {
+        return SSH_OPEN_CONNECT_FAILED;
+    }
 
-	setnonblocking(fd);
+    setnonblocking(fd);
 
-	ses.maxfd = MAX(ses.maxfd, fd);
+    ses.maxfd = MAX(ses.maxfd, fd);
 
-	channel->readfd = fd;
-	channel->writefd = fd;
-	channel->bidir_fd = 1;
+    channel->readfd = fd;
+    channel->writefd = fd;
+    channel->bidir_fd = 1;
 
-	return 0;
+    return 0;
 }
 
 /* Sends a request to the agent, returning a newly allocated buffer
@@ -109,208 +107,231 @@ static int new_agent_chan(struct Channel * channel) {
    data        Any data, depending on packet type.  Encoding as in the ssh packet
                protocol.
 */
-static buffer * agent_request(unsigned char type, const buffer *data) {
+static buffer *agent_request(unsigned char type, const buffer *data)
+{
 
-	buffer * payload = NULL;
-	buffer * inbuf = NULL;
-	size_t readlen = 0;
-	ssize_t ret;
-	const int fd = cli_opts.agent_fd;
-	unsigned int data_len = 0;
-	if (data)
-	{
-		data_len = data->len;
-	}
+    buffer *payload = NULL;
+    buffer *inbuf = NULL;
+    size_t readlen = 0;
+    ssize_t ret;
+    const int fd = cli_opts.agent_fd;
+    unsigned int data_len = 0;
+    if (data)
+    {
+        data_len = data->len;
+    }
 
-	payload = buf_new(4 + 1 + data_len);
+    payload = buf_new(4 + 1 + data_len);
 
-	buf_putint(payload, 1 + data_len);
-	buf_putbyte(payload, type);
-	if (data) {
-		buf_putbytes(payload, data->data, data->len);
-	}
-	buf_setpos(payload, 0);
+    buf_putint(payload, 1 + data_len);
+    buf_putbyte(payload, type);
+    if (data)
+    {
+        buf_putbytes(payload, data->data, data->len);
+    }
+    buf_setpos(payload, 0);
 
-	ret = atomicio(vwrite, fd, buf_getptr(payload, payload->len), payload->len);
-	if ((size_t)ret != payload->len) {
-		TRACE(("write failed fd %d for agent_request, %s", fd, strerror(errno)))
-		goto out;
-	}
+    ret = atomicio(vwrite, fd, buf_getptr(payload, payload->len), payload->len);
+    if ((size_t)ret != payload->len)
+    {
+        TRACE(("write failed fd %d for agent_request, %s", fd, strerror(errno)))
+        goto out;
+    }
 
-	buf_free(payload);
-	payload = NULL;
-	TRACE(("Wrote out bytes for agent_request"))
-	/* Now we read the response */
-	inbuf = buf_new(4);
-	ret = atomicio(read, fd, buf_getwriteptr(inbuf, 4), 4);
-	if (ret != 4) {
-		TRACE(("read of length failed for agent_request"))
-		goto out;
-	}
-	buf_setpos(inbuf, 0);
-	buf_setlen(inbuf, ret);
+    buf_free(payload);
+    payload = NULL;
+    TRACE(("Wrote out bytes for agent_request"))
+    /* Now we read the response */
+    inbuf = buf_new(4);
+    ret = atomicio(read, fd, buf_getwriteptr(inbuf, 4), 4);
+    if (ret != 4)
+    {
+        TRACE(("read of length failed for agent_request"))
+        goto out;
+    }
+    buf_setpos(inbuf, 0);
+    buf_setlen(inbuf, ret);
 
-	readlen = buf_getint(inbuf);
-	if (readlen > MAX_AGENT_REPLY) {
-		TRACE(("agent reply is too big"));
-		goto out;
-	}
-	
-	inbuf = buf_resize(inbuf, readlen);
-	buf_setpos(inbuf, 0);
-	ret = atomicio(read, fd, buf_getwriteptr(inbuf, readlen), readlen);
-	if ((size_t)ret != readlen) {
-		TRACE(("read of data failed for agent_request"))
-		goto out;
-	}
-	buf_incrwritepos(inbuf, readlen);
-	buf_setpos(inbuf, 0);
+    readlen = buf_getint(inbuf);
+    if (readlen > MAX_AGENT_REPLY)
+    {
+        TRACE(("agent reply is too big"));
+        goto out;
+    }
+
+    inbuf = buf_resize(inbuf, readlen);
+    buf_setpos(inbuf, 0);
+    ret = atomicio(read, fd, buf_getwriteptr(inbuf, readlen), readlen);
+    if ((size_t)ret != readlen)
+    {
+        TRACE(("read of data failed for agent_request"))
+        goto out;
+    }
+    buf_incrwritepos(inbuf, readlen);
+    buf_setpos(inbuf, 0);
 
 out:
-	if (payload)
-		buf_free(payload);
+    if (payload)
+        buf_free(payload);
 
-	return inbuf;
+    return inbuf;
 }
 
-static void agent_get_key_list(m_list * ret_list)
+static void agent_get_key_list(m_list *ret_list)
 {
-	buffer * inbuf = NULL;
-	unsigned int num = 0;
-	unsigned char packet_type;
-	unsigned int i;
-	int ret;
+    buffer *inbuf = NULL;
+    unsigned int num = 0;
+    unsigned char packet_type;
+    unsigned int i;
+    int ret;
 
-	inbuf = agent_request(SSH2_AGENTC_REQUEST_IDENTITIES, NULL);
-	if (!inbuf) {
-		TRACE(("agent_request failed returning identities"))
-		goto out;
-	}
+    inbuf = agent_request(SSH2_AGENTC_REQUEST_IDENTITIES, NULL);
+    if (!inbuf)
+    {
+        TRACE(("agent_request failed returning identities"))
+        goto out;
+    }
 
-	/* The reply has a format of:
+    /* The reply has a format of:
 		byte			SSH2_AGENT_IDENTITIES_ANSWER
 		uint32			num_keys
   	   Followed by zero or more consecutive keys, encoded as:
        	 string			key_blob
     	 string			key_comment
 	 */
-	packet_type = buf_getbyte(inbuf);
-	if (packet_type != SSH2_AGENT_IDENTITIES_ANSWER) {
-		goto out;
-	}
+    packet_type = buf_getbyte(inbuf);
+    if (packet_type != SSH2_AGENT_IDENTITIES_ANSWER)
+    {
+        goto out;
+    }
 
-	num = buf_getint(inbuf);
-	for (i = 0; i < num; i++) {
-		sign_key * pubkey = NULL;
-		enum signkey_type key_type = DROPBEAR_SIGNKEY_ANY;
-		buffer * key_buf;
+    num = buf_getint(inbuf);
+    for (i = 0; i < num; i++)
+    {
+        sign_key *pubkey = NULL;
+        enum signkey_type key_type = DROPBEAR_SIGNKEY_ANY;
+        buffer *key_buf;
 
-		/* each public key is encoded as a string */
-		key_buf = buf_getstringbuf(inbuf);
-		pubkey = new_sign_key();
-		ret = buf_get_pub_key(key_buf, pubkey, &key_type);
-		buf_free(key_buf);
-		if (ret != DROPBEAR_SUCCESS) {
-			TRACE(("Skipping bad/unknown type pubkey from agent"));
-			sign_key_free(pubkey);
-		} else {
-			pubkey->type = key_type;
-			pubkey->source = SIGNKEY_SOURCE_AGENT;
+        /* each public key is encoded as a string */
+        key_buf = buf_getstringbuf(inbuf);
+        pubkey = new_sign_key();
+        ret = buf_get_pub_key(key_buf, pubkey, &key_type);
+        buf_free(key_buf);
+        if (ret != DROPBEAR_SUCCESS)
+        {
+            TRACE(("Skipping bad/unknown type pubkey from agent"));
+            sign_key_free(pubkey);
+        }
+        else
+        {
+            pubkey->type = key_type;
+            pubkey->source = SIGNKEY_SOURCE_AGENT;
 
-			list_append(ret_list, pubkey);
-		}
+            list_append(ret_list, pubkey);
+        }
 
-		/* We'll ignore the comment for now. might want it later.*/
-		buf_eatstring(inbuf);
-	}
+        /* We'll ignore the comment for now. might want it later.*/
+        buf_eatstring(inbuf);
+    }
 
 out:
-	if (inbuf) {
-		buf_free(inbuf);
-		inbuf = NULL;
-	}
+    if (inbuf)
+    {
+        buf_free(inbuf);
+        inbuf = NULL;
+    }
 }
 
-void cli_setup_agent(const struct Channel *channel) {
-	if (!getenv("SSH_AUTH_SOCK")) {
-		return;
-	}
-	
-	start_send_channel_request(channel, "auth-agent-req@openssh.com");
-	/* Don't want replies */
-	buf_putbyte(ses.writepayload, 0);
-	encrypt_packet();
+void cli_setup_agent(const struct Channel *channel)
+{
+    if (!getenv("SSH_AUTH_SOCK"))
+    {
+        return;
+    }
+
+    start_send_channel_request(channel, "auth-agent-req@openssh.com");
+    /* Don't want replies */
+    buf_putbyte(ses.writepayload, 0);
+    encrypt_packet();
 }
 
 /* Returned keys are prepended to ret_list, which will
    be updated. */
-void cli_load_agent_keys(m_list *ret_list) {
-	/* agent_fd will be closed after successful auth */
-	cli_opts.agent_fd = connect_agent();
-	if (cli_opts.agent_fd < 0) {
-		return;
-	}
+void cli_load_agent_keys(m_list *ret_list)
+{
+    /* agent_fd will be closed after successful auth */
+    cli_opts.agent_fd = connect_agent();
+    if (cli_opts.agent_fd < 0)
+    {
+        return;
+    }
 
-	agent_get_key_list(ret_list);
+    agent_get_key_list(ret_list);
 }
 
-void agent_buf_sign(buffer *sigblob, sign_key *key, 
-		const buffer *data_buf, enum signature_type sigtype) {
-	buffer *request_data = NULL;
-	buffer *response = NULL;
-	unsigned int siglen;
-	int packet_type;
-	int flags = 0;
-	
-	/* Request format
+void agent_buf_sign(buffer *sigblob, sign_key *key, const buffer *data_buf,
+                    enum signature_type sigtype)
+{
+    buffer *request_data = NULL;
+    buffer *response = NULL;
+    unsigned int siglen;
+    int packet_type;
+    int flags = 0;
+
+    /* Request format
 	byte			SSH2_AGENTC_SIGN_REQUEST
 	string			key_blob
 	string			data
 	uint32			flags
 	*/
-	request_data = buf_new(MAX_PUBKEY_SIZE + data_buf->len + 12);
-	buf_put_pub_key(request_data, key, key->type);
-	
-	buf_putbufstring(request_data, data_buf);
+    request_data = buf_new(MAX_PUBKEY_SIZE + data_buf->len + 12);
+    buf_put_pub_key(request_data, key, key->type);
+
+    buf_putbufstring(request_data, data_buf);
 #if DROPBEAR_RSA_SHA256
-	if (sigtype == DROPBEAR_SIGNATURE_RSA_SHA256) {
-		flags |= SSH_AGENT_RSA_SHA2_256;
-	}
+    if (sigtype == DROPBEAR_SIGNATURE_RSA_SHA256)
+    {
+        flags |= SSH_AGENT_RSA_SHA2_256;
+    }
 #endif
-	buf_putint(request_data, flags);
-	
-	response = agent_request(SSH2_AGENTC_SIGN_REQUEST, request_data);
-	
-	if (!response) {
-		goto fail;
-	}
-	
-	packet_type = buf_getbyte(response);
-	if (packet_type != SSH2_AGENT_SIGN_RESPONSE) {
-		goto fail;
-	}
-	
-	/* Response format
+    buf_putint(request_data, flags);
+
+    response = agent_request(SSH2_AGENTC_SIGN_REQUEST, request_data);
+
+    if (!response)
+    {
+        goto fail;
+    }
+
+    packet_type = buf_getbyte(response);
+    if (packet_type != SSH2_AGENT_SIGN_RESPONSE)
+    {
+        goto fail;
+    }
+
+    /* Response format
 	byte			SSH2_AGENT_SIGN_RESPONSE
 	string			signature_blob
 	*/
-	siglen = buf_getint(response);
-	buf_putbytes(sigblob, buf_getptr(response, siglen), siglen);
-	goto cleanup;
-	
+    siglen = buf_getint(response);
+    buf_putbytes(sigblob, buf_getptr(response, siglen), siglen);
+    goto cleanup;
+
 fail:
-	/* XXX don't fail badly here. instead propagate a failure code back up to
+    /* XXX don't fail badly here. instead propagate a failure code back up to
 	   the cli auth pubkey code, and just remove this key from the list of 
 	   ones to try. */
-	dropbear_exit("Agent failed signing key");
+    dropbear_exit("Agent failed signing key");
 
 cleanup:
-	if (request_data) {
-		buf_free(request_data);
-	}
-	if (response) {
-		buf_free(response);
-	}
+    if (request_data)
+    {
+        buf_free(request_data);
+    }
+    if (response)
+    {
+        buf_free(response);
+    }
 }
 
 #endif

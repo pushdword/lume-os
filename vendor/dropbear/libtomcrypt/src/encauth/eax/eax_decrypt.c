@@ -23,22 +23,22 @@
    @param length  The length (octets) of the ciphertext
    @return CRYPT_OK if successful
 */
-int eax_decrypt(eax_state *eax, const unsigned char *ct, unsigned char *pt,
-                unsigned long length)
+int eax_decrypt(eax_state *eax, const unsigned char *ct, unsigned char *pt, unsigned long length)
 {
-   int err;
+    int err;
 
-   LTC_ARGCHK(eax != NULL);
-   LTC_ARGCHK(pt  != NULL);
-   LTC_ARGCHK(ct  != NULL);
+    LTC_ARGCHK(eax != NULL);
+    LTC_ARGCHK(pt != NULL);
+    LTC_ARGCHK(ct != NULL);
 
-   /* omac ciphertext */
-   if ((err = omac_process(&eax->ctomac, ct, length)) != CRYPT_OK) {
-      return err;
-   }
+    /* omac ciphertext */
+    if ((err = omac_process(&eax->ctomac, ct, length)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* decrypt  */
-   return ctr_decrypt(ct, pt, length, &eax->ctr);
+    /* decrypt  */
+    return ctr_decrypt(ct, pt, length, &eax->ctr);
 }
 
 #endif

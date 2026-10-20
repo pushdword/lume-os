@@ -24,31 +24,37 @@
 */
 int der_length_generalizedtime(ltc_generalizedtime *gtime, unsigned long *outlen)
 {
-   LTC_ARGCHK(outlen  != NULL);
-   LTC_ARGCHK(gtime != NULL);
+    LTC_ARGCHK(outlen != NULL);
+    LTC_ARGCHK(gtime != NULL);
 
-   if (gtime->fs == 0) {
-      /* we encode as YYYYMMDDhhmmssZ */
-      *outlen = 2 + 14 + 1;
-   } else {
-      unsigned long len = 2 + 14 + 1;
-      unsigned fs = gtime->fs;
-      do {
-         fs /= 10;
-         len++;
-      } while(fs != 0);
-      if (gtime->off_hh == 0 && gtime->off_mm == 0) {
-         /* we encode as YYYYMMDDhhmmss.fsZ */
-         len += 1;
-      }
-      else {
-         /* we encode as YYYYMMDDhhmmss.fs{+|-}hh'mm' */
-         len += 5;
-      }
-      *outlen = len;
-   }
+    if (gtime->fs == 0)
+    {
+        /* we encode as YYYYMMDDhhmmssZ */
+        *outlen = 2 + 14 + 1;
+    }
+    else
+    {
+        unsigned long len = 2 + 14 + 1;
+        unsigned fs = gtime->fs;
+        do
+        {
+            fs /= 10;
+            len++;
+        } while (fs != 0);
+        if (gtime->off_hh == 0 && gtime->off_mm == 0)
+        {
+            /* we encode as YYYYMMDDhhmmss.fsZ */
+            len += 1;
+        }
+        else
+        {
+            /* we encode as YYYYMMDDhhmmss.fs{+|-}hh'mm' */
+            len += 5;
+        }
+        *outlen = len;
+    }
 
-   return CRYPT_OK;
+    return CRYPT_OK;
 }
 
 #endif

@@ -35,14 +35,16 @@ void read_packet(void);
 void decrypt_packet(void);
 void encrypt_packet(void);
 
-void writebuf_enqueue(buffer * writebuf);
+void writebuf_enqueue(buffer *writebuf);
 
 void process_packet(void);
 
 void maybe_flush_reply_queue(void);
-typedef struct PacketType {
-	unsigned char type; /* SSH_MSG_FOO */
-	void (*handler)(void);
+
+typedef struct PacketType
+{
+    unsigned char type; /* SSH_MSG_FOO */
+    void (*handler)(void);
 } packettype;
 
 #define PACKET_PADDING_OFF 4

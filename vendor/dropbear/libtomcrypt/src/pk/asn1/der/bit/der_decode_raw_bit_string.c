@@ -13,11 +13,10 @@
   ASN.1 DER, encode a BIT STRING, Tom St Denis
 */
 
-
 #ifdef LTC_DER
 
-#define SETBIT(v, n)    (v=((unsigned char)(v) | (1U << (unsigned char)(n))))
-#define CLRBIT(v, n)    (v=((unsigned char)(v) & ~(1U << (unsigned char)(n))))
+#define SETBIT(v, n) (v = ((unsigned char)(v) | (1U << (unsigned char)(n))))
+#define CLRBIT(v, n) (v = ((unsigned char)(v) & ~(1U << (unsigned char)(n))))
 
 /**
   Store a BIT STRING
@@ -27,77 +26,91 @@
   @param outlen  [in/out] The number of bits stored
   @return CRYPT_OK if successful
 */
-int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
-                                unsigned char *out, unsigned long *outlen)
+int der_decode_raw_bit_string(const unsigned char *in, unsigned long inlen, unsigned char *out,
+                              unsigned long *outlen)
 {
-   unsigned long dlen, blen, x, y;
+    unsigned long dlen, blen, x, y;
 
-   LTC_ARGCHK(in     != NULL);
-   LTC_ARGCHK(out    != NULL);
-   LTC_ARGCHK(outlen != NULL);
+    LTC_ARGCHK(in != NULL);
+    LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(outlen != NULL);
 
-   /* packet must be at least 4 bytes */
-   if (inlen < 4) {
-       return CRYPT_INVALID_ARG;
-   }
+    /* packet must be at least 4 bytes */
+    if (inlen < 4)
+    {
+        return CRYPT_INVALID_ARG;
+    }
 
-   /* check for 0x03 */
-   if ((in[0]&0x1F) != 0x03) {
-      return CRYPT_INVALID_PACKET;
-   }
+    /* check for 0x03 */
+    if ((in[0] & 0x1F) != 0x03)
+    {
+        return CRYPT_INVALID_PACKET;
+    }
 
-   /* offset in the data */
-   x = 1;
+    /* offset in the data */
+    x = 1;
 
-   /* get the length of the data */
-   if (in[x] & 0x80) {
-      /* long format get number of length bytes */
-      y = in[x++] & 0x7F;
+    /* get the length of the data */
+    if (in[x] & 0x80)
+    {
+        /* long format get number of length bytes */
+        y = in[x++] & 0x7F;
 
-      /* invalid if 0 or > 2 */
-      if (y == 0 || y > 2) {
-         return CRYPT_INVALID_PACKET;
-      }
+        /* invalid if 0 or > 2 */
+        if (y == 0 || y > 2)
+        {
+            return CRYPT_INVALID_PACKET;
+        }
 
-      /* read the data len */
-      dlen = 0;
-      while (y--) {
-         dlen = (dlen << 8) | (unsigned long)in[x++];
-      }
-   } else {
-      /* short format */
-      dlen = in[x++] & 0x7F;
-   }
+        /* read the data len */
+        dlen = 0;
+        while (y--)
+        {
+            dlen = (dlen << 8) | (unsigned long)in[x++];
+        }
+    }
+    else
+    {
+        /* short format */
+        dlen = in[x++] & 0x7F;
+    }
 
-   /* is the data len too long or too short? */
-   if ((dlen == 0) || (dlen + x > inlen)) {
-       return CRYPT_INVALID_PACKET;
-   }
+    /* is the data len too long or too short? */
+    if ((dlen == 0) || (dlen + x > inlen))
+    {
+        return CRYPT_INVALID_PACKET;
+    }
 
-   /* get padding count */
-   blen = ((dlen - 1) << 3) - (in[x++] & 7);
+    /* get padding count */
+    blen = ((dlen - 1) << 3) - (in[x++] & 7);
 
-   /* too many bits? */
-   if (blen > *outlen) {
-      *outlen = blen;
-      return CRYPT_BUFFER_OVERFLOW;
-   }
+    /* too many bits? */
+    if (blen > *outlen)
+    {
+        *outlen = blen;
+        return CRYPT_BUFFER_OVERFLOW;
+    }
 
-   /* decode/store the bits */
-   for (y = 0; y < blen; y++) {
-      if (in[x] & (1 << (7 - (y & 7)))) {
-         SETBIT(out[y/8], 7-(y%8));
-      } else {
-         CLRBIT(out[y/8], 7-(y%8));
-      }
-      if ((y & 7) == 7) {
-         ++x;
-      }
-   }
+    /* decode/store the bits */
+    for (y = 0; y < blen; y++)
+    {
+        if (in[x] & (1 << (7 - (y & 7))))
+        {
+            SETBIT(out[y / 8], 7 - (y % 8));
+        }
+        else
+        {
+            CLRBIT(out[y / 8], 7 - (y % 8));
+        }
+        if ((y & 7) == 7)
+        {
+            ++x;
+        }
+    }
 
-   /* we done */
-   *outlen = blen;
-   return CRYPT_OK;
+    /* we done */
+    *outlen = blen;
+    return CRYPT_OK;
 }
 
 #endif

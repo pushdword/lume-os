@@ -9,19 +9,19 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-
-typedef enum {
-   CPU_METER_NICE = 0,
-   CPU_METER_NORMAL = 1,
-   CPU_METER_KERNEL = 2,
-   CPU_METER_IRQ = 3,
-   CPU_METER_SOFTIRQ = 4,
-   CPU_METER_STEAL = 5,
-   CPU_METER_GUEST = 6,
-   CPU_METER_IOWAIT = 7,
-   CPU_METER_FREQUENCY = 8,
-   CPU_METER_TEMPERATURE = 9,
-   CPU_METER_ITEMCOUNT = 10, // number of entries in this enum
+typedef enum
+{
+    CPU_METER_NICE = 0,
+    CPU_METER_NORMAL = 1,
+    CPU_METER_KERNEL = 2,
+    CPU_METER_IRQ = 3,
+    CPU_METER_SOFTIRQ = 4,
+    CPU_METER_STEAL = 5,
+    CPU_METER_GUEST = 6,
+    CPU_METER_IOWAIT = 7,
+    CPU_METER_FREQUENCY = 8,
+    CPU_METER_TEMPERATURE = 9,
+    CPU_METER_ITEMCOUNT = 10, // number of entries in this enum
 } CPUMeterValues;
 
 extern const MeterClass CPUMeter_class;

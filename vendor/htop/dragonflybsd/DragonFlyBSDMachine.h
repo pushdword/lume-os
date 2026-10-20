@@ -8,7 +8,7 @@ Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include <sys/types.h>  // required for kvm.h
+#include <sys/types.h> // required for kvm.h
 #include <kvm.h>
 #include <osreldate.h>
 #include <stdbool.h>
@@ -22,41 +22,42 @@ in the source distribution for its full text.
 #include "ProcessTable.h"
 #include "UsersTable.h"
 
-
-typedef struct CPUData_ {
-   double userPercent;
-   double nicePercent;
-   double systemPercent;
-   double irqPercent;
-   double idlePercent;
-   double systemAllPercent;
+typedef struct CPUData_
+{
+    double userPercent;
+    double nicePercent;
+    double systemPercent;
+    double irqPercent;
+    double idlePercent;
+    double systemAllPercent;
 } CPUData;
 
-typedef struct DragonFlyBSDMachine_ {
-   Machine super;
-   kvm_t* kd;
+typedef struct DragonFlyBSDMachine_
+{
+    Machine super;
+    kvm_t *kd;
 
-   Hashtable* jails;
+    Hashtable *jails;
 
-   int pageSize;
-   int pageSizeKb;
-   int kernelFScale;
+    int pageSize;
+    int pageSizeKb;
+    int kernelFScale;
 
-   memory_t wiredMem;
-   memory_t buffersMem;
-   memory_t activeMem;
-   memory_t inactiveMem;
-   memory_t cacheMem;
+    memory_t wiredMem;
+    memory_t buffersMem;
+    memory_t activeMem;
+    memory_t inactiveMem;
+    memory_t cacheMem;
 
-   CPUData* cpus;
+    CPUData *cpus;
 
-   unsigned long* cp_time_o;
-   unsigned long* cp_time_n;
+    unsigned long *cp_time_o;
+    unsigned long *cp_time_n;
 
-   unsigned long* cp_times_o;
-   unsigned long* cp_times_n;
+    unsigned long *cp_times_o;
+    unsigned long *cp_times_n;
 } DragonFlyBSDMachine;
 
-char* DragonFlyBSDMachine_readJailName(const DragonFlyBSDMachine* host, int jailid);
+char *DragonFlyBSDMachine_readJailName(const DragonFlyBSDMachine *host, int jailid);
 
 #endif

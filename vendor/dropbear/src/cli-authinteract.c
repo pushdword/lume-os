@@ -31,146 +31,156 @@
 
 #if DROPBEAR_CLI_INTERACT_AUTH
 
-static char* get_response(char* prompt)
+static char *get_response(char *prompt)
 {
-	FILE* tty = NULL;
-	char* response = NULL;
-	/* not a password, but a reasonable limit */
-	char buf[DROPBEAR_MAX_CLI_PASS];
-	char* ret = NULL;
+    FILE *tty = NULL;
+    char *response = NULL;
+    /* not a password, but a reasonable limit */
+    char buf[DROPBEAR_MAX_CLI_PASS];
+    char *ret = NULL;
 
-	fprintf(stderr, "%s", prompt);
+    fprintf(stderr, "%s", prompt);
 
-	tty = fopen(_PATH_TTY, "r");
-	if (tty) {
-		ret = fgets(buf, sizeof(buf), tty);
-		fclose(tty);
-	} else {
-		ret = fgets(buf, sizeof(buf), stdin);
-	}
+    tty = fopen(_PATH_TTY, "r");
+    if (tty)
+    {
+        ret = fgets(buf, sizeof(buf), tty);
+        fclose(tty);
+    }
+    else
+    {
+        ret = fgets(buf, sizeof(buf), stdin);
+    }
 
-	if (ret == NULL) {
-		response = m_strdup("");
-	} else {
-		unsigned int buflen = strlen(buf);
-		/* fgets includes newlines */
-		if (buflen > 0 && buf[buflen-1] == '\n')
-			buf[buflen-1] = '\0';
-		response = m_strdup(buf);
-	}
+    if (ret == NULL)
+    {
+        response = m_strdup("");
+    }
+    else
+    {
+        unsigned int buflen = strlen(buf);
+        /* fgets includes newlines */
+        if (buflen > 0 && buf[buflen - 1] == '\n')
+            buf[buflen - 1] = '\0';
+        response = m_strdup(buf);
+    }
 
-	m_burn(buf, sizeof(buf));
+    m_burn(buf, sizeof(buf));
 
-	return response;
+    return response;
 }
 
-void recv_msg_userauth_info_request() {
+void recv_msg_userauth_info_request()
+{
 
-	char *name = NULL;
-	char *instruction = NULL;
-	unsigned int num_prompts = 0;
-	unsigned int i;
+    char *name = NULL;
+    char *instruction = NULL;
+    unsigned int num_prompts = 0;
+    unsigned int i;
 
-	char *prompt = NULL;
-	unsigned int echo = 0;
-	char *response = NULL;
+    char *prompt = NULL;
+    unsigned int echo = 0;
+    char *response = NULL;
 
-	TRACE(("enter recv_msg_recv_userauth_info_request"))
+    TRACE(("enter recv_msg_recv_userauth_info_request"))
 
-	/* Let the user know what password/host they are authing for */
-	if (!cli_ses.interact_request_received) {
-		fprintf(stderr, "Login for %s@%s\n", cli_opts.username,
-				cli_opts.remotehost);
-	}
-	cli_ses.interact_request_received = 1;
+    /* Let the user know what password/host they are authing for */
+    if (!cli_ses.interact_request_received)
+    {
+        fprintf(stderr, "Login for %s@%s\n", cli_opts.username, cli_opts.remotehost);
+    }
+    cli_ses.interact_request_received = 1;
 
-	name = buf_getstring(ses.payload, NULL);
-	instruction = buf_getstring(ses.payload, NULL);
+    name = buf_getstring(ses.payload, NULL);
+    instruction = buf_getstring(ses.payload, NULL);
 
-	/* language tag */
-	buf_eatstring(ses.payload);
+    /* language tag */
+    buf_eatstring(ses.payload);
 
-	num_prompts = buf_getint(ses.payload);
-	
-	if (num_prompts >= DROPBEAR_MAX_CLI_INTERACT_PROMPTS) {
-		dropbear_exit("Too many prompts received for keyboard-interactive");
-	}
+    num_prompts = buf_getint(ses.payload);
 
-	/* we'll build the response as we go */
-	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_INFO_RESPONSE);
-	buf_putint(ses.writepayload, num_prompts);
+    if (num_prompts >= DROPBEAR_MAX_CLI_INTERACT_PROMPTS)
+    {
+        dropbear_exit("Too many prompts received for keyboard-interactive");
+    }
 
-	if (strlen(name) > 0) {
-		cleantext(name, 0);
-		fprintf(stderr, "%s", name);
-	}
-	m_free(name);
+    /* we'll build the response as we go */
+    CHECKCLEARTOWRITE();
+    buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_INFO_RESPONSE);
+    buf_putint(ses.writepayload, num_prompts);
 
-	if (strlen(instruction) > 0) {
-		cleantext(instruction, 0);
-		fprintf(stderr, "%s", instruction);
-	}
-	m_free(instruction);
+    if (strlen(name) > 0)
+    {
+        cleantext(name, 0);
+        fprintf(stderr, "%s", name);
+    }
+    m_free(name);
 
-	for (i = 0; i < num_prompts; i++) {
-		unsigned int response_len = 0;
-		cli_ses.is_trivial_auth = 0;
-		prompt = buf_getstring(ses.payload, NULL);
-		cleantext(prompt, 0);
+    if (strlen(instruction) > 0)
+    {
+        cleantext(instruction, 0);
+        fprintf(stderr, "%s", instruction);
+    }
+    m_free(instruction);
 
-		echo = buf_getbool(ses.payload);
+    for (i = 0; i < num_prompts; i++)
+    {
+        unsigned int response_len = 0;
+        cli_ses.is_trivial_auth = 0;
+        prompt = buf_getstring(ses.payload, NULL);
+        cleantext(prompt, 0);
 
-		if (!echo) {
-			char* p = getpass_or_cancel(prompt);
-			response = m_strdup(p);
-			m_burn(p, strlen(p));
-		} else {
-			response = get_response(prompt);
-		}
+        echo = buf_getbool(ses.payload);
 
-		response_len = strlen(response);
-		buf_putstring(ses.writepayload, response, response_len);
-		m_burn(response, response_len);
-		m_free(prompt);
-		m_free(response);
-	}
+        if (!echo)
+        {
+            char *p = getpass_or_cancel(prompt);
+            response = m_strdup(p);
+            m_burn(p, strlen(p));
+        }
+        else
+        {
+            response = get_response(prompt);
+        }
 
-	encrypt_packet();
+        response_len = strlen(response);
+        buf_putstring(ses.writepayload, response, response_len);
+        m_burn(response, response_len);
+        m_free(prompt);
+        m_free(response);
+    }
 
+    encrypt_packet();
 
-	TRACE(("leave recv_msg_recv_userauth_info_request"))
+    TRACE(("leave recv_msg_recv_userauth_info_request"))
 }
 
-void cli_auth_interactive() {
+void cli_auth_interactive()
+{
 
-	TRACE(("enter cli_auth_interactive"))
-	CHECKCLEARTOWRITE();
+    TRACE(("enter cli_auth_interactive"))
+    CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_REQUEST);
+    buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_REQUEST);
 
-	/* username */
-	buf_putstring(ses.writepayload, cli_opts.username,
-			strlen(cli_opts.username));
+    /* username */
+    buf_putstring(ses.writepayload, cli_opts.username, strlen(cli_opts.username));
 
-	/* service name */
-	buf_putstring(ses.writepayload, SSH_SERVICE_CONNECTION,
-			SSH_SERVICE_CONNECTION_LEN);
+    /* service name */
+    buf_putstring(ses.writepayload, SSH_SERVICE_CONNECTION, SSH_SERVICE_CONNECTION_LEN);
 
-	/* method */
-	buf_putstring(ses.writepayload, AUTH_METHOD_INTERACT,
-			AUTH_METHOD_INTERACT_LEN);
+    /* method */
+    buf_putstring(ses.writepayload, AUTH_METHOD_INTERACT, AUTH_METHOD_INTERACT_LEN);
 
-	/* empty language tag */
-	buf_putstring(ses.writepayload, "", 0);
+    /* empty language tag */
+    buf_putstring(ses.writepayload, "", 0);
 
-	/* empty submethods */
-	buf_putstring(ses.writepayload, "", 0);
+    /* empty submethods */
+    buf_putstring(ses.writepayload, "", 0);
 
-	encrypt_packet();
-	cli_ses.interact_request_received = 0;
+    encrypt_packet();
+    cli_ses.interact_request_received = 0;
 
-	TRACE(("leave cli_auth_interactive"))
-
+    TRACE(("leave cli_auth_interactive"))
 }
-#endif	/* DROPBEAR_CLI_INTERACT_AUTH */
+#endif /* DROPBEAR_CLI_INTERACT_AUTH */

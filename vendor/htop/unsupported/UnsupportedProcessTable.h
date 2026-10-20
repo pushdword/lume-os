@@ -9,9 +9,9 @@ in the source distribution for its full text.
 
 #include "ProcessTable.h"
 
-
-typedef struct UnsupportedProcessTable_ {
-   ProcessTable super;
+typedef struct UnsupportedProcessTable_
+{
+    ProcessTable super;
 } UnsupportedProcessTable;
 
 #endif

@@ -12,7 +12,6 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-
 extern const MeterClass PressureStallCPUSomeMeter_class;
 
 extern const MeterClass PressureStallIOSomeMeter_class;

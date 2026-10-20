@@ -16,9 +16,9 @@ in the source distribution for its full text.
 
 #include "pcp/Platform.h"
 
-
-typedef struct PCPProcessTable_ {
-   ProcessTable super;
+typedef struct PCPProcessTable_
+{
+    ProcessTable super;
 } PCPProcessTable;
 
 #endif

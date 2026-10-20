@@ -17,36 +17,36 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "Row.h"
 
-
-typedef struct MainPanel_ {
-   Panel super;
-   State* state;
-   IncSet* inc;
-   Htop_Action* keys;
-   FunctionBar* processBar;  /* function bar with process-specific actions */
-   FunctionBar* readonlyBar;  /* function bar without process actions (ro) */
-   unsigned int idSearch;
+typedef struct MainPanel_
+{
+    Panel super;
+    State *state;
+    IncSet *inc;
+    Htop_Action *keys;
+    FunctionBar *processBar;  /* function bar with process-specific actions */
+    FunctionBar *readonlyBar; /* function bar without process actions (ro) */
+    unsigned int idSearch;
 } MainPanel;
 
-typedef bool(*MainPanel_foreachRowFn)(Row*, Arg);
+typedef bool (*MainPanel_foreachRowFn)(Row *, Arg);
 
-#define MainPanel_getFunctionBar(this_) (((Panel*)(this_))->defaultBar)
+#define MainPanel_getFunctionBar(this_) (((Panel *)(this_))->defaultBar)
 
 // update the Label Keys in the MainPanel bar, list: list / tree mode, filter: filter (inc) active / inactive
-void MainPanel_updateLabels(MainPanel* this, bool list, bool filter);
+void MainPanel_updateLabels(MainPanel *this, bool list, bool filter);
 
-int MainPanel_selectedRow(MainPanel* this);
+int MainPanel_selectedRow(MainPanel *this);
 
-bool MainPanel_foreachRow(MainPanel* this, MainPanel_foreachRowFn fn, Arg arg, bool* wasAnyTagged);
+bool MainPanel_foreachRow(MainPanel *this, MainPanel_foreachRowFn fn, Arg arg, bool *wasAnyTagged);
 
 extern const PanelClass MainPanel_class;
 
-MainPanel* MainPanel_new(void);
+MainPanel *MainPanel_new(void);
 
-void MainPanel_setState(MainPanel* this, State* state);
+void MainPanel_setState(MainPanel *this, State *state);
 
-void MainPanel_setFunctionBar(MainPanel* this, bool readonly);
+void MainPanel_setFunctionBar(MainPanel *this, bool readonly);
 
-void MainPanel_delete(Object* object);
+void MainPanel_delete(Object *object);
 
 #endif

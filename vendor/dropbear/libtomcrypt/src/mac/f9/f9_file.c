@@ -25,68 +25,72 @@
    @param outlen   [in/out] The max size and resulting size of the authentication tag
    @return CRYPT_OK if successful, CRYPT_NOP if file support has been disabled
 */
-int f9_file(int cipher,
-              const unsigned char *key, unsigned long keylen,
-              const char *fname,
-                    unsigned char *out, unsigned long *outlen)
+int f9_file(int cipher, const unsigned char *key, unsigned long keylen, const char *fname,
+            unsigned char *out, unsigned long *outlen)
 {
 #ifdef LTC_NO_FILE
-   LTC_UNUSED_PARAM(cipher);
-   LTC_UNUSED_PARAM(key);
-   LTC_UNUSED_PARAM(keylen);
-   LTC_UNUSED_PARAM(fname);
-   LTC_UNUSED_PARAM(out);
-   LTC_UNUSED_PARAM(outlen);
-   return CRYPT_NOP;
+    LTC_UNUSED_PARAM(cipher);
+    LTC_UNUSED_PARAM(key);
+    LTC_UNUSED_PARAM(keylen);
+    LTC_UNUSED_PARAM(fname);
+    LTC_UNUSED_PARAM(out);
+    LTC_UNUSED_PARAM(outlen);
+    return CRYPT_NOP;
 #else
-   size_t x;
-   int err;
-   f9_state f9;
-   FILE *in;
-   unsigned char *buf;
+    size_t x;
+    int err;
+    f9_state f9;
+    FILE *in;
+    unsigned char *buf;
 
-   LTC_ARGCHK(key    != NULL);
-   LTC_ARGCHK(fname  != NULL);
-   LTC_ARGCHK(out    != NULL);
-   LTC_ARGCHK(outlen != NULL);
+    LTC_ARGCHK(key != NULL);
+    LTC_ARGCHK(fname != NULL);
+    LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(outlen != NULL);
 
-   if ((buf = XMALLOC(LTC_FILE_READ_BUFSIZE)) == NULL) {
-      return CRYPT_MEM;
-   }
+    if ((buf = XMALLOC(LTC_FILE_READ_BUFSIZE)) == NULL)
+    {
+        return CRYPT_MEM;
+    }
 
-   if ((err = f9_init(&f9, cipher, key, keylen)) != CRYPT_OK) {
-      goto LBL_ERR;
-   }
+    if ((err = f9_init(&f9, cipher, key, keylen)) != CRYPT_OK)
+    {
+        goto LBL_ERR;
+    }
 
-   in = fopen(fname, "rb");
-   if (in == NULL) {
-      err = CRYPT_FILE_NOTFOUND;
-      goto LBL_ERR;
-   }
+    in = fopen(fname, "rb");
+    if (in == NULL)
+    {
+        err = CRYPT_FILE_NOTFOUND;
+        goto LBL_ERR;
+    }
 
-   do {
-      x = fread(buf, 1, LTC_FILE_READ_BUFSIZE, in);
-      if ((err = f9_process(&f9, buf, (unsigned long)x)) != CRYPT_OK) {
-         fclose(in);
-         goto LBL_CLEANBUF;
-      }
-   } while (x == LTC_FILE_READ_BUFSIZE);
+    do
+    {
+        x = fread(buf, 1, LTC_FILE_READ_BUFSIZE, in);
+        if ((err = f9_process(&f9, buf, (unsigned long)x)) != CRYPT_OK)
+        {
+            fclose(in);
+            goto LBL_CLEANBUF;
+        }
+    } while (x == LTC_FILE_READ_BUFSIZE);
 
-   if (fclose(in) != 0) {
-      err = CRYPT_ERROR;
-      goto LBL_CLEANBUF;
-   }
+    if (fclose(in) != 0)
+    {
+        err = CRYPT_ERROR;
+        goto LBL_CLEANBUF;
+    }
 
-   err = f9_done(&f9, out, outlen);
+    err = f9_done(&f9, out, outlen);
 
 LBL_CLEANBUF:
-   zeromem(buf, LTC_FILE_READ_BUFSIZE);
+    zeromem(buf, LTC_FILE_READ_BUFSIZE);
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
-   zeromem(&f9, sizeof(f9_state));
+    zeromem(&f9, sizeof(f9_state));
 #endif
-   XFREE(buf);
-   return err;
+    XFREE(buf);
+    return err;
 #endif
 }
 

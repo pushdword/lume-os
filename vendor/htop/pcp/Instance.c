@@ -30,135 +30,146 @@ in the source distribution for its full text.
 #include "pcp/InDomTable.h"
 #include "pcp/Metric.h"
 
+Instance *Instance_new(const Machine *host, const InDomTable *indom)
+{
+    Instance *this = xCalloc(1, sizeof(Instance));
+    Object_setClass(this, Class(Instance));
 
-Instance* Instance_new(const Machine* host, const InDomTable* indom) {
-   Instance* this = xCalloc(1, sizeof(Instance));
-   Object_setClass(this, Class(Instance));
+    Row *super = &this->super;
+    Row_init(super, host);
 
-   Row* super = &this->super;
-   Row_init(super, host);
+    this->indom = indom;
 
-   this->indom = indom;
-
-   return this;
+    return this;
 }
 
-void Instance_done(Instance* this) {
-   if (this->name)
-      free(this->name);
-   Row_done(&this->super);
+void Instance_done(Instance *this)
+{
+    if (this->name)
+        free(this->name);
+    Row_done(&this->super);
 }
 
-static void Instance_delete(Object* cast) {
-   Instance* this = (Instance*) cast;
-   Instance_done(this);
-   free(this);
+static void Instance_delete(Object *cast)
+{
+    Instance *this = (Instance *)cast;
+    Instance_done(this);
+    free(this);
 }
 
-static void Instance_writeField(const Row* super, RichString* str, RowField field) {
-   const Instance* this = (const Instance*) super;
-   int instid = Instance_getId(this);
+static void Instance_writeField(const Row *super, RichString *str, RowField field)
+{
+    const Instance *this = (const Instance *)super;
+    int instid = Instance_getId(this);
 
-   const Settings* settings = super->host->settings;
-   DynamicColumn* column = Hashtable_get(settings->dynamicColumns, field);
-   PCPDynamicColumn* cp = (PCPDynamicColumn*) column;
-   if (!cp)
-      return;
+    const Settings *settings = super->host->settings;
+    DynamicColumn *column = Hashtable_get(settings->dynamicColumns, field);
+    PCPDynamicColumn *cp = (PCPDynamicColumn *)column;
+    if (!cp)
+        return;
 
-   pmAtomValue atom;
-   pmAtomValue* ap = &atom;
-   Metric metric = Metric_fromId(cp->id);
-   const pmDesc* descp = Metric_desc(metric);
-   if (!Metric_instance(metric, instid, this->offset, ap, descp->type))
-      ap = NULL;
+    pmAtomValue atom;
+    pmAtomValue *ap = &atom;
+    Metric metric = Metric_fromId(cp->id);
+    const pmDesc *descp = Metric_desc(metric);
+    if (!Metric_instance(metric, instid, this->offset, ap, descp->type))
+        ap = NULL;
 
-   PCPDynamicColumn_writeAtomValue(cp, str, settings, metric, instid, descp, ap);
+    PCPDynamicColumn_writeAtomValue(cp, str, settings, metric, instid, descp, ap);
 
-   if (ap && descp->type == PM_TYPE_STRING)
-      free(ap->cp);
+    if (ap && descp->type == PM_TYPE_STRING)
+        free(ap->cp);
 }
 
-static const char* Instance_externalName(Row* super) {
-   Instance* this = (Instance*) super;
+static const char *Instance_externalName(Row *super)
+{
+    Instance *this = (Instance *)super;
 
-   if (!this->name)
-      /* ignore any failure here - its safe and we try again next time */
-      (void)pmNameInDom(InDom_getId(this), Instance_getId(this), &this->name);
-   return this->name;
+    if (!this->name)
+        /* ignore any failure here - its safe and we try again next time */
+        (void)pmNameInDom(InDom_getId(this), Instance_getId(this), &this->name);
+    return this->name;
 }
 
-static int Instance_compareByKey(const Row* v1, const Row* v2, int key) {
-   const Instance* i1 = (const Instance*)v1;
-   const Instance* i2 = (const Instance*)v2;
+static int Instance_compareByKey(const Row *v1, const Row *v2, int key)
+{
+    const Instance *i1 = (const Instance *)v1;
+    const Instance *i2 = (const Instance *)v2;
 
-   if (key < 0)
-      return 0;
+    if (key < 0)
+        return 0;
 
-   Hashtable* dc = Platform_dynamicColumns();
-   const PCPDynamicColumn* column = Hashtable_get(dc, key);
-   if (!column)
-      return -1;
+    Hashtable *dc = Platform_dynamicColumns();
+    const PCPDynamicColumn *column = Hashtable_get(dc, key);
+    if (!column)
+        return -1;
 
-   Metric metric = Metric_fromId(column->id);
-   unsigned int type = Metric_type(metric);
+    Metric metric = Metric_fromId(column->id);
+    unsigned int type = Metric_type(metric);
 
-   pmAtomValue atom1 = {0}, atom2 = {0};
-   if (!Metric_instance(metric, Instance_getId(i1), i1->offset, &atom1, type) ||
-       !Metric_instance(metric, Instance_getId(i2), i2->offset, &atom2, type)) {
-      if (type == PM_TYPE_STRING) {
-         free(atom1.cp);
-         free(atom2.cp);
-      }
-      return -1;
-   }
+    pmAtomValue atom1 = {0}, atom2 = {0};
+    if (!Metric_instance(metric, Instance_getId(i1), i1->offset, &atom1, type) ||
+        !Metric_instance(metric, Instance_getId(i2), i2->offset, &atom2, type))
+    {
+        if (type == PM_TYPE_STRING)
+        {
+            free(atom1.cp);
+            free(atom2.cp);
+        }
+        return -1;
+    }
 
-   switch (type) {
-      case PM_TYPE_STRING: {
-         int cmp = SPACESHIP_NULLSTR(atom2.cp, atom1.cp);
-         free(atom2.cp);
-         free(atom1.cp);
-         return cmp;
-      }
-      case PM_TYPE_32:
-         return SPACESHIP_NUMBER(atom2.l, atom1.l);
-      case PM_TYPE_U32:
-         return SPACESHIP_NUMBER(atom2.ul, atom1.ul);
-      case PM_TYPE_64:
-         return SPACESHIP_NUMBER(atom2.ll, atom1.ll);
-      case PM_TYPE_U64:
-         return SPACESHIP_NUMBER(atom2.ull, atom1.ull);
-      case PM_TYPE_FLOAT:
-         return SPACESHIP_NUMBER(atom2.f, atom1.f);
-      case PM_TYPE_DOUBLE:
-         return SPACESHIP_NUMBER(atom2.d, atom1.d);
-      default:
-         break;
-   }
+    switch (type)
+    {
+    case PM_TYPE_STRING:
+    {
+        int cmp = SPACESHIP_NULLSTR(atom2.cp, atom1.cp);
+        free(atom2.cp);
+        free(atom1.cp);
+        return cmp;
+    }
+    case PM_TYPE_32:
+        return SPACESHIP_NUMBER(atom2.l, atom1.l);
+    case PM_TYPE_U32:
+        return SPACESHIP_NUMBER(atom2.ul, atom1.ul);
+    case PM_TYPE_64:
+        return SPACESHIP_NUMBER(atom2.ll, atom1.ll);
+    case PM_TYPE_U64:
+        return SPACESHIP_NUMBER(atom2.ull, atom1.ull);
+    case PM_TYPE_FLOAT:
+        return SPACESHIP_NUMBER(atom2.f, atom1.f);
+    case PM_TYPE_DOUBLE:
+        return SPACESHIP_NUMBER(atom2.d, atom1.d);
+    default:
+        break;
+    }
 
-   return 0;
+    return 0;
 }
 
-static int Instance_compare(const void* v1, const void* v2) {
-   const Instance* i1 = (const Instance*)v1;
-   const Instance* i2 = (const Instance*)v2;
-   const ScreenSettings* ss = i1->super.host->settings->ss;
-   RowField key = ScreenSettings_getActiveSortKey(ss);
-   int result = Instance_compareByKey(v1, v2, key);
+static int Instance_compare(const void *v1, const void *v2)
+{
+    const Instance *i1 = (const Instance *)v1;
+    const Instance *i2 = (const Instance *)v2;
+    const ScreenSettings *ss = i1->super.host->settings->ss;
+    RowField key = ScreenSettings_getActiveSortKey(ss);
+    int result = Instance_compareByKey(v1, v2, key);
 
-   // Implement tie-breaker (needed to make tree mode more stable)
-   if (!result)
-      return SPACESHIP_NUMBER(Instance_getId(i1), Instance_getId(i2));
+    // Implement tie-breaker (needed to make tree mode more stable)
+    if (!result)
+        return SPACESHIP_NUMBER(Instance_getId(i1), Instance_getId(i2));
 
-   return (ScreenSettings_getActiveDirection(ss) == 1) ? result : -result;
+    return (ScreenSettings_getActiveDirection(ss) == 1) ? result : -result;
 }
 
 const RowClass Instance_class = {
-   .super = {
-      .extends = Class(Row),
-      .display = Row_display,
-      .delete = Instance_delete,
-      .compare = Instance_compare,
-   },
-   .sortKeyString = Instance_externalName,
-   .writeField = Instance_writeField,
+    .super =
+        {
+            .extends = Class(Row),
+            .display = Row_display,
+            .delete = Instance_delete,
+            .compare = Instance_compare,
+        },
+    .sortKeyString = Instance_externalName,
+    .writeField = Instance_writeField,
 };

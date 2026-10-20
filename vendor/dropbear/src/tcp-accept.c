@@ -35,112 +35,125 @@
 
 #if DROPBEAR_TCP_ACCEPT
 
-static void cleanup_tcp(const struct Listener *listener) {
+static void cleanup_tcp(const struct Listener *listener)
+{
 
-	struct FwdListener *tcpinfo = (struct FwdListener*)(listener->typedata);
+    struct FwdListener *tcpinfo = (struct FwdListener *)(listener->typedata);
 
-	m_free(tcpinfo->sendaddr);
-	m_free(tcpinfo->listenaddr);
-	m_free(tcpinfo->request_listenaddr);
-	m_free(tcpinfo);
+    m_free(tcpinfo->sendaddr);
+    m_free(tcpinfo->listenaddr);
+    m_free(tcpinfo->request_listenaddr);
+    m_free(tcpinfo);
 }
 
-static void tcp_acceptor(const struct Listener *listener, int sock) {
+static void tcp_acceptor(const struct Listener *listener, int sock)
+{
 
-	int fd;
-	struct sockaddr_storage sa;
-	socklen_t len;
-	char ipstring[NI_MAXHOST], portstring[NI_MAXSERV];
-	struct FwdListener *tcpinfo = (struct FwdListener*)(listener->typedata);
+    int fd;
+    struct sockaddr_storage sa;
+    socklen_t len;
+    char ipstring[NI_MAXHOST], portstring[NI_MAXSERV];
+    struct FwdListener *tcpinfo = (struct FwdListener *)(listener->typedata);
 
-	len = sizeof(sa);
+    len = sizeof(sa);
 
-	fd = accept(sock, (struct sockaddr*)&sa, &len);
-	if (fd < 0) {
-		return;
-	}
+    fd = accept(sock, (struct sockaddr *)&sa, &len);
+    if (fd < 0)
+    {
+        return;
+    }
 
-	if (getnameinfo((struct sockaddr*)&sa, len, ipstring, sizeof(ipstring),
-				portstring, sizeof(portstring), 
-				NI_NUMERICHOST | NI_NUMERICSERV) != 0) {
-		m_close(fd);
-		return;
-	}
+    if (getnameinfo((struct sockaddr *)&sa, len, ipstring, sizeof(ipstring), portstring,
+                    sizeof(portstring), NI_NUMERICHOST | NI_NUMERICSERV) != 0)
+    {
+        m_close(fd);
+        return;
+    }
 
-	if (send_msg_channel_open_init(fd, tcpinfo->chantype) == DROPBEAR_SUCCESS) {
-		char* addr = NULL;
-		unsigned int port = 0;
+    if (send_msg_channel_open_init(fd, tcpinfo->chantype) == DROPBEAR_SUCCESS)
+    {
+        char *addr = NULL;
+        unsigned int port = 0;
 
-		if (tcpinfo->fwd_type == direct) {
-			/* "direct-tcpip" */
-			/* host to connect, port to connect */
-			addr = tcpinfo->sendaddr;
-			port = tcpinfo->sendport;
-		} else {
-			dropbear_assert(tcpinfo->fwd_type == forwarded);
-			/* "forwarded-tcpip" */
-			/* address that was connected, port that was connected */
-			addr = tcpinfo->request_listenaddr;
-			port = tcpinfo->listenport;
-		}
+        if (tcpinfo->fwd_type == direct)
+        {
+            /* "direct-tcpip" */
+            /* host to connect, port to connect */
+            addr = tcpinfo->sendaddr;
+            port = tcpinfo->sendport;
+        }
+        else
+        {
+            dropbear_assert(tcpinfo->fwd_type == forwarded);
+            /* "forwarded-tcpip" */
+            /* address that was connected, port that was connected */
+            addr = tcpinfo->request_listenaddr;
+            port = tcpinfo->listenport;
+        }
 
-		if (addr == NULL) {
-			addr = "localhost";
-		}
-		buf_putstring(ses.writepayload, addr, strlen(addr));
-		buf_putint(ses.writepayload, port);
+        if (addr == NULL)
+        {
+            addr = "localhost";
+        }
+        buf_putstring(ses.writepayload, addr, strlen(addr));
+        buf_putint(ses.writepayload, port);
 
-		/* originator ip */
-		buf_putstring(ses.writepayload, ipstring, strlen(ipstring));
-		/* originator port */
-		buf_putint(ses.writepayload, atol(portstring));
+        /* originator ip */
+        buf_putstring(ses.writepayload, ipstring, strlen(ipstring));
+        /* originator port */
+        buf_putint(ses.writepayload, atol(portstring));
 
-		encrypt_packet();
-
-	} else {
-		/* XXX debug? */
-		close(fd);
-	}
+        encrypt_packet();
+    }
+    else
+    {
+        /* XXX debug? */
+        close(fd);
+    }
 }
 
-int listen_tcpfwd(struct FwdListener* tcpinfo, struct Listener **ret_listener) {
+int listen_tcpfwd(struct FwdListener *tcpinfo, struct Listener **ret_listener)
+{
 
-	char portstring[NI_MAXSERV];
-	int socks[DROPBEAR_MAX_SOCKS];
-	int nsocks;
-	struct Listener *listener;
-	char* errstring = NULL;
+    char portstring[NI_MAXSERV];
+    int socks[DROPBEAR_MAX_SOCKS];
+    int nsocks;
+    struct Listener *listener;
+    char *errstring = NULL;
 
-	TRACE(("enter listen_tcpfwd"))
+    TRACE(("enter listen_tcpfwd"))
 
-	/* first we try to bind, so don't need to do so much cleanup on failure */
-	snprintf(portstring, sizeof(portstring), "%u", tcpinfo->listenport);
+    /* first we try to bind, so don't need to do so much cleanup on failure */
+    snprintf(portstring, sizeof(portstring), "%u", tcpinfo->listenport);
 
-	nsocks = dropbear_listen(tcpinfo->listenaddr, portstring, socks, 
-			DROPBEAR_MAX_SOCKS, &errstring, &ses.maxfd, tcpinfo->interface);
-	if (nsocks < 0) {
-		dropbear_log(LOG_INFO, "TCP forward failed: %s", errstring);
-		m_free(errstring);
-		TRACE(("leave listen_tcpfwd: dropbear_listen failed"))
-		return DROPBEAR_FAILURE;
-	}
-	m_free(errstring);
-	
-	/* new_listener will close the socks if it fails */
-	listener = new_listener(socks, nsocks, LISTENER_TYPE_TCPFORWARDED, tcpinfo,
-			tcp_acceptor, cleanup_tcp);
+    nsocks = dropbear_listen(tcpinfo->listenaddr, portstring, socks, DROPBEAR_MAX_SOCKS, &errstring,
+                             &ses.maxfd, tcpinfo->interface);
+    if (nsocks < 0)
+    {
+        dropbear_log(LOG_INFO, "TCP forward failed: %s", errstring);
+        m_free(errstring);
+        TRACE(("leave listen_tcpfwd: dropbear_listen failed"))
+        return DROPBEAR_FAILURE;
+    }
+    m_free(errstring);
 
-	if (listener == NULL) {
-		TRACE(("leave listen_tcpfwd: listener failed"))
-		return DROPBEAR_FAILURE;
-	}
+    /* new_listener will close the socks if it fails */
+    listener =
+        new_listener(socks, nsocks, LISTENER_TYPE_TCPFORWARDED, tcpinfo, tcp_acceptor, cleanup_tcp);
 
-	if (ret_listener) {
-		*ret_listener = listener;
-	}
+    if (listener == NULL)
+    {
+        TRACE(("leave listen_tcpfwd: listener failed"))
+        return DROPBEAR_FAILURE;
+    }
 
-	TRACE(("leave listen_tcpfwd: success"))
-	return DROPBEAR_SUCCESS;
+    if (ret_listener)
+    {
+        *ret_listener = listener;
+    }
+
+    TRACE(("leave listen_tcpfwd: success"))
+    return DROPBEAR_SUCCESS;
 }
 
 #endif /* DROPBEAR_TCP_ACCEPT */

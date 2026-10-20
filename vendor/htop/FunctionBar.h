@@ -10,33 +10,37 @@ in the source distribution for its full text.
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef struct FunctionBar_
+{
+    char **functions;
 
-typedef struct FunctionBar_ {
-   char** functions;
-   union {
-      char** keys;
-      const char* const* constKeys;
-   } keys;
-   int* events;
-   bool staticData;
+    union
+    {
+        char **keys;
+        const char *const *constKeys;
+    } keys;
+
+    int *events;
+    bool staticData;
 } FunctionBar;
 
-FunctionBar* FunctionBar_newEnterEsc(const char* enter, const char* esc);
+FunctionBar *FunctionBar_newEnterEsc(const char *enter, const char *esc);
 
-FunctionBar* FunctionBar_new(const char* const* functions, const char* const* keys, const int* events);
+FunctionBar *FunctionBar_new(const char *const *functions, const char *const *keys,
+                             const int *events);
 
-void FunctionBar_delete(FunctionBar* this);
+void FunctionBar_delete(FunctionBar *this);
 
-void FunctionBar_setLabel(FunctionBar* this, int event, const char* text);
+void FunctionBar_setLabel(FunctionBar *this, int event, const char *text);
 
-int FunctionBar_draw(const FunctionBar* this);
+int FunctionBar_draw(const FunctionBar *this);
 
-int FunctionBar_drawExtra(const FunctionBar* this, const char* buffer, int attr, bool setCursor);
+int FunctionBar_drawExtra(const FunctionBar *this, const char *buffer, int attr, bool setCursor);
 
-void FunctionBar_append(const char* buffer, int attr);
+void FunctionBar_append(const char *buffer, int attr);
 
-int FunctionBar_getWidth(const FunctionBar* this);
+int FunctionBar_getWidth(const FunctionBar *this);
 
-int FunctionBar_synthesizeEvent(const FunctionBar* this, int pos);
+int FunctionBar_synthesizeEvent(const FunctionBar *this, int pos);
 
 #endif

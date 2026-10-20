@@ -11,12 +11,12 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-
-typedef struct DiskIOData_ {
-   uint64_t totalBytesRead;
-   uint64_t totalBytesWritten;
-   uint64_t totalMsTimeSpend;
-   uint64_t numDisks;
+typedef struct DiskIOData_
+{
+    uint64_t totalBytesRead;
+    uint64_t totalBytesWritten;
+    uint64_t totalMsTimeSpend;
+    uint64_t numDisks;
 } DiskIOData;
 
 extern const MeterClass DiskIORateMeter_class;

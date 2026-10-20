@@ -28,17 +28,18 @@
 #define KEX_REKEY_TIMEOUT (3600 * 8)
 #endif
 #ifndef KEX_REKEY_DATA
-#define KEX_REKEY_DATA (1<<30) /* 2^30 == 1GB, this value must be < INT_MAX */
+#define KEX_REKEY_DATA (1 << 30) /* 2^30 == 1GB, this value must be < INT_MAX */
 #endif
 /* Close connections to clients which haven't authorised after AUTH_TIMEOUT */
 #ifndef AUTH_TIMEOUT
 #define AUTH_TIMEOUT 300 /* we choose 5 minutes */
 #endif
 
-#define DROPBEAR_SVR_PUBKEY_OPTIONS_BUILT ((DROPBEAR_SVR_PUBKEY_AUTH) && (DROPBEAR_SVR_PUBKEY_OPTIONS))
+#define DROPBEAR_SVR_PUBKEY_OPTIONS_BUILT                                                          \
+    ((DROPBEAR_SVR_PUBKEY_AUTH) && (DROPBEAR_SVR_PUBKEY_OPTIONS))
 
 #if !(NON_INETD_MODE || INETD_MODE)
-	#error "NON_INETD_MODE or INETD_MODE (or both) must be enabled."
+#error "NON_INETD_MODE or INETD_MODE (or both) must be enabled."
 #endif
 
 /* Would probably work on freebsd but hasn't been tested */
@@ -70,7 +71,7 @@
 #endif
 
 #define MAX_BANNER_SIZE 2050 /* this is 25*80 chars, any more is foolish */
-#define MAX_BANNER_LINES 20 /* How many lines the client will display */
+#define MAX_BANNER_LINES 20  /* How many lines the client will display */
 
 /* Define maxsize for motd information (80 x 25) */
 #ifndef MOTD_MAXSIZE
@@ -86,11 +87,12 @@
 
 #define MAX_HOST_LEN 254 /* max hostname len for tcp fwding */
 
-#define DROPBEAR_MAX_PORTS 10 /* max number of ports which can be specified,
+#define DROPBEAR_MAX_PORTS                                                                         \
+    10 /* max number of ports which can be specified,
 								 ipv4 and ipv6 don't count twice */
 
 /* Each port might have at least a v4 and a v6 address */
-#define MAX_LISTEN_ADDR (DROPBEAR_MAX_PORTS*3)
+#define MAX_LISTEN_ADDR (DROPBEAR_MAX_PORTS * 3)
 
 #define _PATH_TTY "/dev/tty"
 
@@ -102,7 +104,7 @@
   -DCOMPAT_USER_SHELLS='"/bin/sh","/apps/bin/sh","/data/bin/zsh"'
  */
 #ifndef COMPAT_USER_SHELLS
-#define COMPAT_USER_SHELLS "/bin/sh","/bin/csh"
+#define COMPAT_USER_SHELLS "/bin/sh", "/bin/csh"
 #endif
 
 #define DROPBEAR_ESCAPE_CHAR '~'
@@ -204,16 +206,16 @@
 #endif
 
 /* hashes which will be linked and registered */
-#define DROPBEAR_SHA1 (DROPBEAR_RSA_SHA1 || DROPBEAR_DSS \
-				|| DROPBEAR_SHA1_HMAC || DROPBEAR_SHA1_96_HMAC \
-				|| DROPBEAR_DH_GROUP1 || DROPBEAR_DH_GROUP14_SHA1 )
+#define DROPBEAR_SHA1                                                                              \
+    (DROPBEAR_RSA_SHA1 || DROPBEAR_DSS || DROPBEAR_SHA1_HMAC || DROPBEAR_SHA1_96_HMAC ||           \
+     DROPBEAR_DH_GROUP1 || DROPBEAR_DH_GROUP14_SHA1)
 /* sha256 is always used for fingerprints and dbrandom */
 #define DROPBEAR_SHA256 1
 #define DROPBEAR_SHA384 (DROPBEAR_ECC_384)
 /* LTC SHA384 depends on SHA512 */
-#define DROPBEAR_SHA512 ((DROPBEAR_SHA2_512_HMAC) || (DROPBEAR_ECC_521) \
-			|| (DROPBEAR_SHA384) || (DROPBEAR_DH_GROUP16) \
-			|| (DROPBEAR_ED25519) || (DROPBEAR_SNTRUP761))
+#define DROPBEAR_SHA512                                                                            \
+    ((DROPBEAR_SHA2_512_HMAC) || (DROPBEAR_ECC_521) || (DROPBEAR_SHA384) ||                        \
+     (DROPBEAR_DH_GROUP16) || (DROPBEAR_ED25519) || (DROPBEAR_SNTRUP761))
 
 #define DROPBEAR_DH_GROUP14 ((DROPBEAR_DH_GROUP14_SHA256) || (DROPBEAR_DH_GROUP14_SHA1))
 
@@ -230,13 +232,14 @@
 #define DROPBEAR_CURVE25519_DEP (DROPBEAR_CURVE25519 || DROPBEAR_PQHYBRID)
 
 /* Dropbear only uses server-sig-algs, only needed if we have rsa-sha256 pubkey auth */
-#define DROPBEAR_EXT_INFO ((DROPBEAR_RSA_SHA256) \
-		&& ((DROPBEAR_CLI_PUBKEY_AUTH) || (DROPBEAR_SVR_PUBKEY_AUTH)))
+#define DROPBEAR_EXT_INFO                                                                          \
+    ((DROPBEAR_RSA_SHA256) && ((DROPBEAR_CLI_PUBKEY_AUTH) || (DROPBEAR_SVR_PUBKEY_AUTH)))
 
 /* roughly 2x 521 bits */
 #define MAX_ECC_SIZE 140
 
-#define MAX_NAME_LEN 64 /* maximum length of a protocol name, isn't
+#define MAX_NAME_LEN                                                                               \
+    64 /* maximum length of a protocol name, isn't
 						   explicitly specified for all protocols (just
 						   for algos) but seems valid */
 
@@ -246,17 +249,20 @@
 /* From transport rfc */
 #define MIN_PACKET_LEN 16
 
-#define RECV_MAX_PACKET_LEN (MAX(35000, ((RECV_MAX_PAYLOAD_LEN)+100)))
+#define RECV_MAX_PACKET_LEN (MAX(35000, ((RECV_MAX_PAYLOAD_LEN) + 100)))
 
 /* for channel code */
-#define RECV_WINDOWEXTEND (opts.recv_window / 3) /* We send a "window extend" every
+#define RECV_WINDOWEXTEND                                                                          \
+    (opts.recv_window / 3)                 /* We send a "window extend" every
 								RECV_WINDOWEXTEND bytes */
-#define MAX_RECV_WINDOW (10*1024*1024) /* 10 MB should be enough */
+#define MAX_RECV_WINDOW (10 * 1024 * 1024) /* 10 MB should be enough */
 
-#define MAX_CHANNELS 1000 /* simple mem restriction, includes each tcp/x11
+#define MAX_CHANNELS                                                                               \
+    1000 /* simple mem restriction, includes each tcp/x11
 							connection, so can't be _too_ small */
 
-#define MAX_STRING_LEN (MAX(MAX_CMD_LEN, 2400)) /* Sun SSH needs 2400 for algos,
+#define MAX_STRING_LEN                                                                             \
+    (MAX(MAX_CMD_LEN, 2400)) /* Sun SSH needs 2400 for algos,
                                                    MAX_CMD_LEN is usually longer */
 
 /* Count of packets to enqueue deferring while a KEX is in progress.
@@ -281,10 +287,10 @@
 
 /* For kex hash buffer, worst case size for Q_C || Q_S || K */
 #if DROPBEAR_MLKEM768
-#define MAX_KEX_PARTS (2*4 + 1184 + 1088 + 32*2 + 68)
+#define MAX_KEX_PARTS (2 * 4 + 1184 + 1088 + 32 * 2 + 68)
 #elif DROPBEAR_SNTRUP761
 /* 2337 */
-#define MAX_KEX_PARTS (2*4 + 1158 + 1039 + 32*2 + 68)
+#define MAX_KEX_PARTS (2 * 4 + 1158 + 1039 + 32 * 2 + 68)
 #elif DROPBEAR_DH_GROUP16
 /* 4096 bit group */
 #define MAX_KEX_PARTS (3 * 520)
@@ -299,15 +305,16 @@
 /* K_S + Q_C + Q_S + K */
 #define KEXHASHBUF_MAX_INTS (MAX_PUBKEY_SIZE + MAX_KEX_PARTS)
 
-#define DROPBEAR_MAX_SOCKS 2 /* IPv4, IPv6 are all we'll get for now. Revisit
+#define DROPBEAR_MAX_SOCKS                                                                         \
+    2 /* IPv4, IPv6 are all we'll get for now. Revisit
 								in a few years time.... */
 
 #define DROPBEAR_MAX_CLI_PASS 1024
 
-#define DROPBEAR_MAX_CLI_INTERACT_PROMPTS 80 /* The number of prompts we'll 
+#define DROPBEAR_MAX_CLI_INTERACT_PROMPTS                                                          \
+    80 /* The number of prompts we'll 
 												accept for keyb-interactive
 												auth */
-
 
 #define DROPBEAR_AES ((DROPBEAR_AES256) || (DROPBEAR_AES128))
 
@@ -321,16 +328,15 @@
 #define DROPBEAR_SVR_LOCALANYFWD ((DROPBEAR_SVR_LOCALTCPFWD) || (DROPBEAR_SVR_LOCALSTREAMFWD))
 #define DROPBEAR_SVR_REMOTEANYFWD ((DROPBEAR_SVR_REMOTETCPFWD) || (DROPBEAR_SVR_REMOTESTREAMFWD))
 
-#define DROPBEAR_LISTENERS \
-   ((DROPBEAR_CLI_REMOTETCPFWD) || (DROPBEAR_CLI_LOCALTCPFWD) || \
-	(DROPBEAR_SVR_REMOTEANYFWD) || (DROPBEAR_SVR_LOCALANYFWD) || \
-	(DROPBEAR_SVR_AGENTFWD) || (DROPBEAR_X11FWD))
+#define DROPBEAR_LISTENERS                                                                         \
+    ((DROPBEAR_CLI_REMOTETCPFWD) || (DROPBEAR_CLI_LOCALTCPFWD) || (DROPBEAR_SVR_REMOTEANYFWD) ||   \
+     (DROPBEAR_SVR_LOCALANYFWD) || (DROPBEAR_SVR_AGENTFWD) || (DROPBEAR_X11FWD))
 
 #define DROPBEAR_CLI_MULTIHOP ((DROPBEAR_CLI_NETCAT) && (DROPBEAR_CLI_PROXYCMD))
 
 #define ENABLE_CONNECT_UNIX ((DROPBEAR_CLI_AGENTFWD) || (DROPBEAR_USE_PRNGD))
 
-/* if we're using authorized_keys or known_hosts */ 
+/* if we're using authorized_keys or known_hosts */
 #define DROPBEAR_KEY_LINES ((DROPBEAR_CLIENT) || (DROPBEAR_SVR_PUBKEY_AUTH))
 
 /* Changing this is inadvisable, it appears to have problems
@@ -347,31 +353,32 @@
 #endif
 
 #if DROPBEAR_SVR_PASSWORD_AUTH && !HAVE_CRYPT
-	#error "DROPBEAR_SVR_PASSWORD_AUTH requires `crypt()'."
+#error "DROPBEAR_SVR_PASSWORD_AUTH requires `crypt()'."
 #endif
 
 #if !(DROPBEAR_SVR_PASSWORD_AUTH || DROPBEAR_SVR_PAM_AUTH || DROPBEAR_SVR_PUBKEY_AUTH)
-	#error "At least one server authentication type must be enabled. DROPBEAR_SVR_PUBKEY_AUTH and DROPBEAR_SVR_PASSWORD_AUTH are recommended."
+#error                                                                                             \
+    "At least one server authentication type must be enabled. DROPBEAR_SVR_PUBKEY_AUTH and DROPBEAR_SVR_PASSWORD_AUTH are recommended."
 #endif
 
 #if (DROPBEAR_PLUGIN && !DROPBEAR_SVR_PUBKEY_AUTH)
-	#error "You must define DROPBEAR_SVR_PUBKEY_AUTH in order to use plugins"
+#error "You must define DROPBEAR_SVR_PUBKEY_AUTH in order to use plugins"
 #endif
 
 #if (DROPBEAR_PLUGIN && !DROPBEAR_SVR_PUBKEY_OPTIONS_BUILT)
-	#error "DROPBEAR_PLUGIN requires DROPBEAR_SVR_PUBKEY_OPTIONS"
+#error "DROPBEAR_PLUGIN requires DROPBEAR_SVR_PUBKEY_OPTIONS"
 #endif
 
 #if !(DROPBEAR_AES128 || DROPBEAR_3DES || DROPBEAR_AES256 || DROPBEAR_CHACHA20POLY1305)
-	#error "At least one encryption algorithm must be enabled. AES128 is recommended."
+#error "At least one encryption algorithm must be enabled. AES128 is recommended."
 #endif
 
 #if !(DROPBEAR_RSA || DROPBEAR_DSS || DROPBEAR_ECDSA || DROPBEAR_ED25519)
-	#error "At least one hostkey or public-key algorithm must be enabled; RSA is recommended."
+#error "At least one hostkey or public-key algorithm must be enabled; RSA is recommended."
 #endif
 
 #if DROPBEAR_SVR_DROP_PRIVS && !defined(HAVE_SETRESGID)
-	#error "DROPBEAR_SVR_DROP_PRIVS requires setresgid()."
+#error "DROPBEAR_SVR_DROP_PRIVS requires setresgid()."
 #endif
 
 /* Source for randomness. This must be able to provide hundreds of bytes per SSH
@@ -443,11 +450,11 @@
 
 /* Used to work around Memory Sanitizer false positives */
 #if defined(__has_feature)
-#  if __has_feature(memory_sanitizer)
-#    define DROPBEAR_MSAN 1
-#  endif
+#if __has_feature(memory_sanitizer)
+#define DROPBEAR_MSAN 1
 #endif
-#ifndef DROPBEAR_MSAN 
+#endif
+#ifndef DROPBEAR_MSAN
 #define DROPBEAR_MSAN 0
 #endif
 
@@ -467,8 +474,8 @@
 #error DROPBEAR_SVR_DROP_PRIVS needs DROPBEAR_SVR_MULTIUSER
 #endif
 
-#if !(DROPBEAR_SVR_DROP_PRIVS || !DROPBEAR_SVR_MULTIUSER) \
-   && (DROPBEAR_SVR_LOCALSTREAMFWD || DROPBEAR_SVR_LOCALSTREAMFWD)
+#if !(DROPBEAR_SVR_DROP_PRIVS || !DROPBEAR_SVR_MULTIUSER) &&                                       \
+    (DROPBEAR_SVR_LOCALSTREAMFWD || DROPBEAR_SVR_LOCALSTREAMFWD)
 #error stream forwarding requires DROPBEAR_SVR_DROP_PRIVS or !DROPBEAR_SVR_MULTIUSER
 #endif
 

@@ -26,24 +26,31 @@
    @param maclen    [in/out] Max size and resulting size of authentication tag
    @return CRYPT_OK if successful
 */
-int poly1305_memory(const unsigned char *key, unsigned long keylen, const unsigned char *in, unsigned long inlen, unsigned char *mac, unsigned long *maclen)
+int poly1305_memory(const unsigned char *key, unsigned long keylen, const unsigned char *in,
+                    unsigned long inlen, unsigned char *mac, unsigned long *maclen)
 {
-   poly1305_state st;
-   int err;
+    poly1305_state st;
+    int err;
 
-   LTC_ARGCHK(key    != NULL);
-   LTC_ARGCHK(in     != NULL);
-   LTC_ARGCHK(mac    != NULL);
-   LTC_ARGCHK(maclen != NULL);
+    LTC_ARGCHK(key != NULL);
+    LTC_ARGCHK(in != NULL);
+    LTC_ARGCHK(mac != NULL);
+    LTC_ARGCHK(maclen != NULL);
 
-   if ((err = poly1305_init(&st, key, keylen))  != CRYPT_OK) { goto LBL_ERR; }
-   if ((err = poly1305_process(&st, in, inlen)) != CRYPT_OK) { goto LBL_ERR; }
-   err = poly1305_done(&st, mac, maclen);
+    if ((err = poly1305_init(&st, key, keylen)) != CRYPT_OK)
+    {
+        goto LBL_ERR;
+    }
+    if ((err = poly1305_process(&st, in, inlen)) != CRYPT_OK)
+    {
+        goto LBL_ERR;
+    }
+    err = poly1305_done(&st, mac, maclen);
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
-   zeromem(&st, sizeof(poly1305_state));
+    zeromem(&st, sizeof(poly1305_state));
 #endif
-   return err;
+    return err;
 }
 
 #endif

@@ -13,35 +13,39 @@
  */
 mp_err mp_prime_fermat(const mp_int *a, const mp_int *b, mp_bool *result)
 {
-   mp_int  t;
-   mp_err  err;
+    mp_int t;
+    mp_err err;
 
-   /* default to composite  */
-   *result = MP_NO;
+    /* default to composite  */
+    *result = MP_NO;
 
-   /* ensure b > 1 */
-   if (mp_cmp_d(b, 1uL) != MP_GT) {
-      return MP_VAL;
-   }
+    /* ensure b > 1 */
+    if (mp_cmp_d(b, 1uL) != MP_GT)
+    {
+        return MP_VAL;
+    }
 
-   /* init t */
-   if ((err = mp_init(&t)) != MP_OKAY) {
-      return err;
-   }
+    /* init t */
+    if ((err = mp_init(&t)) != MP_OKAY)
+    {
+        return err;
+    }
 
-   /* compute t = b**a mod a */
-   if ((err = mp_exptmod(b, a, a, &t)) != MP_OKAY) {
-      goto LBL_T;
-   }
+    /* compute t = b**a mod a */
+    if ((err = mp_exptmod(b, a, a, &t)) != MP_OKAY)
+    {
+        goto LBL_T;
+    }
 
-   /* is it equal to b? */
-   if (mp_cmp(&t, b) == MP_EQ) {
-      *result = MP_YES;
-   }
+    /* is it equal to b? */
+    if (mp_cmp(&t, b) == MP_EQ)
+    {
+        *result = MP_YES;
+    }
 
-   err = MP_OKAY;
+    err = MP_OKAY;
 LBL_T:
-   mp_clear(&t);
-   return err;
+    mp_clear(&t);
+    return err;
 }
 #endif

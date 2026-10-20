@@ -15,24 +15,23 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct TraceScreen_ {
-   InfoScreen super;
-   FILE* strace;
-   pid_t child;
-   bool tracing;
-   bool contLine;
-   bool follow;
-   bool strace_alive;
+typedef struct TraceScreen_
+{
+    InfoScreen super;
+    FILE *strace;
+    pid_t child;
+    bool tracing;
+    bool contLine;
+    bool follow;
+    bool strace_alive;
 } TraceScreen;
-
 
 extern const InfoScreenClass TraceScreen_class;
 
-TraceScreen* TraceScreen_new(const Process* process);
+TraceScreen *TraceScreen_new(const Process *process);
 
-void TraceScreen_delete(Object* cast);
+void TraceScreen_delete(Object *cast);
 
-bool TraceScreen_forkTracer(TraceScreen* this);
+bool TraceScreen_forkTracer(TraceScreen *this);
 
 #endif

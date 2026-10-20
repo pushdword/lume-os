@@ -20,18 +20,9 @@
 
 #ifdef LTC_SPRNG
 
-const struct ltc_prng_descriptor sprng_desc =
-{
-    "sprng", 0,
-    &sprng_start,
-    &sprng_add_entropy,
-    &sprng_ready,
-    &sprng_read,
-    &sprng_done,
-    &sprng_export,
-    &sprng_import,
-    &sprng_test
-};
+const struct ltc_prng_descriptor sprng_desc = {
+    "sprng",     0,           &sprng_start,  &sprng_add_entropy, &sprng_ready,
+    &sprng_read, &sprng_done, &sprng_export, &sprng_import,      &sprng_test};
 
 /**
   Start the PRNG
@@ -40,8 +31,8 @@ const struct ltc_prng_descriptor sprng_desc =
 */
 int sprng_start(prng_state *prng)
 {
-   LTC_UNUSED_PARAM(prng);
-   return CRYPT_OK;
+    LTC_UNUSED_PARAM(prng);
+    return CRYPT_OK;
 }
 
 /**
@@ -53,10 +44,10 @@ int sprng_start(prng_state *prng)
 */
 int sprng_add_entropy(const unsigned char *in, unsigned long inlen, prng_state *prng)
 {
-   LTC_UNUSED_PARAM(in);
-   LTC_UNUSED_PARAM(inlen);
-   LTC_UNUSED_PARAM(prng);
-   return CRYPT_OK;
+    LTC_UNUSED_PARAM(in);
+    LTC_UNUSED_PARAM(inlen);
+    LTC_UNUSED_PARAM(prng);
+    return CRYPT_OK;
 }
 
 /**
@@ -66,8 +57,8 @@ int sprng_add_entropy(const unsigned char *in, unsigned long inlen, prng_state *
 */
 int sprng_ready(prng_state *prng)
 {
-   LTC_UNUSED_PARAM(prng);
-   return CRYPT_OK;
+    LTC_UNUSED_PARAM(prng);
+    return CRYPT_OK;
 }
 
 /**
@@ -79,9 +70,9 @@ int sprng_ready(prng_state *prng)
 */
 unsigned long sprng_read(unsigned char *out, unsigned long outlen, prng_state *prng)
 {
-   LTC_ARGCHK(out != NULL);
-   LTC_UNUSED_PARAM(prng);
-   return rng_get_bytes(out, outlen, NULL);
+    LTC_ARGCHK(out != NULL);
+    LTC_UNUSED_PARAM(prng);
+    return rng_get_bytes(out, outlen, NULL);
 }
 
 /**
@@ -91,8 +82,8 @@ unsigned long sprng_read(unsigned char *out, unsigned long outlen, prng_state *p
 */
 int sprng_done(prng_state *prng)
 {
-   LTC_UNUSED_PARAM(prng);
-   return CRYPT_OK;
+    LTC_UNUSED_PARAM(prng);
+    return CRYPT_OK;
 }
 
 /**
@@ -104,12 +95,12 @@ int sprng_done(prng_state *prng)
 */
 int sprng_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
 {
-   LTC_ARGCHK(outlen != NULL);
-   LTC_UNUSED_PARAM(out);
-   LTC_UNUSED_PARAM(prng);
+    LTC_ARGCHK(outlen != NULL);
+    LTC_UNUSED_PARAM(out);
+    LTC_UNUSED_PARAM(prng);
 
-   *outlen = 0;
-   return CRYPT_OK;
+    *outlen = 0;
+    return CRYPT_OK;
 }
 
 /**
@@ -121,10 +112,10 @@ int sprng_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
 */
 int sprng_import(const unsigned char *in, unsigned long inlen, prng_state *prng)
 {
-  LTC_UNUSED_PARAM(in);
-  LTC_UNUSED_PARAM(inlen);
-  LTC_UNUSED_PARAM(prng);
-   return CRYPT_OK;
+    LTC_UNUSED_PARAM(in);
+    LTC_UNUSED_PARAM(inlen);
+    LTC_UNUSED_PARAM(prng);
+    return CRYPT_OK;
 }
 
 /**
@@ -134,27 +125,29 @@ int sprng_import(const unsigned char *in, unsigned long inlen, prng_state *prng)
 int sprng_test(void)
 {
 #ifndef LTC_TEST
-   return CRYPT_NOP;
+    return CRYPT_NOP;
 #else
-   prng_state st;
-   unsigned char en[] = { 0x01, 0x02, 0x03, 0x04 };
-   unsigned char out[1000];
-   int err;
+    prng_state st;
+    unsigned char en[] = {0x01, 0x02, 0x03, 0x04};
+    unsigned char out[1000];
+    int err;
 
-   if ((err = sprng_start(&st)) != CRYPT_OK)                         return err;
-   if ((err = sprng_add_entropy(en, sizeof(en), &st)) != CRYPT_OK)   return err;
-   if ((err = sprng_ready(&st)) != CRYPT_OK)                         return err;
-   if (sprng_read(out, 500, &st) != 500)                             return CRYPT_ERROR_READPRNG; /* skip 500 bytes */
-   if ((err = sprng_done(&st)) != CRYPT_OK)                          return err;
+    if ((err = sprng_start(&st)) != CRYPT_OK)
+        return err;
+    if ((err = sprng_add_entropy(en, sizeof(en), &st)) != CRYPT_OK)
+        return err;
+    if ((err = sprng_ready(&st)) != CRYPT_OK)
+        return err;
+    if (sprng_read(out, 500, &st) != 500)
+        return CRYPT_ERROR_READPRNG; /* skip 500 bytes */
+    if ((err = sprng_done(&st)) != CRYPT_OK)
+        return err;
 
-   return CRYPT_OK;
+    return CRYPT_OK;
 #endif
 }
 
 #endif
-
-
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

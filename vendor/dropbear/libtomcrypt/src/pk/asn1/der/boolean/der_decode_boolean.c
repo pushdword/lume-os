@@ -13,7 +13,6 @@
   ASN.1 DER, decode a BOOLEAN, Tom St Denis
 */
 
-
 #ifdef LTC_DER
 
 /**
@@ -23,19 +22,19 @@
   @param out     [out]  The boolean to decode
   @return CRYPT_OK if successful
 */
-int der_decode_boolean(const unsigned char *in, unsigned long inlen,
-                                       int *out)
+int der_decode_boolean(const unsigned char *in, unsigned long inlen, int *out)
 {
-   LTC_ARGCHK(in  != NULL);
-   LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(in != NULL);
+    LTC_ARGCHK(out != NULL);
 
-   if (inlen < 3 || in[0] != 0x01 || in[1] != 0x01 || (in[2] != 0x00 && in[2] != 0xFF)) {
-      return CRYPT_INVALID_ARG;
-   }
+    if (inlen < 3 || in[0] != 0x01 || in[1] != 0x01 || (in[2] != 0x00 && in[2] != 0xFF))
+    {
+        return CRYPT_INVALID_ARG;
+    }
 
-   *out = (in[2]==0xFF) ? 1 : 0;
+    *out = (in[2] == 0xFF) ? 1 : 0;
 
-   return CRYPT_OK;
+    return CRYPT_OK;
 }
 
 #endif

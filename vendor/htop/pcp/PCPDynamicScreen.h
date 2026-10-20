@@ -17,40 +17,42 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "Settings.h"
 
-
 struct InDomTable_;
 struct PCPDynamicColumn_;
 struct PCPDynamicColumns_;
 
-typedef struct PCPDynamicScreen_ {
-   DynamicScreen super;
+typedef struct PCPDynamicScreen_
+{
+    DynamicScreen super;
 
-   struct InDomTable_* table;
-   struct PCPDynamicColumn_** columns;
-   size_t totalColumns;
+    struct InDomTable_ *table;
+    struct PCPDynamicColumn_ **columns;
+    size_t totalColumns;
 
-   unsigned int indom;  /* instance domain number */
-   unsigned int key;  /* PCPMetric identifier */
+    unsigned int indom; /* instance domain number */
+    unsigned int key;   /* PCPMetric identifier */
 
-   bool defaultEnabled; /* enabled setting from configuration file */
-   /* at runtime enabled screens have entries in settings->screens */
+    bool defaultEnabled; /* enabled setting from configuration file */
+                         /* at runtime enabled screens have entries in settings->screens */
 } PCPDynamicScreen;
 
-typedef struct PCPDynamicScreens_ {
-   Hashtable* table;
-   size_t count;  /* count of dynamic screens discovered from scan */
+typedef struct PCPDynamicScreens_
+{
+    Hashtable *table;
+    size_t count; /* count of dynamic screens discovered from scan */
 } PCPDynamicScreens;
 
-void PCPDynamicScreens_init(PCPDynamicScreens* screens, struct PCPDynamicColumns_* columns);
+void PCPDynamicScreens_init(PCPDynamicScreens *screens, struct PCPDynamicColumns_ *columns);
 
-void PCPDynamicScreens_done(Hashtable* table);
+void PCPDynamicScreens_done(Hashtable *table);
 
-void PCPDynamicScreen_appendTables(PCPDynamicScreens* screens, Machine* host);
+void PCPDynamicScreen_appendTables(PCPDynamicScreens *screens, Machine *host);
 
-void PCPDynamicScreen_appendScreens(PCPDynamicScreens* screens, Settings* settings);
+void PCPDynamicScreen_appendScreens(PCPDynamicScreens *screens, Settings *settings);
 
-void PCPDynamicScreen_addDynamicScreen(PCPDynamicScreens* screens, ScreenSettings* ss);
+void PCPDynamicScreen_addDynamicScreen(PCPDynamicScreens *screens, ScreenSettings *ss);
 
-void PCPDynamicScreens_addAvailableColumns(Panel* availableColumns, Hashtable* screens, const char* screen);
+void PCPDynamicScreens_addAvailableColumns(Panel *availableColumns, Hashtable *screens,
+                                           const char *screen);
 
 #endif

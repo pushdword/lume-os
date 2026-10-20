@@ -30,89 +30,91 @@
 #include "circbuffer.h"
 #include "netio.h"
 
-#define SSH_OPEN_ADMINISTRATIVELY_PROHIBITED    1
-#define SSH_OPEN_CONNECT_FAILED                 2
-#define SSH_OPEN_UNKNOWN_CHANNEL_TYPE           3
-#define SSH_OPEN_RESOURCE_SHORTAGE              4
+#define SSH_OPEN_ADMINISTRATIVELY_PROHIBITED 1
+#define SSH_OPEN_CONNECT_FAILED 2
+#define SSH_OPEN_UNKNOWN_CHANNEL_TYPE 3
+#define SSH_OPEN_RESOURCE_SHORTAGE 4
 
 /* Not a real type */
-#define SSH_OPEN_IN_PROGRESS					99
+#define SSH_OPEN_IN_PROGRESS 99
 
 #define CHAN_EXTEND_SIZE 3 /* how many extra slots to add when we need more */
 
 struct ChanType;
 
-struct Channel {
+struct Channel
+{
 
-	unsigned int index; /* the local channel index */
-	unsigned int remotechan;
-	unsigned int recvwindow, transwindow;
-	unsigned int recvdonelen;
-	unsigned int recvmaxpacket, transmaxpacket;
-	void* typedata; /* a pointer to type specific data */
-	int writefd; /* read from wire, written to insecure side */
-	int readfd; /* read from insecure side, written to wire */
-	int errfd; /* used like writefd or readfd, depending if it's client or server.
+    unsigned int index; /* the local channel index */
+    unsigned int remotechan;
+    unsigned int recvwindow, transwindow;
+    unsigned int recvdonelen;
+    unsigned int recvmaxpacket, transmaxpacket;
+    void *typedata;       /* a pointer to type specific data */
+    int writefd;          /* read from wire, written to insecure side */
+    int readfd;           /* read from insecure side, written to wire */
+    int errfd;            /* used like writefd or readfd, depending if it's client or server.
 				  Doesn't exactly belong here, but is cleaner here */
-	int bidir_fd; /* a boolean indicating that writefd/readfd are the same
+    int bidir_fd;         /* a boolean indicating that writefd/readfd are the same
 			file descriptor (bidirectional), such as a network sockets.
 			That is handled differently when closing FDs. Is only
 			applicable to sockets (which can be used with shutdown()) */
-	circbuffer *writebuf; /* data from the wire, for local consumption. Can be
+    circbuffer *writebuf; /* data from the wire, for local consumption. Can be
 							 initially NULL */
-	circbuffer *extrabuf; /* extended-data for the program - used like writebuf
+    circbuffer *extrabuf; /* extended-data for the program - used like writebuf
 					     but for stderr */
 
-	/* whether close/eof messages have been exchanged */
-	int sent_close, recv_close;
-	int recv_eof, sent_eof;
-	/* once flushing is set, readfd will close once no more data is available
+    /* whether close/eof messages have been exchanged */
+    int sent_close, recv_close;
+    int recv_eof, sent_eof;
+    /* once flushing is set, readfd will close once no more data is available
 	(not waiting for EOF) */
-	int flushing;
+    int flushing;
 
-	struct dropbear_progress_connection *conn_pending;
-	int initconn; /* used for TCP forwarding, whether the channel has been
+    struct dropbear_progress_connection *conn_pending;
+    int initconn; /* used for TCP forwarding, whether the channel has been
 					 fully initialised */
 
-	int await_open; /* flag indicating whether we've sent an open request
+    int await_open; /* flag indicating whether we've sent an open request
 					   for this channel (and are awaiting a confirmation
 					   or failure). */
 
-	/* Used by client chansession to handle ~ escaping, NULL ignored otherwise */
-	void (*read_mangler)(const struct Channel*, const unsigned char* bytes, int *len);
+    /* Used by client chansession to handle ~ escaping, NULL ignored otherwise */
+    void (*read_mangler)(const struct Channel *, const unsigned char *bytes, int *len);
 
-	const struct ChanType* type;
+    const struct ChanType *type;
 
-	enum dropbear_prio prio;
+    enum dropbear_prio prio;
 };
 
-struct ChanType {
+struct ChanType
+{
 
-	const char *name;
-	/* Sets up the channel */
-	int (*inithandler)(struct Channel*);
-	/* Called to check whether a channel should close, separately from the FD being EOF.
+    const char *name;
+    /* Sets up the channel */
+    int (*inithandler)(struct Channel *);
+    /* Called to check whether a channel should close, separately from the FD being EOF.
 	Used for noticing process exiting */
-	int (*check_close)(struct Channel*);
-	/* Handler for ssh_msg_channel_request */
-	void (*reqhandler)(struct Channel*);
-	/* Called prior to sending ssh_msg_channel_close, used for sending exit status */
-	void (*closehandler)(const struct Channel*);
-	/* Frees resources, called just prior to channel being removed */
-	void (*cleanup)(const struct Channel*);
+    int (*check_close)(struct Channel *);
+    /* Handler for ssh_msg_channel_request */
+    void (*reqhandler)(struct Channel *);
+    /* Called prior to sending ssh_msg_channel_close, used for sending exit status */
+    void (*closehandler)(const struct Channel *);
+    /* Frees resources, called just prior to channel being removed */
+    void (*cleanup)(const struct Channel *);
 };
 
 /* Callback for connect_remote/connect_streamlocal. errstring may be NULL if result == DROPBEAR_SUCCESS */
-void channel_connect_done(int result, int sock, void* user_data, const char* errstring);
+void channel_connect_done(int result, int sock, void *user_data, const char *errstring);
 
 void chaninitialise(const struct ChanType *chantypes[]);
 void chancleanup(void);
 void setchannelfds(fd_set *readfds, fd_set *writefds, int allow_reads);
 void channelio(const fd_set *readfd, const fd_set *writefd);
-struct Channel* getchannel(void);
+struct Channel *getchannel(void);
 /* Returns an arbitrary channel that is in a ready state - not
 being initialised and no EOF in either direction. NULL if none. */
-struct Channel* get_any_ready_channel(void);
+struct Channel *get_any_ready_channel(void);
 
 void recv_msg_channel_open(void);
 void recv_msg_channel_request(void);
@@ -124,8 +126,7 @@ void recv_msg_channel_window_adjust(void);
 void recv_msg_channel_close(void);
 void recv_msg_channel_eof(void);
 
-void common_recv_msg_channel_data(struct Channel *channel, int fd, 
-		circbuffer * buf);
+void common_recv_msg_channel_data(struct Channel *channel, int fd, circbuffer *buf);
 
 #if DROPBEAR_CLIENT
 extern const struct ChanType clichansess;
@@ -140,6 +141,5 @@ void start_send_channel_request(const struct Channel *channel, const char *type)
 
 void send_msg_request_success(void);
 void send_msg_request_failure(void);
-
 
 #endif /* DROPBEAR_CHANNEL_H_ */

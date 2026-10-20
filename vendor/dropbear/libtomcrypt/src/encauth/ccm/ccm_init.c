@@ -22,56 +22,63 @@
 
   @return CRYPT_OK on success
  */
-int ccm_init(ccm_state *ccm, int cipher,
-             const unsigned char *key, int keylen, int ptlen, int taglen, int aadlen)
+int ccm_init(ccm_state *ccm, int cipher, const unsigned char *key, int keylen, int ptlen,
+             int taglen, int aadlen)
 {
-   int            err;
+    int err;
 
-   LTC_ARGCHK(ccm    != NULL);
-   LTC_ARGCHK(key    != NULL);
-   LTC_ARGCHK(taglen != 0);
+    LTC_ARGCHK(ccm != NULL);
+    LTC_ARGCHK(key != NULL);
+    LTC_ARGCHK(taglen != 0);
 
-   XMEMSET(ccm, 0, sizeof(ccm_state));
+    XMEMSET(ccm, 0, sizeof(ccm_state));
 
-   /* check cipher input */
-   if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
-      return err;
-   }
-   if (cipher_descriptor[cipher].block_length != 16) {
-      return CRYPT_INVALID_CIPHER;
-   }
+    /* check cipher input */
+    if ((err = cipher_is_valid(cipher)) != CRYPT_OK)
+    {
+        return err;
+    }
+    if (cipher_descriptor[cipher].block_length != 16)
+    {
+        return CRYPT_INVALID_CIPHER;
+    }
 
-   /* make sure the taglen is even and <= 16 */
-   ccm->taglen = taglen;
-   ccm->taglen &= ~1;
-   if (ccm->taglen > 16) {
-      ccm->taglen = 16;
-   }
+    /* make sure the taglen is even and <= 16 */
+    ccm->taglen = taglen;
+    ccm->taglen &= ~1;
+    if (ccm->taglen > 16)
+    {
+        ccm->taglen = 16;
+    }
 
-   /* can't use < 4 */
-   if (ccm->taglen < 4) {
-      return CRYPT_INVALID_ARG;
-   }
+    /* can't use < 4 */
+    if (ccm->taglen < 4)
+    {
+        return CRYPT_INVALID_ARG;
+    }
 
-   /* schedule key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &ccm->K)) != CRYPT_OK) {
-      return err;
-   }
-   ccm->cipher = cipher;
+    /* schedule key */
+    if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &ccm->K)) != CRYPT_OK)
+    {
+        return err;
+    }
+    ccm->cipher = cipher;
 
-   /* let's get the L value */
-   ccm->ptlen = ptlen;
-   ccm->L   = 0;
-   while (ptlen) {
-      ++ccm->L;
-      ptlen >>= 8;
-   }
-   if (ccm->L <= 1) {
-      ccm->L = 2;
-   }
+    /* let's get the L value */
+    ccm->ptlen = ptlen;
+    ccm->L = 0;
+    while (ptlen)
+    {
+        ++ccm->L;
+        ptlen >>= 8;
+    }
+    if (ccm->L <= 1)
+    {
+        ccm->L = 2;
+    }
 
-   ccm->aadlen = aadlen;
-   return CRYPT_OK;
+    ccm->aadlen = aadlen;
+    return CRYPT_OK;
 }
 
 #endif

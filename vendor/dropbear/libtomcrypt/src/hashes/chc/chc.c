@@ -16,21 +16,14 @@
 
 #ifdef LTC_CHC_HASH
 
-#define UNDEFED_HASH  -17
+#define UNDEFED_HASH -17
 
 /* chc settings */
-static int            cipher_idx=UNDEFED_HASH,        /* which cipher */
-                      cipher_blocksize;               /* blocksize of cipher */
+static int cipher_idx = UNDEFED_HASH, /* which cipher */
+    cipher_blocksize;                 /* blocksize of cipher */
 
-
-const struct ltc_hash_descriptor chc_desc = {
-   "chc_hash", 12, 0, 0, { 0 }, 0,
-   &chc_init,
-   &chc_process,
-   &chc_done,
-   &chc_test,
-   NULL
-};
+const struct ltc_hash_descriptor chc_desc = {"chc_hash", 12,           0,         0,         {0}, 0,
+                                             &chc_init,  &chc_process, &chc_done, &chc_test, NULL};
 
 /**
   Initialize the CHC state with a given cipher
@@ -39,42 +32,47 @@ const struct ltc_hash_descriptor chc_desc = {
 */
 int chc_register(int cipher)
 {
-   int err, kl, idx;
+    int err, kl, idx;
 
-   if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
-      return err;
-   }
+    if ((err = cipher_is_valid(cipher)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* will it be valid? */
-   kl = cipher_descriptor[cipher].block_length;
+    /* will it be valid? */
+    kl = cipher_descriptor[cipher].block_length;
 
-   /* must be >64 bit block */
-   if (kl <= 8) {
-      return CRYPT_INVALID_CIPHER;
-   }
+    /* must be >64 bit block */
+    if (kl <= 8)
+    {
+        return CRYPT_INVALID_CIPHER;
+    }
 
-   /* can we use the ideal keysize? */
-   if ((err = cipher_descriptor[cipher].keysize(&kl)) != CRYPT_OK) {
-      return err;
-   }
-   /* we require that key size == block size be a valid choice */
-   if (kl != cipher_descriptor[cipher].block_length) {
-      return CRYPT_INVALID_CIPHER;
-   }
+    /* can we use the ideal keysize? */
+    if ((err = cipher_descriptor[cipher].keysize(&kl)) != CRYPT_OK)
+    {
+        return err;
+    }
+    /* we require that key size == block size be a valid choice */
+    if (kl != cipher_descriptor[cipher].block_length)
+    {
+        return CRYPT_INVALID_CIPHER;
+    }
 
-   /* determine if chc_hash has been register_hash'ed already */
-   if ((err = hash_is_valid(idx = find_hash("chc_hash"))) != CRYPT_OK) {
-      return err;
-   }
+    /* determine if chc_hash has been register_hash'ed already */
+    if ((err = hash_is_valid(idx = find_hash("chc_hash"))) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* store into descriptor */
-   hash_descriptor[idx].hashsize  =
-   hash_descriptor[idx].blocksize = cipher_descriptor[cipher].block_length;
+    /* store into descriptor */
+    hash_descriptor[idx].hashsize = hash_descriptor[idx].blocksize =
+        cipher_descriptor[cipher].block_length;
 
-   /* store the idx and block size */
-   cipher_idx       = cipher;
-   cipher_blocksize = cipher_descriptor[cipher].block_length;
-   return CRYPT_OK;
+    /* store the idx and block size */
+    cipher_idx = cipher;
+    cipher_blocksize = cipher_descriptor[cipher].block_length;
+    return CRYPT_OK;
 }
 
 /**
@@ -84,41 +82,45 @@ int chc_register(int cipher)
 */
 int chc_init(hash_state *md)
 {
-   symmetric_key *key;
-   unsigned char  buf[MAXBLOCKSIZE];
-   int            err;
+    symmetric_key *key;
+    unsigned char buf[MAXBLOCKSIZE];
+    int err;
 
-   LTC_ARGCHK(md != NULL);
+    LTC_ARGCHK(md != NULL);
 
-   /* is the cipher valid? */
-   if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK) {
-      return err;
-   }
+    /* is the cipher valid? */
+    if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
-      return CRYPT_INVALID_CIPHER;
-   }
+    if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length)
+    {
+        return CRYPT_INVALID_CIPHER;
+    }
 
-   if ((key = XMALLOC(sizeof(*key))) == NULL) {
-      return CRYPT_MEM;
-   }
+    if ((key = XMALLOC(sizeof(*key))) == NULL)
+    {
+        return CRYPT_MEM;
+    }
 
-   /* zero key and what not */
-   zeromem(buf, cipher_blocksize);
-   if ((err = cipher_descriptor[cipher_idx].setup(buf, cipher_blocksize, 0, key)) != CRYPT_OK) {
-      XFREE(key);
-      return err;
-   }
+    /* zero key and what not */
+    zeromem(buf, cipher_blocksize);
+    if ((err = cipher_descriptor[cipher_idx].setup(buf, cipher_blocksize, 0, key)) != CRYPT_OK)
+    {
+        XFREE(key);
+        return err;
+    }
 
-   /* encrypt zero block */
-   cipher_descriptor[cipher_idx].ecb_encrypt(buf, md->chc.state, key);
+    /* encrypt zero block */
+    cipher_descriptor[cipher_idx].ecb_encrypt(buf, md->chc.state, key);
 
-   /* zero other members */
-   md->chc.length = 0;
-   md->chc.curlen = 0;
-   zeromem(md->chc.buf, sizeof(md->chc.buf));
-   XFREE(key);
-   return CRYPT_OK;
+    /* zero other members */
+    md->chc.length = 0;
+    md->chc.curlen = 0;
+    zeromem(md->chc.buf, sizeof(md->chc.buf));
+    XFREE(key);
+    return CRYPT_OK;
 }
 
 /*
@@ -129,28 +131,32 @@ int chc_init(hash_state *md)
 */
 static int chc_compress(hash_state *md, unsigned char *buf)
 {
-   unsigned char  T[2][MAXBLOCKSIZE];
-   symmetric_key *key;
-   int            err, x;
+    unsigned char T[2][MAXBLOCKSIZE];
+    symmetric_key *key;
+    int err, x;
 
-   if ((key = XMALLOC(sizeof(*key))) == NULL) {
-      return CRYPT_MEM;
-   }
-   if ((err = cipher_descriptor[cipher_idx].setup(md->chc.state, cipher_blocksize, 0, key)) != CRYPT_OK) {
-      XFREE(key);
-      return err;
-   }
-   XMEMCPY(T[1], buf, cipher_blocksize);
-   cipher_descriptor[cipher_idx].ecb_encrypt(buf, T[0], key);
-   for (x = 0; x < cipher_blocksize; x++) {
-       md->chc.state[x] ^= T[0][x] ^ T[1][x];
-   }
+    if ((key = XMALLOC(sizeof(*key))) == NULL)
+    {
+        return CRYPT_MEM;
+    }
+    if ((err = cipher_descriptor[cipher_idx].setup(md->chc.state, cipher_blocksize, 0, key)) !=
+        CRYPT_OK)
+    {
+        XFREE(key);
+        return err;
+    }
+    XMEMCPY(T[1], buf, cipher_blocksize);
+    cipher_descriptor[cipher_idx].ecb_encrypt(buf, T[0], key);
+    for (x = 0; x < cipher_blocksize; x++)
+    {
+        md->chc.state[x] ^= T[0][x] ^ T[1][x];
+    }
 #ifdef LTC_CLEAN_STACK
-   zeromem(T, sizeof(T));
-   zeromem(key, sizeof(*key));
+    zeromem(T, sizeof(T));
+    zeromem(key, sizeof(*key));
 #endif
-   XFREE(key);
-   return CRYPT_OK;
+    XFREE(key);
+    return CRYPT_OK;
 }
 
 /**
@@ -160,32 +166,35 @@ static int chc_compress(hash_state *md, unsigned char *buf)
    @param len  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-static int _chc_process(hash_state * md, const unsigned char *buf, unsigned long len);
+static int _chc_process(hash_state *md, const unsigned char *buf, unsigned long len);
+
 static HASH_PROCESS(_chc_process, chc_compress, chc, (unsigned long)cipher_blocksize)
 
-/**
+    /**
    Process a block of memory though the hash
    @param md   The hash state
    @param in   The data to hash
    @param inlen  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-int chc_process(hash_state * md, const unsigned char *in, unsigned long inlen)
+    int chc_process(hash_state *md, const unsigned char *in, unsigned long inlen)
 {
-   int err;
+    int err;
 
-   LTC_ARGCHK(md   != NULL);
-   LTC_ARGCHK(in  != NULL);
+    LTC_ARGCHK(md != NULL);
+    LTC_ARGCHK(in != NULL);
 
-   /* is the cipher valid? */
-   if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK) {
-      return err;
-   }
-   if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
-      return CRYPT_INVALID_CIPHER;
-   }
+    /* is the cipher valid? */
+    if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK)
+    {
+        return err;
+    }
+    if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length)
+    {
+        return CRYPT_INVALID_CIPHER;
+    }
 
-   return _chc_process(md, in, inlen);
+    return _chc_process(md, in, inlen);
 }
 
 /**
@@ -198,19 +207,22 @@ int chc_done(hash_state *md, unsigned char *out)
 {
     int err;
 
-    LTC_ARGCHK(md   != NULL);
-    LTC_ARGCHK(out  != NULL);
+    LTC_ARGCHK(md != NULL);
+    LTC_ARGCHK(out != NULL);
 
     /* is the cipher valid? */
-    if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK) {
-       return err;
+    if ((err = cipher_is_valid(cipher_idx)) != CRYPT_OK)
+    {
+        return err;
     }
-    if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length) {
-       return CRYPT_INVALID_CIPHER;
+    if (cipher_blocksize != cipher_descriptor[cipher_idx].block_length)
+    {
+        return CRYPT_INVALID_CIPHER;
     }
 
-    if (md->chc.curlen >= sizeof(md->chc.buf)) {
-       return CRYPT_INVALID_ARG;
+    if (md->chc.curlen >= sizeof(md->chc.buf))
+    {
+        return CRYPT_INVALID_ARG;
     }
 
     /* increase the length of the message */
@@ -223,8 +235,10 @@ int chc_done(hash_state *md, unsigned char *out)
      * then compress.  Then we can fall back to padding zeros and length
      * encoding like normal.
      */
-    if (md->chc.curlen > (unsigned long)(cipher_blocksize - 8)) {
-        while (md->chc.curlen < (unsigned long)cipher_blocksize) {
+    if (md->chc.curlen > (unsigned long)(cipher_blocksize - 8))
+    {
+        while (md->chc.curlen < (unsigned long)cipher_blocksize)
+        {
             md->chc.buf[md->chc.curlen++] = (unsigned char)0;
         }
         chc_compress(md, md->chc.buf);
@@ -232,12 +246,13 @@ int chc_done(hash_state *md, unsigned char *out)
     }
 
     /* pad upto l-8 bytes of zeroes */
-    while (md->chc.curlen < (unsigned long)(cipher_blocksize - 8)) {
+    while (md->chc.curlen < (unsigned long)(cipher_blocksize - 8))
+    {
         md->chc.buf[md->chc.curlen++] = (unsigned char)0;
     }
 
     /* store length */
-    STORE64L(md->chc.length, md->chc.buf+(cipher_blocksize-8));
+    STORE64L(md->chc.length, md->chc.buf + (cipher_blocksize - 8));
     chc_compress(md, md->chc.buf);
 
     /* copy output */
@@ -256,46 +271,48 @@ int chc_done(hash_state *md, unsigned char *out)
 int chc_test(void)
 {
 #ifndef LTC_TEST
-   return CRYPT_NOP;
+    return CRYPT_NOP;
 #else
-   static const struct {
-      unsigned char *msg,
-                     hash[MAXBLOCKSIZE];
-      int            len;
-   } tests[] = {
-{
-   (unsigned char *)"hello world",
-   { 0xcf, 0x57, 0x9d, 0xc3, 0x0a, 0x0e, 0xea, 0x61,
-     0x0d, 0x54, 0x47, 0xc4, 0x3c, 0x06, 0xf5, 0x4e },
-   16
-}
-};
-   int i, oldhashidx, idx;
-   unsigned char tmp[MAXBLOCKSIZE];
-   hash_state md;
+    static const struct
+    {
+        unsigned char *msg, hash[MAXBLOCKSIZE];
+        int len;
+    } tests[] = {{(unsigned char *)"hello world",
+                  {0xcf, 0x57, 0x9d, 0xc3, 0x0a, 0x0e, 0xea, 0x61, 0x0d, 0x54, 0x47, 0xc4, 0x3c,
+                   0x06, 0xf5, 0x4e},
+                  16}};
 
-   /* AES can be under rijndael or aes... try to find it */
-   if ((idx = find_cipher("aes")) == -1) {
-      if ((idx = find_cipher("rijndael")) == -1) {
-         return CRYPT_NOP;
-      }
-   }
-   oldhashidx = cipher_idx;
-   chc_register(idx);
+    int i, oldhashidx, idx;
+    unsigned char tmp[MAXBLOCKSIZE];
+    hash_state md;
 
-   for (i = 0; i < (int)(sizeof(tests)/sizeof(tests[0])); i++) {
-       chc_init(&md);
-       chc_process(&md, tests[i].msg, strlen((char *)tests[i].msg));
-       chc_done(&md, tmp);
-       if (compare_testvector(tmp, tests[i].len, tests[i].hash, tests[i].len, "CHC", i)) {
-          return CRYPT_FAIL_TESTVECTOR;
-       }
-   }
-   if (oldhashidx != UNDEFED_HASH) {
-      chc_register(oldhashidx);
-   }
+    /* AES can be under rijndael or aes... try to find it */
+    if ((idx = find_cipher("aes")) == -1)
+    {
+        if ((idx = find_cipher("rijndael")) == -1)
+        {
+            return CRYPT_NOP;
+        }
+    }
+    oldhashidx = cipher_idx;
+    chc_register(idx);
 
-   return CRYPT_OK;
+    for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++)
+    {
+        chc_init(&md);
+        chc_process(&md, tests[i].msg, strlen((char *)tests[i].msg));
+        chc_done(&md, tmp);
+        if (compare_testvector(tmp, tests[i].len, tests[i].hash, tests[i].len, "CHC", i))
+        {
+            return CRYPT_FAIL_TESTVECTOR;
+        }
+    }
+    if (oldhashidx != UNDEFED_HASH)
+    {
+        chc_register(oldhashidx);
+    }
+
+    return CRYPT_OK;
 #endif
 }
 

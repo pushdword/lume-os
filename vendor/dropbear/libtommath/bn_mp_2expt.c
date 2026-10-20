@@ -10,26 +10,28 @@
  */
 mp_err mp_2expt(mp_int *a, int b)
 {
-   mp_err    err;
+    mp_err err;
 
-   if (b < 0) {
-      return MP_VAL;
-   }
+    if (b < 0)
+    {
+        return MP_VAL;
+    }
 
-   /* zero a as per default */
-   mp_zero(a);
+    /* zero a as per default */
+    mp_zero(a);
 
-   /* grow a to accomodate the single bit */
-   if ((err = mp_grow(a, (b / MP_DIGIT_BIT) + 1)) != MP_OKAY) {
-      return err;
-   }
+    /* grow a to accomodate the single bit */
+    if ((err = mp_grow(a, (b / MP_DIGIT_BIT) + 1)) != MP_OKAY)
+    {
+        return err;
+    }
 
-   /* set the used count of where the bit will go */
-   a->used = (b / MP_DIGIT_BIT) + 1;
+    /* set the used count of where the bit will go */
+    a->used = (b / MP_DIGIT_BIT) + 1;
 
-   /* put the single bit in its place */
-   a->dp[b / MP_DIGIT_BIT] = (mp_digit)1 << (mp_digit)(b % MP_DIGIT_BIT);
+    /* put the single bit in its place */
+    a->dp[b / MP_DIGIT_BIT] = (mp_digit)1 << (mp_digit)(b % MP_DIGIT_BIT);
 
-   return MP_OKAY;
+    return MP_OKAY;
 }
 #endif

@@ -8,30 +8,32 @@
 #include "kex.h"
 
 #if DROPBEAR_ECDH
-struct kex_ecdh_param *gen_kexecdh_param() {
+struct kex_ecdh_param *gen_kexecdh_param()
+{
     struct kex_ecdh_param *param = m_malloc(sizeof(*param));
     const struct dropbear_ecc_curve *curve = ses.newkeys->algo_kex->details;
-    if (ecc_make_key_ex(NULL, dropbear_ltc_prng, 
-        &param->key, curve->dp) != CRYPT_OK) {
+    if (ecc_make_key_ex(NULL, dropbear_ltc_prng, &param->key, curve->dp) != CRYPT_OK)
+    {
         dropbear_exit("ECC error");
     }
     return param;
 }
 
-void free_kexecdh_param(struct kex_ecdh_param *param) {
+void free_kexecdh_param(struct kex_ecdh_param *param)
+{
     ecc_free(&param->key);
     m_free(param);
-
 }
-void kexecdh_comb_key(struct kex_ecdh_param *param, buffer *pub_them,
-        sign_key *hostkey) {
-    const struct dropbear_ecc_curve *curve
-        = ses.newkeys->algo_kex->details;
+
+void kexecdh_comb_key(struct kex_ecdh_param *param, buffer *pub_them, sign_key *hostkey)
+{
+    const struct dropbear_ecc_curve *curve = ses.newkeys->algo_kex->details;
     /* public keys from client and server */
     ecc_key *Q_C, *Q_S, *Q_them;
 
     Q_them = buf_get_ecc_raw_pubkey(pub_them, curve);
-    if (Q_them == NULL) {
+    if (Q_them == NULL)
+    {
         dropbear_exit("ECC error");
     }
 
@@ -39,13 +41,16 @@ void kexecdh_comb_key(struct kex_ecdh_param *param, buffer *pub_them,
 
     /* Create the remainder of the hash buffer, to generate the exchange hash
        See RFC5656 section 4 page 7 */
-    if (IS_DROPBEAR_CLIENT) {
+    if (IS_DROPBEAR_CLIENT)
+    {
         Q_C = &param->key;
         Q_S = Q_them;
-    } else {
+    }
+    else
+    {
         Q_C = Q_them;
         Q_S = &param->key;
-    } 
+    }
 
     /* K_S, the host key */
     buf_put_pub_key(ses.kexhashbuf, hostkey, ses.newkeys->algo_hostkey);
@@ -63,4 +68,3 @@ void kexecdh_comb_key(struct kex_ecdh_param *param, buffer *pub_them,
     finish_kexhashbuf();
 }
 #endif /* DROPBEAR_ECDH */
-

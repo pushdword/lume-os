@@ -25,38 +25,39 @@ in the source distribution for its full text.
 
 #include "zfs/ZfsArcStats.h"
 
-
 #define ZONE_ERRMSGLEN 1024
 extern char zone_errmsg[ZONE_ERRMSGLEN];
 
-typedef struct CPUData_ {
-   double userPercent;
-   double nicePercent;
-   double systemPercent;
-   double irqPercent;
-   double idlePercent;
-   double systemAllPercent;
-   double frequency;
-   uint64_t luser;
-   uint64_t lkrnl;
-   uint64_t lintr;
-   uint64_t lidle;
-   bool online;
+typedef struct CPUData_
+{
+    double userPercent;
+    double nicePercent;
+    double systemPercent;
+    double irqPercent;
+    double idlePercent;
+    double systemAllPercent;
+    double frequency;
+    uint64_t luser;
+    uint64_t lkrnl;
+    uint64_t lintr;
+    uint64_t lidle;
+    bool online;
 } CPUData;
 
-typedef struct SolarisMachine_ {
-   Machine super;
+typedef struct SolarisMachine_
+{
+    Machine super;
 
-   kstat_ctl_t* kd;
-   CPUData* cpus;
+    kstat_ctl_t *kd;
+    CPUData *cpus;
 
-   size_t pageSize;
-   size_t pageSizeKB;
+    size_t pageSize;
+    size_t pageSizeKB;
 
-   memory_t usedMem;
-   memory_t lockedMem;
+    memory_t usedMem;
+    memory_t lockedMem;
 
-   ZfsArcStats zfs;
+    ZfsArcStats zfs;
 } SolarisMachine;
 
 #endif

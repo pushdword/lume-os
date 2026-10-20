@@ -10,14 +10,14 @@ in the source distribution for its full text.
 #include <stdbool.h>
 #include <sys/types.h>
 
-
-typedef struct KernelVersion {
-   short int major;
-   short int minor;
-   short int patch;
+typedef struct KernelVersion
+{
+    short int major;
+    short int minor;
+    short int patch;
 } KernelVersion;
 
-void Platform_GetKernelVersion(KernelVersion* k);
+void Platform_GetKernelVersion(KernelVersion *k);
 
 /* compare the given os version with the one installed returns:
 0 if equals the installed version
@@ -29,7 +29,7 @@ int Platform_CompareKernelVersion(KernelVersion v);
 // lowerBound <= currentVersion < upperBound
 bool Platform_KernelVersionIsBetween(KernelVersion lowerBound, KernelVersion upperBound);
 
-void Platform_getCPUBrandString(char* cpuBrandString, size_t cpuBrandStringSize);
+void Platform_getCPUBrandString(char *cpuBrandString, size_t cpuBrandStringSize);
 
 bool Platform_isRunningTranslated(void);
 

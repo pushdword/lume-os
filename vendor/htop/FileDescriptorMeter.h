@@ -9,7 +9,6 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-
 extern const MeterClass FileDescriptorMeter_class;
 
 #endif

@@ -25,51 +25,58 @@
   @param ...    tuples of (data,len) pairs to hash, terminated with a (NULL,x) (x=don't care)
   @return CRYPT_OK if successful
 */
-int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen,
-                      const unsigned char *in, unsigned long inlen, ...)
+int hash_memory_multi(int hash, unsigned char *out, unsigned long *outlen, const unsigned char *in,
+                      unsigned long inlen, ...)
 {
-    hash_state          *md;
-    int                  err;
-    va_list              args;
+    hash_state *md;
+    int err;
+    va_list args;
     const unsigned char *curptr;
-    unsigned long        curlen;
+    unsigned long curlen;
 
-    LTC_ARGCHK(in     != NULL);
-    LTC_ARGCHK(out    != NULL);
+    LTC_ARGCHK(in != NULL);
+    LTC_ARGCHK(out != NULL);
     LTC_ARGCHK(outlen != NULL);
 
-    if ((err = hash_is_valid(hash)) != CRYPT_OK) {
+    if ((err = hash_is_valid(hash)) != CRYPT_OK)
+    {
         return err;
     }
 
-    if (*outlen < hash_descriptor[hash].hashsize) {
-       *outlen = hash_descriptor[hash].hashsize;
-       return CRYPT_BUFFER_OVERFLOW;
+    if (*outlen < hash_descriptor[hash].hashsize)
+    {
+        *outlen = hash_descriptor[hash].hashsize;
+        return CRYPT_BUFFER_OVERFLOW;
     }
 
     md = XMALLOC(sizeof(hash_state));
-    if (md == NULL) {
-       return CRYPT_MEM;
+    if (md == NULL)
+    {
+        return CRYPT_MEM;
     }
 
-    if ((err = hash_descriptor[hash].init(md)) != CRYPT_OK) {
-       goto LBL_ERR;
+    if ((err = hash_descriptor[hash].init(md)) != CRYPT_OK)
+    {
+        goto LBL_ERR;
     }
 
     va_start(args, inlen);
     curptr = in;
     curlen = inlen;
-    for (;;) {
-       /* process buf */
-       if ((err = hash_descriptor[hash].process(md, curptr, curlen)) != CRYPT_OK) {
-          goto LBL_ERR;
-       }
-       /* step to next */
-       curptr = va_arg(args, const unsigned char*);
-       if (curptr == NULL) {
-          break;
-       }
-       curlen = va_arg(args, unsigned long);
+    for (;;)
+    {
+        /* process buf */
+        if ((err = hash_descriptor[hash].process(md, curptr, curlen)) != CRYPT_OK)
+        {
+            goto LBL_ERR;
+        }
+        /* step to next */
+        curptr = va_arg(args, const unsigned char *);
+        if (curptr == NULL)
+        {
+            break;
+        }
+        curlen = va_arg(args, unsigned long);
     }
     err = hash_descriptor[hash].done(md, out);
     *outlen = hash_descriptor[hash].hashsize;

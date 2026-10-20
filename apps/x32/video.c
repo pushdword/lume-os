@@ -2,6 +2,7 @@
 #include "api.h"
 #include <string.h>
 static unsigned char font[4096];
+
 int app_main(int argc, char **argv)
 {
     int modes = lume_syscall(LUME_VIDEO, 0, 0, 0), r = 0;
@@ -28,13 +29,15 @@ int app_main(int argc, char **argv)
             app_error("video", -95);
             return 1;
         }
-        unsigned first = (unsigned)lume_syscall(LUME_VIDEO, 3, 0, 0), start = (unsigned)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0), elapsed;
+        unsigned first = (unsigned)lume_syscall(LUME_VIDEO, 3, 0, 0),
+                 start = (unsigned)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0), elapsed;
         do
         {
             lume_syscall(LUME_YIELD, 0, 0, 0);
             elapsed = (unsigned)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0) - start;
         } while (elapsed < 1000);
-        unsigned frames = (unsigned)lume_syscall(LUME_VIDEO, 3, 0, 0) - first, pixels = (unsigned)lume_syscall(LUME_VIDEO, 4, 0, 0);
+        unsigned frames = (unsigned)lume_syscall(LUME_VIDEO, 3, 0, 0) - first,
+                 pixels = (unsigned)lume_syscall(LUME_VIDEO, 4, 0, 0);
         app_puts("Pixels: ");
         app_number(pixels & 65535);
         app_puts("x");
@@ -66,7 +69,10 @@ int app_main(int argc, char **argv)
             unsigned char extra;
             int tail = n == sizeof font ? app_read(fd, &extra, 1) : -1;
             int closed = app_close(fd);
-            r = n == sizeof font && tail == 0 ? (closed < 0 ? closed : lume_syscall(LUME_VIDEO, 2, (uint32_t)(uintptr_t)font, 0)) : -22;
+            r = n == sizeof font && tail == 0
+                    ? (closed < 0 ? closed
+                                  : lume_syscall(LUME_VIDEO, 2, (uint32_t)(uintptr_t)font, 0))
+                    : -22;
         }
     }
     else

@@ -28,30 +28,31 @@
 #include "includes.h"
 #include "buffer.h"
 
-#if DROPBEAR_DSS 
+#if DROPBEAR_DSS
 
-typedef struct dropbear_DSS_Key {
+typedef struct dropbear_DSS_Key
+{
 
-	mp_int* p;
-	mp_int* q;
-	mp_int* g;
-	mp_int* y;
-	/* x is the private part */
-	mp_int* x;
+    mp_int *p;
+    mp_int *q;
+    mp_int *g;
+    mp_int *y;
+    /* x is the private part */
+    mp_int *x;
 
 } dropbear_dss_key;
 
 #define DSS_P_BITS 1024
 #define DSS_Q_BITS 160
 
-void buf_put_dss_sign(buffer* buf, const dropbear_dss_key *key, const buffer *data_buf);
+void buf_put_dss_sign(buffer *buf, const dropbear_dss_key *key, const buffer *data_buf);
 #if DROPBEAR_SIGNKEY_VERIFY
-int buf_dss_verify(buffer* buf, const dropbear_dss_key *key, const buffer *data_buf);
+int buf_dss_verify(buffer *buf, const dropbear_dss_key *key, const buffer *data_buf);
 #endif
-int buf_get_dss_pub_key(buffer* buf, dropbear_dss_key *key);
-int buf_get_dss_priv_key(buffer* buf, dropbear_dss_key *key);
-void buf_put_dss_pub_key(buffer* buf, const dropbear_dss_key *key);
-void buf_put_dss_priv_key(buffer* buf, const dropbear_dss_key *key);
+int buf_get_dss_pub_key(buffer *buf, dropbear_dss_key *key);
+int buf_get_dss_priv_key(buffer *buf, dropbear_dss_key *key);
+void buf_put_dss_pub_key(buffer *buf, const dropbear_dss_key *key);
+void buf_put_dss_priv_key(buffer *buf, const dropbear_dss_key *key);
 void dss_key_free(dropbear_dss_key *key);
 
 #endif /* DROPBEAR_DSS */

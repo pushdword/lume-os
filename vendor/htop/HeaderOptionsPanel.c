@@ -21,70 +21,73 @@ in the source distribution for its full text.
 #include "OptionItem.h"
 #include "ProvideCurses.h"
 
+static const char *const HeaderOptionsFunctions[] = {"      ", "      ", "      ", "      ",
+                                                     "      ", "      ", "      ", "      ",
+                                                     "      ", "Done  ", NULL};
 
-static const char* const HeaderOptionsFunctions[] = {"      ", "      ", "      ", "      ", "      ", "      ", "      ", "      ", "      ", "Done  ", NULL};
-
-static void HeaderOptionsPanel_delete(Object* object) {
-   HeaderOptionsPanel* this = (HeaderOptionsPanel*) object;
-   Panel_done(&this->super);
-   free(this);
+static void HeaderOptionsPanel_delete(Object *object)
+{
+    HeaderOptionsPanel *this = (HeaderOptionsPanel *)object;
+    Panel_done(&this->super);
+    free(this);
 }
 
-static HandlerResult HeaderOptionsPanel_eventHandler(Panel* super, int ch) {
-   HeaderOptionsPanel* this = (HeaderOptionsPanel*) super;
+static HandlerResult HeaderOptionsPanel_eventHandler(Panel *super, int ch)
+{
+    HeaderOptionsPanel *this = (HeaderOptionsPanel *)super;
 
-   HandlerResult result = IGNORED;
+    HandlerResult result = IGNORED;
 
-   switch (ch) {
-      case 0x0a:
-      case 0x0d:
-      case KEY_ENTER:
-      case KEY_MOUSE:
-      case KEY_RECLICK:
-      case ' ': {
-         int mark = Panel_getSelectedIndex(super);
-         assert(mark >= 0);
-         assert(mark < LAST_HEADER_LAYOUT);
+    switch (ch)
+    {
+    case 0x0a:
+    case 0x0d:
+    case KEY_ENTER:
+    case KEY_MOUSE:
+    case KEY_RECLICK:
+    case ' ':
+    {
+        int mark = Panel_getSelectedIndex(super);
+        assert(mark >= 0);
+        assert(mark < LAST_HEADER_LAYOUT);
 
-         for (int i = 0; i < LAST_HEADER_LAYOUT; i++)
-            CheckItem_set((CheckItem*)Panel_get(super, i), false);
-         CheckItem_set((CheckItem*)Panel_get(super, mark), true);
+        for (int i = 0; i < LAST_HEADER_LAYOUT; i++)
+            CheckItem_set((CheckItem *)Panel_get(super, i), false);
+        CheckItem_set((CheckItem *)Panel_get(super, mark), true);
 
-         Header_setLayout(this->scr->header, mark);
-         this->settings->changed = true;
-         this->settings->lastUpdate++;
+        Header_setLayout(this->scr->header, mark);
+        this->settings->changed = true;
+        this->settings->lastUpdate++;
 
-         ScreenManager_resize(this->scr);
+        ScreenManager_resize(this->scr);
 
-         result = HANDLED;
-      }
-   }
+        result = HANDLED;
+    }
+    }
 
-   return result;
+    return result;
 }
 
 const PanelClass HeaderOptionsPanel_class = {
-   .super = {
-      .extends = Class(Panel),
-      .delete = HeaderOptionsPanel_delete
-   },
-   .eventHandler = HeaderOptionsPanel_eventHandler
-};
+    .super = {.extends = Class(Panel), .delete = HeaderOptionsPanel_delete},
+    .eventHandler = HeaderOptionsPanel_eventHandler};
 
-HeaderOptionsPanel* HeaderOptionsPanel_new(Settings* settings, ScreenManager* scr) {
-   HeaderOptionsPanel* this = AllocThis(HeaderOptionsPanel);
-   Panel* super = &this->super;
+HeaderOptionsPanel *HeaderOptionsPanel_new(Settings *settings, ScreenManager *scr)
+{
+    HeaderOptionsPanel *this = AllocThis(HeaderOptionsPanel);
+    Panel *super = &this->super;
 
-   FunctionBar* fuBar = FunctionBar_new(HeaderOptionsFunctions, NULL, NULL);
-   Panel_init(super, 1, 1, 1, 1, Class(CheckItem), true, fuBar);
+    FunctionBar *fuBar = FunctionBar_new(HeaderOptionsFunctions, NULL, NULL);
+    Panel_init(super, 1, 1, 1, 1, Class(CheckItem), true, fuBar);
 
-   this->scr = scr;
-   this->settings = settings;
+    this->scr = scr;
+    this->settings = settings;
 
-   Panel_setHeader(super, "Header Layout");
-   for (int i = 0; i < LAST_HEADER_LAYOUT; i++) {
-      Panel_add(super, (Object*) CheckItem_newByVal(HeaderLayout_layouts[i].description, false));
-   }
-   CheckItem_set((CheckItem*)Panel_get(super, scr->header->headerLayout), true);
-   return this;
+    Panel_setHeader(super, "Header Layout");
+    for (int i = 0; i < LAST_HEADER_LAYOUT; i++)
+    {
+        Panel_add(super, (Object *)CheckItem_newByVal(HeaderLayout_layouts[i].description, false));
+    }
+    CheckItem_set((CheckItem *)Panel_get(super, scr->header->headerLayout), true);
+    return this;
 }

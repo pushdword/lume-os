@@ -5,6 +5,6 @@
 
 mp_err mp_mod_d(const mp_int *a, mp_digit b, mp_digit *c)
 {
-   return mp_div_d(a, b, NULL, c);
+    return mp_div_d(a, b, NULL, c);
 }
 #endif

@@ -25,28 +25,30 @@ int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *ou
 {
     FILE *in;
     int err;
-    LTC_ARGCHK(fname  != NULL);
-    LTC_ARGCHK(out    != NULL);
+    LTC_ARGCHK(fname != NULL);
+    LTC_ARGCHK(out != NULL);
     LTC_ARGCHK(outlen != NULL);
 
-    if ((err = hash_is_valid(hash)) != CRYPT_OK) {
+    if ((err = hash_is_valid(hash)) != CRYPT_OK)
+    {
         return err;
     }
 
     in = fopen(fname, "rb");
-    if (in == NULL) {
-       return CRYPT_FILE_NOTFOUND;
+    if (in == NULL)
+    {
+        return CRYPT_FILE_NOTFOUND;
     }
 
     err = hash_filehandle(hash, in, out, outlen);
-    if (fclose(in) != 0) {
-       return CRYPT_ERROR;
+    if (fclose(in) != 0)
+    {
+        return CRYPT_ERROR;
     }
 
     return err;
 }
 #endif /* #ifndef LTC_NO_FILE */
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

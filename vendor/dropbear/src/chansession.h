@@ -29,60 +29,61 @@
 #include "channel.h"
 #include "listener.h"
 
-struct exitinfo {
+struct exitinfo
+{
 
-	int exitpid; /* -1 if not exited */
-	int exitstatus;
-	int exitsignal;
-	int exitcore;
+    int exitpid; /* -1 if not exited */
+    int exitstatus;
+    int exitsignal;
+    int exitcore;
 };
 
-struct ChanSess {
+struct ChanSess
+{
 
-	char * cmd; /* command to exec */
-	pid_t pid; /* child process pid */
-	/* command that was sent by the client, if authorized_keys command= or
+    char *cmd; /* command to exec */
+    pid_t pid; /* child process pid */
+    /* command that was sent by the client, if authorized_keys command= or
 	dropbear -c was used */
-	char *original_command;
+    char *original_command;
 
-	/* pty details */
-	int master; /* the master terminal fd*/
-	int slave;
-	char * tty;
-	char * term;
+    /* pty details */
+    int master; /* the master terminal fd*/
+    int slave;
+    char *tty;
+    char *term;
 
-	/* exit details */
-	struct exitinfo exit;
+    /* exit details */
+    struct exitinfo exit;
 
+    /* These are only set temporarily before forking */
+    /* Used to set $SSH_CONNECTION in the child session.  */
+    char *connection_string;
+    /* Used to set $SSH_CLIENT in the child session. */
+    char *client_string;
 
-	/* These are only set temporarily before forking */
-	/* Used to set $SSH_CONNECTION in the child session.  */
-	char *connection_string;
-	/* Used to set $SSH_CLIENT in the child session. */
-	char *client_string;
-	
 #if DROPBEAR_X11FWD
-	struct Listener * x11listener;
-	int x11port;
-	char * x11authprot;
-	char * x11authcookie;
-	unsigned int x11screennum;
+    struct Listener *x11listener;
+    int x11port;
+    char *x11authprot;
+    char *x11authcookie;
+    unsigned int x11screennum;
 #endif
 
 #if DROPBEAR_SVR_AGENTFWD
-	struct Listener * agentlistener;
-	char * agentfile;
-	char * agentdir;
+    struct Listener *agentlistener;
+    char *agentfile;
+    char *agentdir;
 #endif
 };
 
-struct ChildPid {
-	pid_t pid;
-	struct ChanSess * chansess;
+struct ChildPid
+{
+    pid_t pid;
+    struct ChanSess *chansess;
 };
 
-
-void addnewvar(const char* param, const char* var);
+void addnewvar(const char *param, const char *var);
 
 void cli_send_chansess_request(void);
 void cli_tty_cleanup(void);
@@ -95,9 +96,10 @@ void svr_chansessinitialise(void);
 void svr_chansess_checksignal(void);
 extern const struct ChanType svrchansess;
 
-struct SigMap {
-	int signal;
-	char* name;
+struct SigMap
+{
+    int signal;
+    char *name;
 };
 
 extern const struct SigMap signames[];

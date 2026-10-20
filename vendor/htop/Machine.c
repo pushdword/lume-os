@@ -18,117 +18,132 @@ in the source distribution for its full text.
 #include "Row.h"
 #include "XUtils.h"
 
+void Machine_init(Machine *this, UsersTable *usersTable, uid_t userId)
+{
+    this->usersTable = usersTable;
+    this->userId = userId;
 
-void Machine_init(Machine* this, UsersTable* usersTable, uid_t userId) {
-   this->usersTable = usersTable;
-   this->userId = userId;
+    this->htopUserId = getuid();
 
-   this->htopUserId = getuid();
+    // discover fixed column width limits
+    Row_setPidColumnWidth(Platform_getMaxPid());
 
-   // discover fixed column width limits
-   Row_setPidColumnWidth(Platform_getMaxPid());
-
-   // always maintain valid realtime timestamps
-   Platform_gettime_realtime(&this->realtime, &this->realtimeMs);
+    // always maintain valid realtime timestamps
+    Platform_gettime_realtime(&this->realtime, &this->realtimeMs);
 
 #ifdef HAVE_LIBHWLOC
-   this->topologyOk = false;
-   if (hwloc_topology_init(&this->topology) == 0) {
-      this->topologyOk =
-         #if HWLOC_API_VERSION < 0x00020000
-         /* try to ignore the top-level machine object type */
-         0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_MACHINE) &&
-         /* ignore caches, which don't add structure */
-         0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_CORE) &&
-         0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_CACHE) &&
-         0 == hwloc_topology_set_flags(this->topology, HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM) &&
-         #else
-         0 == hwloc_topology_set_all_types_filter(this->topology, HWLOC_TYPE_FILTER_KEEP_STRUCTURE) &&
-         #endif
-         0 == hwloc_topology_load(this->topology);
-   }
+    this->topologyOk = false;
+    if (hwloc_topology_init(&this->topology) == 0)
+    {
+        this->topologyOk =
+#if HWLOC_API_VERSION < 0x00020000
+            /* try to ignore the top-level machine object type */
+            0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_MACHINE) &&
+            /* ignore caches, which don't add structure */
+            0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_CORE) &&
+            0 == hwloc_topology_ignore_type_keep_structure(this->topology, HWLOC_OBJ_CACHE) &&
+            0 == hwloc_topology_set_flags(this->topology, HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM) &&
+#else
+            0 == hwloc_topology_set_all_types_filter(this->topology,
+                                                     HWLOC_TYPE_FILTER_KEEP_STRUCTURE) &&
+#endif
+            0 == hwloc_topology_load(this->topology);
+    }
 #endif
 }
 
-void Machine_done(Machine* this) {
+void Machine_done(Machine *this)
+{
 #ifdef HAVE_LIBHWLOC
-   if (this->topologyOk) {
-      hwloc_topology_destroy(this->topology);
-   }
+    if (this->topologyOk)
+    {
+        hwloc_topology_destroy(this->topology);
+    }
 #endif
-   Object_delete(this->processTable);
-   free(this->tables);
+    Object_delete(this->processTable);
+    free(this->tables);
 }
 
-static void Machine_addTable(Machine* this, Table* table) {
-   /* check that this table has not been seen previously */
-   for (size_t i = 0; i < this->tableCount; i++)
-      if (this->tables[i] == table)
-         return;
+static void Machine_addTable(Machine *this, Table *table)
+{
+    /* check that this table has not been seen previously */
+    for (size_t i = 0; i < this->tableCount; i++)
+        if (this->tables[i] == table)
+            return;
 
-   size_t nmemb = this->tableCount + 1;
-   Table** tables = xReallocArray(this->tables, nmemb, sizeof(Table*));
-   tables[nmemb - 1] = table;
-   this->tables = tables;
-   this->tableCount++;
+    size_t nmemb = this->tableCount + 1;
+    Table **tables = xReallocArray(this->tables, nmemb, sizeof(Table *));
+    tables[nmemb - 1] = table;
+    this->tables = tables;
+    this->tableCount++;
 }
 
-void Machine_populateTablesFromSettings(Machine* this, Settings* settings, Table* processTable) {
-   this->settings = settings;
-   this->processTable = processTable;
+void Machine_populateTablesFromSettings(Machine *this, Settings *settings, Table *processTable)
+{
+    this->settings = settings;
+    this->processTable = processTable;
 
-   for (size_t i = 0; i < settings->nScreens; i++) {
-      ScreenSettings* ss = settings->screens[i];
+    for (size_t i = 0; i < settings->nScreens; i++)
+    {
+        ScreenSettings *ss = settings->screens[i];
 
-      if (!ss->table)
-         ss->table = processTable;
+        if (!ss->table)
+            ss->table = processTable;
 
-      Table* table = ss->table;
-      if (i == 0)
-         this->activeTable = table;
+        Table *table = ss->table;
+        if (i == 0)
+            this->activeTable = table;
 
-      Machine_addTable(this, table);
-   }
+        Machine_addTable(this, table);
+    }
 }
 
-void Machine_setTablesPanel(Machine* this, Panel* panel) {
-   for (size_t i = 0; i < this->tableCount; i++) {
-      Table_setPanel(this->tables[i], panel);
-   }
+void Machine_setTablesPanel(Machine *this, Panel *panel)
+{
+    for (size_t i = 0; i < this->tableCount; i++)
+    {
+        Table_setPanel(this->tables[i], panel);
+    }
 }
 
-void Machine_scanTables(Machine* this) {
-   // set scan timestamp
-   static bool firstScanDone = false;
+void Machine_scanTables(Machine *this)
+{
+    // set scan timestamp
+    static bool firstScanDone = false;
 
-   if (firstScanDone) {
-      this->prevMonotonicMs = this->monotonicMs;
-      Platform_gettime_monotonic(&this->monotonicMs);
-   } else {
-      this->prevMonotonicMs = 0;
-      this->monotonicMs = 1;
-      firstScanDone = true;
-   }
-   if (this->monotonicMs <= this->prevMonotonicMs) {
-      return;
-   }
+    if (firstScanDone)
+    {
+        this->prevMonotonicMs = this->monotonicMs;
+        Platform_gettime_monotonic(&this->monotonicMs);
+    }
+    else
+    {
+        this->prevMonotonicMs = 0;
+        this->monotonicMs = 1;
+        firstScanDone = true;
+    }
+    if (this->monotonicMs <= this->prevMonotonicMs)
+    {
+        return;
+    }
 
-   this->maxUserId = 0;
-   Row_resetFieldWidths();
+    this->maxUserId = 0;
+    Row_resetFieldWidths();
 
-   for (size_t i = 0; i < this->tableCount; i++) {
-      Table* table = this->tables[i];
+    for (size_t i = 0; i < this->tableCount; i++)
+    {
+        Table *table = this->tables[i];
 
-      // pre-processing of each row
-      Table_scanPrepare(table);
+        // pre-processing of each row
+        Table_scanPrepare(table);
 
-      // scan values for this table
-      Table_scanIterate(table);
+        // scan values for this table
+        Table_scanIterate(table);
 
-      // post-process after scanning
-      Table_scanCleanup(table);
-   }
+        // post-process after scanning
+        Table_scanCleanup(table);
+    }
 
-   Row_setUidColumnWidth(this->maxUserId);
-   Row_setPidColumnWidth(this->maxProcessId);
+    Row_setUidColumnWidth(this->maxUserId);
+    Row_setPidColumnWidth(this->maxProcessId);
 }

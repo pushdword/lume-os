@@ -12,16 +12,16 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "ScreenManager.h"
 
-
-typedef struct CategoriesPanel_ {
-   Panel super;
-   ScreenManager* scr;
-   Machine* host;
-   Header* header;
+typedef struct CategoriesPanel_
+{
+    Panel super;
+    ScreenManager *scr;
+    Machine *host;
+    Header *header;
 } CategoriesPanel;
 
 extern const PanelClass CategoriesPanel_class;
 
-CategoriesPanel* CategoriesPanel_new(ScreenManager* scr, Header* header, Machine* host);
+CategoriesPanel *CategoriesPanel_new(ScreenManager *scr, Header *header, Machine *host);
 
 #endif

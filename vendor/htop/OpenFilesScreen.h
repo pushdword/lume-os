@@ -13,16 +13,16 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct OpenFilesScreen_ {
-   InfoScreen super;
-   pid_t pid;
+typedef struct OpenFilesScreen_
+{
+    InfoScreen super;
+    pid_t pid;
 } OpenFilesScreen;
 
 extern const InfoScreenClass OpenFilesScreen_class;
 
-OpenFilesScreen* OpenFilesScreen_new(const Process* process);
+OpenFilesScreen *OpenFilesScreen_new(const Process *process);
 
-void OpenFilesScreen_delete(Object* this);
+void OpenFilesScreen_delete(Object *this);
 
 #endif

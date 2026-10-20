@@ -6,71 +6,74 @@
 #include "dbrandom.h"
 
 #if DROPBEAR_LTC_PRNG
-	int dropbear_ltc_prng = -1;
+int dropbear_ltc_prng = -1;
 #endif
 
 /* Wrapper for libtommath */
-static mp_err dropbear_rand_source(void* out, size_t size) {
-	genrandom((unsigned char*)out, (unsigned int)size);
-	return MP_OKAY;
+static mp_err dropbear_rand_source(void *out, size_t size)
+{
+    genrandom((unsigned char *)out, (unsigned int)size);
+    return MP_OKAY;
 }
-
 
 /* Register the compiled in ciphers.
  * This should be run before using any of the ciphers/hashes */
-void crypto_init() {
+void crypto_init()
+{
 
-	const struct ltc_cipher_descriptor *regciphers[] = {
+    const struct ltc_cipher_descriptor *regciphers[] = {
 #if DROPBEAR_AES
-		&aes_desc,
+        &aes_desc,
 #endif
 #if DROPBEAR_3DES
-		&des3_desc,
+        &des3_desc,
 #endif
-		NULL
-	};
+        NULL};
 
-	const struct ltc_hash_descriptor *reghashes[] = {
+    const struct ltc_hash_descriptor *reghashes[] = {
 #if DROPBEAR_SHA1_HMAC
-		&sha1_desc,
+        &sha1_desc,
 #endif
 #if DROPBEAR_SHA256
-		&sha256_desc,
+        &sha256_desc,
 #endif
 #if DROPBEAR_SHA384
-		&sha384_desc,
+        &sha384_desc,
 #endif
 #if DROPBEAR_SHA512
-		&sha512_desc,
+        &sha512_desc,
 #endif
-		NULL
-	};
-	int i;
+        NULL};
+    int i;
 
-	for (i = 0; regciphers[i] != NULL; i++) {
-		if (register_cipher(regciphers[i]) == -1) {
-			dropbear_exit("Error registering crypto");
-		}
-	}
+    for (i = 0; regciphers[i] != NULL; i++)
+    {
+        if (register_cipher(regciphers[i]) == -1)
+        {
+            dropbear_exit("Error registering crypto");
+        }
+    }
 
-	for (i = 0; reghashes[i] != NULL; i++) {
-		if (register_hash(reghashes[i]) == -1) {
-			dropbear_exit("Error registering crypto");
-		}
-	}
+    for (i = 0; reghashes[i] != NULL; i++)
+    {
+        if (register_hash(reghashes[i]) == -1)
+        {
+            dropbear_exit("Error registering crypto");
+        }
+    }
 
 #if DROPBEAR_LTC_PRNG
-	dropbear_ltc_prng = register_prng(&dropbear_prng_desc);
-	if (dropbear_ltc_prng == -1) {
-		dropbear_exit("Error registering crypto");
-	}
+    dropbear_ltc_prng = register_prng(&dropbear_prng_desc);
+    if (dropbear_ltc_prng == -1)
+    {
+        dropbear_exit("Error registering crypto");
+    }
 #endif
 
-	/* No bignum randomness in this profile. */
+    /* No bignum randomness in this profile. */
 
 #if DROPBEAR_ECC
-	ltc_mp = ltm_desc;
-	dropbear_ecc_fill_dp();
+    ltc_mp = ltm_desc;
+    dropbear_ecc_fill_dp();
 #endif
 }
-

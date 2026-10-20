@@ -10,8 +10,8 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "linux/IOPriority.h"
 
-Panel* IOPriorityPanel_new(IOPriority currPrio);
+Panel *IOPriorityPanel_new(IOPriority currPrio);
 
-IOPriority IOPriorityPanel_getIOPriority(Panel* this);
+IOPriority IOPriorityPanel_getIOPriority(Panel *this);
 
 #endif

@@ -13,22 +13,22 @@ in the source distribution for its full text.
 #include "Hashtable.h"
 #include "Meter.h"
 
-
-typedef struct DynamicMeter_ {
-   char name[32];  /* unique name, cannot contain spaces */
-   char* caption;
-   char* description;
-   unsigned int type;
-   double maximum;
+typedef struct DynamicMeter_
+{
+    char name[32]; /* unique name, cannot contain spaces */
+    char *caption;
+    char *description;
+    unsigned int type;
+    double maximum;
 } DynamicMeter;
 
-Hashtable* DynamicMeters_new(void);
+Hashtable *DynamicMeters_new(void);
 
-void DynamicMeters_delete(Hashtable* dynamics);
+void DynamicMeters_delete(Hashtable *dynamics);
 
-const char* DynamicMeter_lookup(Hashtable* dynamics, ht_key_t key);
+const char *DynamicMeter_lookup(Hashtable *dynamics, ht_key_t key);
 
-bool DynamicMeter_search(Hashtable* dynamics, const char* name, ht_key_t* key);
+bool DynamicMeter_search(Hashtable *dynamics, const char *name, ht_key_t *key);
 
 extern const MeterClass DynamicMeter_class;
 

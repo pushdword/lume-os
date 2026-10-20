@@ -10,18 +10,19 @@
 
 #if DROPBEAR_PQHYBRID
 
-struct kex_pqhybrid_param *gen_kexpqhybrid_param() {
+struct kex_pqhybrid_param *gen_kexpqhybrid_param()
+{
     struct kex_pqhybrid_param *param = m_malloc(sizeof(*param));
     const struct dropbear_kem_desc *kem = ses.newkeys->algo_kex->details;
 
     param->curve25519 = gen_kexcurve25519_param();
 
-    if (IS_DROPBEAR_CLIENT) {
+    if (IS_DROPBEAR_CLIENT)
+    {
         param->kem_cli_secret = buf_new(kem->secret_len);
         param->concat_public = buf_new(kem->public_len + CURVE25519_LEN);
-        kem->kem_gen(
-            buf_getwriteptr(param->concat_public, kem->public_len),
-            buf_getwriteptr(param->kem_cli_secret, kem->secret_len));
+        kem->kem_gen(buf_getwriteptr(param->concat_public, kem->public_len),
+                     buf_getwriteptr(param->kem_cli_secret, kem->secret_len));
         buf_incrwritepos(param->concat_public, kem->public_len);
         buf_incrwritepos(param->kem_cli_secret, kem->secret_len);
         buf_setpos(param->kem_cli_secret, 0);
@@ -32,9 +33,11 @@ struct kex_pqhybrid_param *gen_kexpqhybrid_param() {
     return param;
 }
 
-void free_kexpqhybrid_param(struct kex_pqhybrid_param *param) {
+void free_kexpqhybrid_param(struct kex_pqhybrid_param *param)
+{
     free_kexcurve25519_param(param->curve25519);
-    if (param->kem_cli_secret) {
+    if (param->kem_cli_secret)
+    {
         buf_burn_free(param->kem_cli_secret);
         param->kem_cli_secret = NULL;
     }
@@ -42,12 +45,11 @@ void free_kexpqhybrid_param(struct kex_pqhybrid_param *param) {
     m_free(param);
 }
 
-void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
-    buffer *buf_pub, sign_key *hostkey) {
+void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param, buffer *buf_pub, sign_key *hostkey)
+{
 
     const struct dropbear_kem_desc *kem = ses.newkeys->algo_kex->details;
-    const struct ltc_hash_descriptor *hash_desc
-        = ses.newkeys->algo_kex->hash_desc;
+    const struct ltc_hash_descriptor *hash_desc = ses.newkeys->algo_kex->hash_desc;
 
     /* Either public key (from client) or ciphertext (from server) */
     unsigned char *remote_pub_kem = NULL;
@@ -55,14 +57,17 @@ void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
     buffer *k_out = NULL;
     unsigned int remote_len;
     hash_state hs;
-    const buffer * Q_C = NULL;
-    const buffer * Q_S = NULL;
+    const buffer *Q_C = NULL;
+    const buffer *Q_S = NULL;
 
     /* Extract input parts from the remote peer */
-    if (IS_DROPBEAR_CLIENT) {
+    if (IS_DROPBEAR_CLIENT)
+    {
         /* S_REPLY = S_CT2 || S_PK1 */
         remote_len = kem->ciphertext_len;
-    } else {
+    }
+    else
+    {
         /* C_INIT = C_PK2 || C_PK1 */
         remote_len = kem->public_len;
     }
@@ -71,7 +76,8 @@ void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
     pub_25519 = buf_getptrcopy(buf_pub, CURVE25519_LEN);
     buf_incrpos(buf_pub, CURVE25519_LEN);
     /* Check all is consumed */
-    if (buf_pub->pos != buf_pub->len) {
+    if (buf_pub->pos != buf_pub->len)
+    {
         dropbear_exit("Bad sntrup");
     }
 
@@ -79,21 +85,20 @@ void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
     k_out = buf_new(kem->output_len + CURVE25519_LEN);
 
     /* Derive pq kem part (K_PQ) */
-    if (IS_DROPBEAR_CLIENT) {
-        kem->kem_dec(
-            buf_getwriteptr(k_out, kem->output_len),
-            remote_pub_kem,
-            buf_getptr(param->kem_cli_secret, kem->secret_len));
+    if (IS_DROPBEAR_CLIENT)
+    {
+        kem->kem_dec(buf_getwriteptr(k_out, kem->output_len), remote_pub_kem,
+                     buf_getptr(param->kem_cli_secret, kem->secret_len));
         buf_burn_free(param->kem_cli_secret);
         param->kem_cli_secret = NULL;
-    } else {
+    }
+    else
+    {
         /* Server returns ciphertext */
         assert(param->concat_public == NULL);
         param->concat_public = buf_new(kem->ciphertext_len + CURVE25519_LEN);
-        kem->kem_enc(
-            buf_getwriteptr(param->concat_public, kem->ciphertext_len),
-            buf_getwriteptr(k_out, kem->output_len),
-            remote_pub_kem);
+        kem->kem_enc(buf_getwriteptr(param->concat_public, kem->ciphertext_len),
+                     buf_getwriteptr(k_out, kem->output_len), remote_pub_kem);
         buf_incrwritepos(param->concat_public, kem->ciphertext_len);
         /* Append the curve25519 parameter */
         buf_putbytes(param->concat_public, param->curve25519->pub, CURVE25519_LEN);
@@ -101,8 +106,7 @@ void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
     buf_incrwritepos(k_out, kem->output_len);
 
     /* Derive ec part (K_CL) */
-    kexcurve25519_derive(param->curve25519, pub_25519,
-        buf_getwriteptr(k_out, CURVE25519_LEN));
+    kexcurve25519_derive(param->curve25519, pub_25519, buf_getwriteptr(k_out, CURVE25519_LEN));
     buf_incrwritepos(k_out, CURVE25519_LEN);
 
     /* dh_K_bytes = HASH(k_out)
@@ -117,10 +121,13 @@ void kexpqhybrid_comb_key(struct kex_pqhybrid_param *param,
     buf_incrwritepos(ses.dh_K_bytes, hash_desc->hashsize);
 
     /* Create the remainder of the hash buffer */
-    if (IS_DROPBEAR_CLIENT) {
+    if (IS_DROPBEAR_CLIENT)
+    {
         Q_C = param->concat_public;
         Q_S = buf_pub;
-    } else {
+    }
+    else
+    {
         Q_S = param->concat_public;
         Q_C = buf_pub;
     }

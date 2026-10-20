@@ -20,30 +20,35 @@
 */
 int rc4_stream_setup(rc4_state *st, const unsigned char *key, unsigned long keylen)
 {
-   unsigned char tmp, *s;
-   int x, y;
-   unsigned long j;
+    unsigned char tmp, *s;
+    int x, y;
+    unsigned long j;
 
-   LTC_ARGCHK(st  != NULL);
-   LTC_ARGCHK(key != NULL);
-   LTC_ARGCHK(keylen >= 5); /* 40-2048 bits */
+    LTC_ARGCHK(st != NULL);
+    LTC_ARGCHK(key != NULL);
+    LTC_ARGCHK(keylen >= 5); /* 40-2048 bits */
 
-   s = st->buf;
-   for (x = 0; x < 256; x++) {
-      s[x] = x;
-   }
+    s = st->buf;
+    for (x = 0; x < 256; x++)
+    {
+        s[x] = x;
+    }
 
-   for (j = x = y = 0; x < 256; x++) {
-      y = (y + s[x] + key[j++]) & 255;
-      if (j == keylen) {
-         j = 0;
-      }
-      tmp = s[x]; s[x] = s[y]; s[y] = tmp;
-   }
-   st->x = 0;
-   st->y = 0;
+    for (j = x = y = 0; x < 256; x++)
+    {
+        y = (y + s[x] + key[j++]) & 255;
+        if (j == keylen)
+        {
+            j = 0;
+        }
+        tmp = s[x];
+        s[x] = s[y];
+        s[y] = tmp;
+    }
+    st->x = 0;
+    st->y = 0;
 
-   return CRYPT_OK;
+    return CRYPT_OK;
 }
 
 /**
@@ -54,27 +59,31 @@ int rc4_stream_setup(rc4_state *st, const unsigned char *key, unsigned long keyl
    @param out     [out] The ciphertext (or plaintext), length inlen
    @return CRYPT_OK if successful
 */
-int rc4_stream_crypt(rc4_state *st, const unsigned char *in, unsigned long inlen, unsigned char *out)
+int rc4_stream_crypt(rc4_state *st, const unsigned char *in, unsigned long inlen,
+                     unsigned char *out)
 {
-   unsigned char x, y, *s, tmp;
+    unsigned char x, y, *s, tmp;
 
-   LTC_ARGCHK(st  != NULL);
-   LTC_ARGCHK(in  != NULL);
-   LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(st != NULL);
+    LTC_ARGCHK(in != NULL);
+    LTC_ARGCHK(out != NULL);
 
-   x = st->x;
-   y = st->y;
-   s = st->buf;
-   while (inlen--) {
-      x = (x + 1) & 255;
-      y = (y + s[x]) & 255;
-      tmp = s[x]; s[x] = s[y]; s[y] = tmp;
-      tmp = (s[x] + s[y]) & 255;
-      *out++ = *in++ ^ s[tmp];
-   }
-   st->x = x;
-   st->y = y;
-   return CRYPT_OK;
+    x = st->x;
+    y = st->y;
+    s = st->buf;
+    while (inlen--)
+    {
+        x = (x + 1) & 255;
+        y = (y + s[x]) & 255;
+        tmp = s[x];
+        s[x] = s[y];
+        s[y] = tmp;
+        tmp = (s[x] + s[y]) & 255;
+        *out++ = *in++ ^ s[tmp];
+    }
+    st->x = x;
+    st->y = y;
+    return CRYPT_OK;
 }
 
 /**
@@ -86,10 +95,11 @@ int rc4_stream_crypt(rc4_state *st, const unsigned char *in, unsigned long inlen
  */
 int rc4_stream_keystream(rc4_state *st, unsigned char *out, unsigned long outlen)
 {
-   if (outlen == 0) return CRYPT_OK; /* nothing to do */
-   LTC_ARGCHK(out != NULL);
-   XMEMSET(out, 0, outlen);
-   return rc4_stream_crypt(st, out, outlen, out);
+    if (outlen == 0)
+        return CRYPT_OK; /* nothing to do */
+    LTC_ARGCHK(out != NULL);
+    XMEMSET(out, 0, outlen);
+    return rc4_stream_crypt(st, out, outlen, out);
 }
 
 /**
@@ -99,9 +109,9 @@ int rc4_stream_keystream(rc4_state *st, unsigned char *out, unsigned long outlen
 */
 int rc4_stream_done(rc4_state *st)
 {
-   LTC_ARGCHK(st != NULL);
-   XMEMSET(st, 0, sizeof(rc4_state));
-   return CRYPT_OK;
+    LTC_ARGCHK(st != NULL);
+    XMEMSET(st, 0, sizeof(rc4_state));
+    return CRYPT_OK;
 }
 
 #endif

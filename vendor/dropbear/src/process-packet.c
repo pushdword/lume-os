@@ -40,145 +40,147 @@
 static void recv_unimplemented(void);
 
 /* process a decrypted packet, call the appropriate handler */
-void process_packet() {
+void process_packet()
+{
 
-	unsigned char type;
-	unsigned int i;
-	unsigned int first_strict_kex = ses.kexstate.strict_kex && !ses.kexstate.recvfirstnewkeys;
-	time_t now;
+    unsigned char type;
+    unsigned int i;
+    unsigned int first_strict_kex = ses.kexstate.strict_kex && !ses.kexstate.recvfirstnewkeys;
+    time_t now;
 
-	TRACE2(("enter process_packet"))
+    TRACE2(("enter process_packet"))
 
-	type = buf_getbyte(ses.payload);
-	TRACE(("process_packet: packet type = %d,  len %d", type, ses.payload->len))
+    type = buf_getbyte(ses.payload);
+    TRACE(("process_packet: packet type = %d,  len %d", type, ses.payload->len))
 
-	now = monotonic_now();
-	ses.last_packet_time_keepalive_recv = now;
+    now = monotonic_now();
+    ses.last_packet_time_keepalive_recv = now;
 
+    if (type == SSH_MSG_DISCONNECT)
+    {
+        /* Allowed at any time */
+        dropbear_close("Disconnect received");
+    }
 
-	if (type == SSH_MSG_DISCONNECT) {
-		/* Allowed at any time */
-		dropbear_close("Disconnect received");
-	}
-
-	/* These packets may be received at any time,
+    /* These packets may be received at any time,
 	   except during first kex with strict kex */
-	if (!first_strict_kex) {
-		switch(type) {
-			case SSH_MSG_IGNORE:
-				goto out;
-			case SSH_MSG_DEBUG:
-				goto out;
-			case SSH_MSG_UNIMPLEMENTED:
-				TRACE(("SSH_MSG_UNIMPLEMENTED"))
-				goto out;
-		}
-	}
+    if (!first_strict_kex)
+    {
+        switch (type)
+        {
+        case SSH_MSG_IGNORE:
+            goto out;
+        case SSH_MSG_DEBUG:
+            goto out;
+        case SSH_MSG_UNIMPLEMENTED:
+            TRACE(("SSH_MSG_UNIMPLEMENTED"))
+            goto out;
+        }
+    }
 
-	/* Ignore these packet types so that keepalives don't interfere with
+    /* Ignore these packet types so that keepalives don't interfere with
 	idle detection. This is slightly incorrect since a tcp forwarded
 	global request with failure won't trigger the idle timeout,
 	but that's probably acceptable */
-	if (!(type == SSH_MSG_GLOBAL_REQUEST 
-		|| type == SSH_MSG_REQUEST_FAILURE
-		|| type == SSH_MSG_CHANNEL_FAILURE)) {
-		ses.last_packet_time_idle = now;
-	}
+    if (!(type == SSH_MSG_GLOBAL_REQUEST || type == SSH_MSG_REQUEST_FAILURE ||
+          type == SSH_MSG_CHANNEL_FAILURE))
+    {
+        ses.last_packet_time_idle = now;
+    }
 
-	/* This applies for KEX, where the spec says the next packet MUST be
+    /* This applies for KEX, where the spec says the next packet MUST be
 	 * NEWKEYS */
-	if (ses.requirenext != 0) {
-		if (ses.requirenext == type)
-		{
-			/* Got what we expected */
-			TRACE(("got expected packet %d during kexinit", type))
-		}
-		else
-		{
-			/* RFC4253 7.1 - various messages are allowed at this point.
+    if (ses.requirenext != 0)
+    {
+        if (ses.requirenext == type)
+        {
+            /* Got what we expected */
+            TRACE(("got expected packet %d during kexinit", type))
+        }
+        else
+        {
+            /* RFC4253 7.1 - various messages are allowed at this point.
 			The only ones we know about have already been handled though,
 			so just return "unimplemented" */
-			if (type >= 1 && type <= 49
-				&& type != SSH_MSG_SERVICE_REQUEST
-				&& type != SSH_MSG_SERVICE_ACCEPT
-				&& type != SSH_MSG_KEXINIT
-				&& !first_strict_kex)
-			{
-				TRACE(("unknown allowed packet during kexinit"))
-				recv_unimplemented();
-				goto out;
-			}
-			else
-			{
-				TRACE(("disallowed packet during kexinit"))
-				dropbear_exit("Unexpected packet type %d, expected %d", type,
-						ses.requirenext);
-			}
-		}
-	}
+            if (type >= 1 && type <= 49 && type != SSH_MSG_SERVICE_REQUEST &&
+                type != SSH_MSG_SERVICE_ACCEPT && type != SSH_MSG_KEXINIT && !first_strict_kex)
+            {
+                TRACE(("unknown allowed packet during kexinit"))
+                recv_unimplemented();
+                goto out;
+            }
+            else
+            {
+                TRACE(("disallowed packet during kexinit"))
+                dropbear_exit("Unexpected packet type %d, expected %d", type, ses.requirenext);
+            }
+        }
+    }
 
-	/* Check if we should ignore this packet. Used currently only for
+    /* Check if we should ignore this packet. Used currently only for
 	 * KEX code, with first_kex_packet_follows */
-	if (ses.ignorenext) {
-		TRACE(("Ignoring packet, type = %d", type))
-		ses.ignorenext = 0;
-		goto out;
-	}
+    if (ses.ignorenext)
+    {
+        TRACE(("Ignoring packet, type = %d", type))
+        ses.ignorenext = 0;
+        goto out;
+    }
 
-	/* Only clear the flag after we have checked ignorenext */
-	if (ses.requirenext != 0 && ses.requirenext == type)
-	{
-		ses.requirenext = 0;
-	}
+    /* Only clear the flag after we have checked ignorenext */
+    if (ses.requirenext != 0 && ses.requirenext == type)
+    {
+        ses.requirenext = 0;
+    }
 
-
-	/* Kindly the protocol authors gave all the preauth packets type values
+    /* Kindly the protocol authors gave all the preauth packets type values
 	 * less-than-or-equal-to 60 ( == MAX_UNAUTH_PACKET_TYPE ).
 	 * NOTE: if the protocol changes and new types are added, revisit this 
 	 * assumption */
-	if ( !ses.authstate.authdone && type > MAX_UNAUTH_PACKET_TYPE ) {
-		dropbear_exit("Received message %d before userauth", type);
-	}
+    if (!ses.authstate.authdone && type > MAX_UNAUTH_PACKET_TYPE)
+    {
+        dropbear_exit("Received message %d before userauth", type);
+    }
 
-	for (i = 0; ; i++) {
-		if (ses.packettypes[i].type == 0) {
-			/* end of list */
-			break;
-		}
+    for (i = 0;; i++)
+    {
+        if (ses.packettypes[i].type == 0)
+        {
+            /* end of list */
+            break;
+        }
 
-		if (ses.packettypes[i].type == type) {
-			ses.packettypes[i].handler();
-			goto out;
-		}
-	}
+        if (ses.packettypes[i].type == type)
+        {
+            ses.packettypes[i].handler();
+            goto out;
+        }
+    }
 
-	
-	/* TODO do something more here? */
-	TRACE(("preauth unknown packet"))
-	recv_unimplemented();
+    /* TODO do something more here? */
+    TRACE(("preauth unknown packet"))
+    recv_unimplemented();
 
 out:
-	ses.lastpacket = type;
-	buf_free(ses.payload);
-	ses.payload = NULL;
+    ses.lastpacket = type;
+    buf_free(ses.payload);
+    ses.payload = NULL;
 
-	TRACE2(("leave process_packet"))
+    TRACE2(("leave process_packet"))
 }
-
-
 
 /* This must be called directly after receiving the unimplemented packet.
  * Isn't the most clean implementation, it relies on packet processing
  * occurring directly after decryption (direct use of ses.recvseq).
  * This is reasonably valid, since there is only a single decryption buffer */
-static void recv_unimplemented() {
+static void recv_unimplemented()
+{
 
-	CHECKCLEARTOWRITE();
+    CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_UNIMPLEMENTED);
-	/* the decryption routine increments the sequence number, we must
+    buf_putbyte(ses.writepayload, SSH_MSG_UNIMPLEMENTED);
+    /* the decryption routine increments the sequence number, we must
 	 * decrement */
-	buf_putint(ses.writepayload, ses.recvseq - 1);
+    buf_putint(ses.writepayload, ses.recvseq - 1);
 
-	encrypt_packet();
+    encrypt_packet();
 }

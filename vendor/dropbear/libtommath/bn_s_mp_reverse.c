@@ -6,17 +6,18 @@
 /* reverse an array, used for radix code */
 void s_mp_reverse(unsigned char *s, size_t len)
 {
-   size_t   ix, iy;
-   unsigned char t;
+    size_t ix, iy;
+    unsigned char t;
 
-   ix = 0u;
-   iy = len - 1u;
-   while (ix < iy) {
-      t     = s[ix];
-      s[ix] = s[iy];
-      s[iy] = t;
-      ++ix;
-      --iy;
-   }
+    ix = 0u;
+    iy = len - 1u;
+    while (ix < iy)
+    {
+        t = s[ix];
+        s[ix] = s[iy];
+        s[iy] = t;
+        ++ix;
+        --iy;
+    }
 }
 #endif

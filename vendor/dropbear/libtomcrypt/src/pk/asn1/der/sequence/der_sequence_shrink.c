@@ -22,25 +22,36 @@
 */
 void der_sequence_shrink(ltc_asn1_list *in)
 {
-   if (!in) return;
+    if (!in)
+        return;
 
-   /* now walk the list and free stuff */
-   while (in != NULL) {
-      /* is there a child? */
-      if (in->child) {
-         der_sequence_shrink(in->child);
-      }
+    /* now walk the list and free stuff */
+    while (in != NULL)
+    {
+        /* is there a child? */
+        if (in->child)
+        {
+            der_sequence_shrink(in->child);
+        }
 
-      switch (in->type) {
-         case LTC_ASN1_CONSTRUCTED:
-         case LTC_ASN1_SET:
-         case LTC_ASN1_SEQUENCE : if (in->data != NULL) { XFREE(in->data); in->data = NULL; } break;
-         default: break;
-      }
+        switch (in->type)
+        {
+        case LTC_ASN1_CONSTRUCTED:
+        case LTC_ASN1_SET:
+        case LTC_ASN1_SEQUENCE:
+            if (in->data != NULL)
+            {
+                XFREE(in->data);
+                in->data = NULL;
+            }
+            break;
+        default:
+            break;
+        }
 
-      /* move to next and free current */
-      in = in->next;
-   }
+        /* move to next and free current */
+        in = in->next;
+    }
 }
 
 #endif

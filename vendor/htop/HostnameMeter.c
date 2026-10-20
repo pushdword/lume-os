@@ -13,27 +13,22 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Platform.h"
 
+static const int HostnameMeter_attributes[] = {HOSTNAME};
 
-static const int HostnameMeter_attributes[] = {
-   HOSTNAME
-};
-
-static void HostnameMeter_updateValues(Meter* this) {
-   Platform_getHostname(this->txtBuffer, sizeof(this->txtBuffer));
+static void HostnameMeter_updateValues(Meter *this)
+{
+    Platform_getHostname(this->txtBuffer, sizeof(this->txtBuffer));
 }
 
 const MeterClass HostnameMeter_class = {
-   .super = {
-      .extends = Class(Meter),
-      .delete = Meter_delete
-   },
-   .updateValues = HostnameMeter_updateValues,
-   .defaultMode = TEXT_METERMODE,
-   .supportedModes = (1 << TEXT_METERMODE),
-   .maxItems = 0,
-   .total = 0.0,
-   .attributes = HostnameMeter_attributes,
-   .name = "Hostname",
-   .uiName = "Hostname",
-   .caption = "Hostname: ",
+    .super = {.extends = Class(Meter), .delete = Meter_delete},
+    .updateValues = HostnameMeter_updateValues,
+    .defaultMode = TEXT_METERMODE,
+    .supportedModes = (1 << TEXT_METERMODE),
+    .maxItems = 0,
+    .total = 0.0,
+    .attributes = HostnameMeter_attributes,
+    .name = "Hostname",
+    .uiName = "Hostname",
+    .caption = "Hostname: ",
 };

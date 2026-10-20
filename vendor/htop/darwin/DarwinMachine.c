@@ -30,122 +30,143 @@ in the source distribution for its full text.
 #define kIOMainPortDefault kIOMasterPortDefault
 #endif
 
-static void DarwinMachine_getHostInfo(host_basic_info_data_t* p) {
-   mach_msg_type_number_t info_size = HOST_BASIC_INFO_COUNT;
+static void DarwinMachine_getHostInfo(host_basic_info_data_t *p)
+{
+    mach_msg_type_number_t info_size = HOST_BASIC_INFO_COUNT;
 
-   if (0 != host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)p, &info_size)) {
-      CRT_fatalError("Unable to retrieve host info");
-   }
+    if (0 != host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)p, &info_size))
+    {
+        CRT_fatalError("Unable to retrieve host info");
+    }
 }
 
-static void DarwinMachine_freeCPULoadInfo(processor_cpu_load_info_t* p) {
-   if (!p)
-      return;
+static void DarwinMachine_freeCPULoadInfo(processor_cpu_load_info_t *p)
+{
+    if (!p)
+        return;
 
-   if (!*p)
-      return;
+    if (!*p)
+        return;
 
-   if (0 != munmap(*p, vm_page_size)) {
-      CRT_fatalError("Unable to free old CPU load information");
-   }
+    if (0 != munmap(*p, vm_page_size))
+    {
+        CRT_fatalError("Unable to free old CPU load information");
+    }
 
-   *p = NULL;
+    *p = NULL;
 }
 
-static unsigned int DarwinMachine_allocateCPULoadInfo(processor_cpu_load_info_t* p) {
-   mach_msg_type_number_t info_size = sizeof(processor_cpu_load_info_t);
-   natural_t cpu_count;
+static unsigned int DarwinMachine_allocateCPULoadInfo(processor_cpu_load_info_t *p)
+{
+    mach_msg_type_number_t info_size = sizeof(processor_cpu_load_info_t);
+    natural_t cpu_count;
 
-   // TODO Improving the accuracy of the load counts would help a lot.
-   if (0 != host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &cpu_count, (processor_info_array_t*)p, &info_size)) {
-      CRT_fatalError("Unable to retrieve CPU info");
-   }
+    // TODO Improving the accuracy of the load counts would help a lot.
+    if (0 != host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &cpu_count,
+                                 (processor_info_array_t *)p, &info_size))
+    {
+        CRT_fatalError("Unable to retrieve CPU info");
+    }
 
-   return cpu_count;
+    return cpu_count;
 }
 
-static void DarwinMachine_getVMStats(DarwinMachine* this) {
+static void DarwinMachine_getVMStats(DarwinMachine *this)
+{
 #ifdef HAVE_STRUCT_VM_STATISTICS64
-   mach_msg_type_number_t info_size = HOST_VM_INFO64_COUNT;
+    mach_msg_type_number_t info_size = HOST_VM_INFO64_COUNT;
 
-   if (host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info_t)&this->vm_stats, &info_size) != 0) {
-      CRT_fatalError("Unable to retrieve VM statistics64");
-   }
+    if (host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info_t)&this->vm_stats,
+                          &info_size) != 0)
+    {
+        CRT_fatalError("Unable to retrieve VM statistics64");
+    }
 #else
-   mach_msg_type_number_t info_size = HOST_VM_INFO_COUNT;
+    mach_msg_type_number_t info_size = HOST_VM_INFO_COUNT;
 
-   if (host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&this->vm_stats, &info_size) != 0) {
-      CRT_fatalError("Unable to retrieve VM statistics");
-   }
+    if (host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&this->vm_stats, &info_size) !=
+        0)
+    {
+        CRT_fatalError("Unable to retrieve VM statistics");
+    }
 #endif
 }
 
-void Machine_scan(Machine* super) {
-   DarwinMachine* host = (DarwinMachine*) super;
+void Machine_scan(Machine *super)
+{
+    DarwinMachine *host = (DarwinMachine *)super;
 
-   /* Update the global data (CPU times and VM stats) */
-   DarwinMachine_freeCPULoadInfo(&host->prev_load);
-   host->prev_load = host->curr_load;
-   DarwinMachine_allocateCPULoadInfo(&host->curr_load);
-   DarwinMachine_getVMStats(host);
-   openzfs_sysctl_updateArcStats(&host->zfs);
+    /* Update the global data (CPU times and VM stats) */
+    DarwinMachine_freeCPULoadInfo(&host->prev_load);
+    host->prev_load = host->curr_load;
+    DarwinMachine_allocateCPULoadInfo(&host->curr_load);
+    DarwinMachine_getVMStats(host);
+    openzfs_sysctl_updateArcStats(&host->zfs);
 }
 
-Machine* Machine_new(UsersTable* usersTable, uid_t userId) {
-   DarwinMachine* this = xCalloc(1, sizeof(DarwinMachine));
-   Machine* super = &this->super;
+Machine *Machine_new(UsersTable *usersTable, uid_t userId)
+{
+    DarwinMachine *this = xCalloc(1, sizeof(DarwinMachine));
+    Machine *super = &this->super;
 
-   Machine_init(super, usersTable, userId);
+    Machine_init(super, usersTable, userId);
 
-   /* Initialize the CPU information */
-   super->activeCPUs = DarwinMachine_allocateCPULoadInfo(&this->prev_load);
-   super->existingCPUs = super->activeCPUs;
-   DarwinMachine_getHostInfo(&this->host_info);
-   DarwinMachine_allocateCPULoadInfo(&this->curr_load);
+    /* Initialize the CPU information */
+    super->activeCPUs = DarwinMachine_allocateCPULoadInfo(&this->prev_load);
+    super->existingCPUs = super->activeCPUs;
+    DarwinMachine_getHostInfo(&this->host_info);
+    DarwinMachine_allocateCPULoadInfo(&this->curr_load);
 
-   /* Initialize the VM statistics */
-   DarwinMachine_getVMStats(this);
+    /* Initialize the VM statistics */
+    DarwinMachine_getVMStats(this);
 
-   /* Initialize the ZFS kstats, if zfs.kext loaded */
-   openzfs_sysctl_init(&this->zfs);
-   openzfs_sysctl_updateArcStats(&this->zfs);
+    /* Initialize the ZFS kstats, if zfs.kext loaded */
+    openzfs_sysctl_init(&this->zfs);
+    openzfs_sysctl_updateArcStats(&this->zfs);
 
-   this->GPUService = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOGPU"));
-   if (!this->GPUService) {
-      CRT_debug("Cannot initialize IOGPU service");
-   }
+    this->GPUService = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOGPU"));
+    if (!this->GPUService)
+    {
+        CRT_debug("Cannot initialize IOGPU service");
+    }
 
-   return super;
+    return super;
 }
 
-void Machine_delete(Machine* super) {
-   DarwinMachine* this = (DarwinMachine*) super;
+void Machine_delete(Machine *super)
+{
+    DarwinMachine *this = (DarwinMachine *)super;
 
-   IOObjectRelease(this->GPUService);
+    IOObjectRelease(this->GPUService);
 
-   DarwinMachine_freeCPULoadInfo(&this->prev_load);
+    DarwinMachine_freeCPULoadInfo(&this->prev_load);
 
-   Machine_done(super);
-   free(this);
+    Machine_done(super);
+    free(this);
 }
 
-bool Machine_isCPUonline(const Machine* host, unsigned int id) {
-   assert(id < host->existingCPUs);
+bool Machine_isCPUonline(const Machine *host, unsigned int id)
+{
+    assert(id < host->existingCPUs);
 
-   // TODO: support offline CPUs and hot swapping
-   (void) host; (void) id;
+    // TODO: support offline CPUs and hot swapping
+    (void)host;
+    (void)id;
 
-   return true;
+    return true;
 }
 
-int Machine_getCPUPhysicalCoreID(const Machine* host, unsigned int id) {
-   assert(id < host->existingCPUs);
-   (void) host;
-   return (int)id;
+int Machine_getCPUPhysicalCoreID(const Machine *host, unsigned int id)
+{
+    assert(id < host->existingCPUs);
+    (void)host;
+    return (int)id;
 }
 
-int Machine_getCPUThreadIndex(const Machine* host, unsigned int id) {
-   assert(id < host->existingCPUs);
-   (void) host; (void) id;
-   return 0;
+int Machine_getCPUThreadIndex(const Machine *host, unsigned int id)
+{
+    assert(id < host->existingCPUs);
+    (void)host;
+    (void)id;
+    return 0;
 }

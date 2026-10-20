@@ -24,7 +24,6 @@
 #ifndef DROPBEAR_PUBKEY_H
 #define DROPBEAR_PUBKEY_H
 
-
 /* External Public Key API (EPKA) Plug-in Interface
  *
  * See:
@@ -46,9 +45,8 @@ struct PluginSession;
  *   of plugin older than dropbear).
  * - Load (with no warnings) if version match.
  */
-#define DROPBEAR_PLUGIN_VERSION_MAJOR     1
-#define DROPBEAR_PLUGIN_VERSION_MINOR     0
-
+#define DROPBEAR_PLUGIN_VERSION_MAJOR 1
+#define DROPBEAR_PLUGIN_VERSION_MINOR 0
 
 /* Creates an instance of the plugin.
  *
@@ -68,11 +66,9 @@ struct PluginSession;
  * Returns NULL in case of failure, otherwise a void * of the instance that need
  * to be passed to all the subsequent call to the plugin
  */
-typedef struct PluginInstance *(* PubkeyExtPlugin_newFn)(int verbose, 
-        const char *options,
-        const char *addrstring);
-#define DROPBEAR_PUBKEY_PLUGIN_FNNAME_NEW               "plugin_new"
-
+typedef struct PluginInstance *(*PubkeyExtPlugin_newFn)(int verbose, const char *options,
+                                                        const char *addrstring);
+#define DROPBEAR_PUBKEY_PLUGIN_FNNAME_NEW "plugin_new"
 
 /* Validate a client through public key authentication
  *
@@ -83,26 +79,22 @@ typedef struct PluginInstance *(* PubkeyExtPlugin_newFn)(int verbose,
  * Returns DROPBEAR_SUCCESS (0) if success or DROPBEAR_FAILURE (-1) if
  * authentication fails
  */
-typedef int (* PubkeyExtPlugin_checkPubKeyFn)(struct PluginInstance *PluginInstance,
-        struct PluginSession **sessionInOut,
-        const char* algo, 
-        unsigned int algolen,
-        const unsigned char* keyblob, 
-        unsigned int keybloblen,
-        const char *username);
+typedef int (*PubkeyExtPlugin_checkPubKeyFn)(struct PluginInstance *PluginInstance,
+                                             struct PluginSession **sessionInOut, const char *algo,
+                                             unsigned int algolen, const unsigned char *keyblob,
+                                             unsigned int keybloblen, const char *username);
 
 /* Notify the plugin that auth completed (after signature verification)
  */
-typedef void (* PubkeyExtPlugin_authSuccessFn)(struct PluginSession *session);
+typedef void (*PubkeyExtPlugin_authSuccessFn)(struct PluginSession *session);
 
 /* Deletes a session
  * TODO: Add a reason why the session is terminated. See svr_dropbear_exit (in svr-session.c)
  */
-typedef void (* PubkeyExtPlugin_sessionDeleteFn)(struct PluginSession *session);
+typedef void (*PubkeyExtPlugin_sessionDeleteFn)(struct PluginSession *session);
 
 /* Deletes the plugin instance */
-typedef void (* PubkeyExtPlugin_deleteFn)(struct PluginInstance *PluginInstance);
-
+typedef void (*PubkeyExtPlugin_deleteFn)(struct PluginInstance *PluginInstance);
 
 /* The PluginInstance object - A simple container of the pointer to the functions used
  * by Dropbear.
@@ -113,13 +105,14 @@ typedef void (* PubkeyExtPlugin_deleteFn)(struct PluginInstance *PluginInstance)
  * shared library.
  * The delete_plugin function should delete the object.
  */
-struct PluginInstance {
-    int                             api_version[2];         /* 0=Major, 1=Minor */
+struct PluginInstance
+{
+    int api_version[2]; /* 0=Major, 1=Minor */
 
-    PubkeyExtPlugin_checkPubKeyFn   checkpubkey;            /* mandatory */
-    PubkeyExtPlugin_authSuccessFn   auth_success;           /* optional */
-    PubkeyExtPlugin_sessionDeleteFn delete_session;         /* mandatory */
-    PubkeyExtPlugin_deleteFn        delete_plugin;          /* mandatory */
+    PubkeyExtPlugin_checkPubKeyFn checkpubkey;      /* mandatory */
+    PubkeyExtPlugin_authSuccessFn auth_success;     /* optional */
+    PubkeyExtPlugin_sessionDeleteFn delete_session; /* mandatory */
+    PubkeyExtPlugin_deleteFn delete_plugin;         /* mandatory */
 };
 
 /*****************************************************************************
@@ -129,8 +122,7 @@ struct PluginInstance {
  * The returned buffer will be destroyed when the session is deleted.
  * Option buffer string NULL-terminated
  */
-typedef char * (* PubkeyExtPlugin_getOptionsFn)(struct PluginSession *session);
-
+typedef char *(*PubkeyExtPlugin_getOptionsFn)(struct PluginSession *session);
 
 /* An SSH Session. Created during pre-auth and reused during the authentication.
  * The plug-in should delete this object (or any object extending it) from 
@@ -142,10 +134,11 @@ typedef char * (* PubkeyExtPlugin_getOptionsFn)(struct PluginSession *session);
  *
  * Store any optional auth options in the auth_options property of the session.
  */
-struct PluginSession {
-    struct PluginInstance *  plugin_instance;
+struct PluginSession
+{
+    struct PluginInstance *plugin_instance;
 
-    PubkeyExtPlugin_getOptionsFn   get_options;
+    PubkeyExtPlugin_getOptionsFn get_options;
 };
 
 #endif

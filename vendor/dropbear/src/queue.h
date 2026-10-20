@@ -25,25 +25,25 @@
 #ifndef DROPBEAR_QUEUE_H_
 #define DROPBEAR_QUEUE_H_
 
-struct Link {
+struct Link
+{
 
-	void* item;
-	struct Link* link;
-
+    void *item;
+    struct Link *link;
 };
 
-struct Queue {
+struct Queue
+{
 
-	struct Link* head;
-	struct Link* tail;
-	unsigned int count;
-
+    struct Link *head;
+    struct Link *tail;
+    unsigned int count;
 };
 
-void initqueue(struct Queue* queue);
-int isempty(const struct Queue* queue);
-void* dequeue(struct Queue* queue);
-void *examine(const struct Queue* queue);
-void enqueue(struct Queue* queue, void* item);
+void initqueue(struct Queue *queue);
+int isempty(const struct Queue *queue);
+void *dequeue(struct Queue *queue);
+void *examine(const struct Queue *queue);
+void enqueue(struct Queue *queue, void *item);
 
 #endif

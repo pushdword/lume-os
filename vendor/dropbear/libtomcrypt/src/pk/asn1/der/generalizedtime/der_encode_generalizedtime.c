@@ -16,19 +16,23 @@
 
 #ifdef LTC_DER
 
-static const char * const baseten = "0123456789";
+static const char *const baseten = "0123456789";
 
-#define STORE_V(y) do {\
-    out[x++] = der_ia5_char_encode(baseten[(y/10) % 10]); \
-    out[x++] = der_ia5_char_encode(baseten[y % 10]); \
-} while(0)
+#define STORE_V(y)                                                                                 \
+    do                                                                                             \
+    {                                                                                              \
+        out[x++] = der_ia5_char_encode(baseten[(y / 10) % 10]);                                    \
+        out[x++] = der_ia5_char_encode(baseten[y % 10]);                                           \
+    } while (0)
 
-#define STORE_V4(y) do {\
-    out[x++] = der_ia5_char_encode(baseten[(y/1000) % 10]); \
-    out[x++] = der_ia5_char_encode(baseten[(y/100) % 10]); \
-    out[x++] = der_ia5_char_encode(baseten[(y/10) % 10]); \
-    out[x++] = der_ia5_char_encode(baseten[y % 10]); \
-} while(0)
+#define STORE_V4(y)                                                                                \
+    do                                                                                             \
+    {                                                                                              \
+        out[x++] = der_ia5_char_encode(baseten[(y / 1000) % 10]);                                  \
+        out[x++] = der_ia5_char_encode(baseten[(y / 100) % 10]);                                   \
+        out[x++] = der_ia5_char_encode(baseten[(y / 10) % 10]);                                    \
+        out[x++] = der_ia5_char_encode(baseten[y % 10]);                                           \
+    } while (0)
 
 /**
   Encodes a Generalized time structure in DER format
@@ -37,20 +41,22 @@ static const char * const baseten = "0123456789";
   @param outlen       [in/out] The length of the DER encoding
   @return CRYPT_OK if successful
 */
-int der_encode_generalizedtime(ltc_generalizedtime *gtime,
-                               unsigned char       *out,   unsigned long *outlen)
+int der_encode_generalizedtime(ltc_generalizedtime *gtime, unsigned char *out,
+                               unsigned long *outlen)
 {
     unsigned long x, tmplen;
-    int           err;
+    int err;
 
     LTC_ARGCHK(gtime != NULL);
-    LTC_ARGCHK(out     != NULL);
-    LTC_ARGCHK(outlen  != NULL);
+    LTC_ARGCHK(out != NULL);
+    LTC_ARGCHK(outlen != NULL);
 
-    if ((err = der_length_generalizedtime(gtime, &tmplen)) != CRYPT_OK) {
-       return err;
+    if ((err = der_length_generalizedtime(gtime, &tmplen)) != CRYPT_OK)
+    {
+        return err;
     }
-    if (tmplen > *outlen) {
+    if (tmplen > *outlen)
+    {
         *outlen = tmplen;
         return CRYPT_BUFFER_OVERFLOW;
     }
@@ -67,30 +73,36 @@ int der_encode_generalizedtime(ltc_generalizedtime *gtime,
     STORE_V(gtime->mm);
     STORE_V(gtime->ss);
 
-    if (gtime->fs) {
-       unsigned long divisor;
-       unsigned fs = gtime->fs;
-       unsigned len = 0;
-       out[x++] = der_ia5_char_encode('.');
-       divisor = 1;
-       do {
-          fs /= 10;
-          divisor *= 10;
-          len++;
-       } while(fs != 0);
-       while (len-- > 1) {
-          divisor /= 10;
-          out[x++] = der_ia5_char_encode(baseten[(gtime->fs/divisor) % 10]);
-       }
-       out[x++] = der_ia5_char_encode(baseten[gtime->fs % 10]);
+    if (gtime->fs)
+    {
+        unsigned long divisor;
+        unsigned fs = gtime->fs;
+        unsigned len = 0;
+        out[x++] = der_ia5_char_encode('.');
+        divisor = 1;
+        do
+        {
+            fs /= 10;
+            divisor *= 10;
+            len++;
+        } while (fs != 0);
+        while (len-- > 1)
+        {
+            divisor /= 10;
+            out[x++] = der_ia5_char_encode(baseten[(gtime->fs / divisor) % 10]);
+        }
+        out[x++] = der_ia5_char_encode(baseten[gtime->fs % 10]);
     }
 
-    if (gtime->off_mm || gtime->off_hh) {
-       out[x++] = der_ia5_char_encode(gtime->off_dir ? '-' : '+');
-       STORE_V(gtime->off_hh);
-       STORE_V(gtime->off_mm);
-    } else {
-       out[x++] = der_ia5_char_encode('Z');
+    if (gtime->off_mm || gtime->off_hh)
+    {
+        out[x++] = der_ia5_char_encode(gtime->off_dir ? '-' : '+');
+        STORE_V(gtime->off_hh);
+        STORE_V(gtime->off_mm);
+    }
+    else
+    {
+        out[x++] = der_ia5_char_encode('Z');
     }
 
     /* store length */

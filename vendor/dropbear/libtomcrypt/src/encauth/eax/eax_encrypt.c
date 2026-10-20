@@ -23,26 +23,25 @@
    @param length     The length of the plaintext (octets)
    @return CRYPT_OK if successful
 */
-int eax_encrypt(eax_state *eax, const unsigned char *pt, unsigned char *ct,
-                unsigned long length)
+int eax_encrypt(eax_state *eax, const unsigned char *pt, unsigned char *ct, unsigned long length)
 {
-   int err;
+    int err;
 
-   LTC_ARGCHK(eax != NULL);
-   LTC_ARGCHK(pt  != NULL);
-   LTC_ARGCHK(ct  != NULL);
+    LTC_ARGCHK(eax != NULL);
+    LTC_ARGCHK(pt != NULL);
+    LTC_ARGCHK(ct != NULL);
 
-   /* encrypt */
-   if ((err = ctr_encrypt(pt, ct, length, &eax->ctr)) != CRYPT_OK) {
-      return err;
-   }
+    /* encrypt */
+    if ((err = ctr_encrypt(pt, ct, length, &eax->ctr)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* omac ciphertext */
-   return omac_process(&eax->ctomac, ct, length);
+    /* omac ciphertext */
+    return omac_process(&eax->ctomac, ct, length);
 }
 
 #endif
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

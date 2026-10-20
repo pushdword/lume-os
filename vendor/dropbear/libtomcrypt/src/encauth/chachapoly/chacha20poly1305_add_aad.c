@@ -18,17 +18,21 @@
   @param inlen  The length of the ChaCha20Poly1305 data.
   @return CRYPT_OK on success
  */
-int chacha20poly1305_add_aad(chacha20poly1305_state *st, const unsigned char *in, unsigned long inlen)
+int chacha20poly1305_add_aad(chacha20poly1305_state *st, const unsigned char *in,
+                             unsigned long inlen)
 {
-   int err;
+    int err;
 
-   if (inlen == 0) return CRYPT_OK; /* nothing to do */
-   LTC_ARGCHK(st != NULL);
+    if (inlen == 0)
+        return CRYPT_OK; /* nothing to do */
+    LTC_ARGCHK(st != NULL);
 
-   if (st->aadflg == 0) return CRYPT_ERROR;
-   if ((err = poly1305_process(&st->poly, in, inlen)) != CRYPT_OK) return err;
-   st->aadlen += (ulong64)inlen;
-   return CRYPT_OK;
+    if (st->aadflg == 0)
+        return CRYPT_ERROR;
+    if ((err = poly1305_process(&st->poly, in, inlen)) != CRYPT_OK)
+        return err;
+    st->aadlen += (ulong64)inlen;
+    return CRYPT_OK;
 }
 
 #endif

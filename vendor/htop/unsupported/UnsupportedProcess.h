@@ -10,19 +10,18 @@ in the source distribution for its full text.
 #include "Machine.h"
 #include "Process.h"
 
+typedef struct UnsupportedProcess_
+{
+    Process super;
 
-typedef struct UnsupportedProcess_ {
-   Process super;
-
-   uint64_t lume_time_ticks;
+    uint64_t lume_time_ticks;
 } UnsupportedProcess;
-
 
 extern const ProcessFieldData Process_fields[LAST_PROCESSFIELD];
 
-Process* UnsupportedProcess_new(const Machine* host);
+Process *UnsupportedProcess_new(const Machine *host);
 
-void Process_delete(Object* cast);
+void Process_delete(Object *cast);
 
 extern const ProcessClass UnsupportedProcess_class;
 

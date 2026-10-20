@@ -14,18 +14,18 @@ in the source distribution for its full text.
 #include "Machine.h"
 #include "zfs/ZfsArcStats.h"
 
+typedef struct DarwinMachine_
+{
+    Machine super;
 
-typedef struct DarwinMachine_ {
-   Machine super;
+    host_basic_info_data_t host_info;
+    vm_statistics64_data_t vm_stats;
+    processor_cpu_load_info_t prev_load;
+    processor_cpu_load_info_t curr_load;
 
-   host_basic_info_data_t host_info;
-   vm_statistics64_data_t vm_stats;
-   processor_cpu_load_info_t prev_load;
-   processor_cpu_load_info_t curr_load;
+    io_service_t GPUService;
 
-   io_service_t GPUService;
-
-   ZfsArcStats zfs;
+    ZfsArcStats zfs;
 } DarwinMachine;
 
 #endif

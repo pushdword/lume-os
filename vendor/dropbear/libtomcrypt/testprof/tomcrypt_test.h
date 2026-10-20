@@ -10,9 +10,10 @@
 /* stack testing, define this if stack usage goes downwards [e.g. x86] */
 #define STACK_DOWN
 
-typedef struct {
+typedef struct
+{
     char *name, *prov, *req;
-    int  (*entry)(void);
+    int (*entry)(void);
 } test_entry;
 
 extern prng_state yarrow_prng;
@@ -20,9 +21,18 @@ extern prng_state yarrow_prng;
 void run_cmd(int res, int line, char *file, char *cmd);
 
 #ifdef LTC_VERBOSE
-#define DO(x) do { fprintf(stderr, "%s:\n", #x); run_cmd((x), __LINE__, __FILE__, #x); } while (0);
+#define DO(x)                                                                                      \
+    do                                                                                             \
+    {                                                                                              \
+        fprintf(stderr, "%s:\n", #x);                                                              \
+        run_cmd((x), __LINE__, __FILE__, #x);                                                      \
+    } while (0);
 #else
-#define DO(x) do { run_cmd((x), __LINE__, __FILE__, #x); } while (0);
+#define DO(x)                                                                                      \
+    do                                                                                             \
+    {                                                                                              \
+        run_cmd((x), __LINE__, __FILE__, #x);                                                      \
+    } while (0);
 #endif
 
 /* TESTS */
@@ -38,10 +48,11 @@ int dsa_test(void);
 int der_tests(void);
 
 /* timing */
-#define KTIMES  25
-#define TIMES   100000
+#define KTIMES 25
+#define TIMES 100000
 
-extern struct list {
+extern struct list
+{
     int id;
     unsigned long spd1, spd2, avg;
 } results[];
@@ -50,7 +61,7 @@ extern int no_results;
 
 int sorter(const void *a, const void *b);
 void tally_results(int type);
-ulong64 rdtsc (void);
+ulong64 rdtsc(void);
 
 void t_start(void);
 ulong64 t_read(void);
@@ -73,8 +84,6 @@ void time_ecc(void);
 void time_macs_(unsigned long MAC_SIZE);
 void time_macs(void);
 void time_encmacs(void);
-
-
 
 #endif
 

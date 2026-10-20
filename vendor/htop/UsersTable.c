@@ -16,36 +16,44 @@ in the source distribution for its full text.
 
 #include "XUtils.h"
 
-
-UsersTable* UsersTable_new(void) {
-   UsersTable* this;
-   this = xMalloc(sizeof(UsersTable));
-   this->users = Hashtable_new(10, true);
-   return this;
+UsersTable *UsersTable_new(void)
+{
+    UsersTable *this;
+    this = xMalloc(sizeof(UsersTable));
+    this->users = Hashtable_new(10, true);
+    return this;
 }
 
-void UsersTable_delete(UsersTable* this) {
-   Hashtable_delete(this->users);
-   free(this);
+void UsersTable_delete(UsersTable *this)
+{
+    Hashtable_delete(this->users);
+    free(this);
 }
 
-char* UsersTable_getRef(UsersTable* this, unsigned int uid) {
-   char* name = Hashtable_get(this->users, uid);
-   if (name == NULL) {
-      const struct passwd* userData = getpwuid(uid);
-      if (userData != NULL) {
-         name = xStrdup(userData->pw_name);
-      } else {
-         name = xStrdup("");
-      }
-      Hashtable_put(this->users, uid, name);
-   }
-   if (!name || !*name) {
-      return NULL;
-   }
-   return name;
+char *UsersTable_getRef(UsersTable *this, unsigned int uid)
+{
+    char *name = Hashtable_get(this->users, uid);
+    if (name == NULL)
+    {
+        const struct passwd *userData = getpwuid(uid);
+        if (userData != NULL)
+        {
+            name = xStrdup(userData->pw_name);
+        }
+        else
+        {
+            name = xStrdup("");
+        }
+        Hashtable_put(this->users, uid, name);
+    }
+    if (!name || !*name)
+    {
+        return NULL;
+    }
+    return name;
 }
 
-inline void UsersTable_foreach(UsersTable* this, Hashtable_PairFunction f, void* userData) {
-   Hashtable_foreach(this->users, f, userData);
+inline void UsersTable_foreach(UsersTable *this, Hashtable_PairFunction f, void *userData)
+{
+    Hashtable_foreach(this->users, f, userData);
 }

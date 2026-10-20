@@ -15,35 +15,35 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "Vector.h"
 
-
-typedef struct ScreenManager_ {
-   int x1;
-   int y1;
-   int x2;
-   int y2;
-   bool allowFocusChange;
-   uint32_t panelCount;
-   Vector* panels;
-   const char* name;
-   Header* header;
-   Machine* host;
-   State* state;
+typedef struct ScreenManager_
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+    bool allowFocusChange;
+    uint32_t panelCount;
+    Vector *panels;
+    const char *name;
+    Header *header;
+    Machine *host;
+    State *state;
 } ScreenManager;
 
-ScreenManager* ScreenManager_new(Header* header, Machine* host, State* state, bool owner);
+ScreenManager *ScreenManager_new(Header *header, Machine *host, State *state, bool owner);
 
-void ScreenManager_delete(ScreenManager* this);
+void ScreenManager_delete(ScreenManager *this);
 
-int ScreenManager_size(const ScreenManager* this);
+int ScreenManager_size(const ScreenManager *this);
 
-void ScreenManager_add(ScreenManager* this, Panel* item, int size);
+void ScreenManager_add(ScreenManager *this, Panel *item, int size);
 
-void ScreenManager_insert(ScreenManager* this, Panel* item, int size, int idx);
+void ScreenManager_insert(ScreenManager *this, Panel *item, int size, int idx);
 
-Panel* ScreenManager_remove(ScreenManager* this, int idx);
+Panel *ScreenManager_remove(ScreenManager *this, int idx);
 
-void ScreenManager_resize(ScreenManager* this);
+void ScreenManager_resize(ScreenManager *this);
 
-void ScreenManager_run(ScreenManager* this, Panel** lastFocus, int* lastKey, const char* name);
+void ScreenManager_run(ScreenManager *this, Panel **lastFocus, int *lastKey, const char *name);
 
 #endif

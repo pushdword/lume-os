@@ -14,27 +14,28 @@ in the source distribution for its full text.
 #include "Settings.h"
 #include "Vector.h"
 
-
 struct MetersPanel_;
 typedef struct MetersPanel_ MetersPanel;
 
-struct MetersPanel_ {
-   Panel super;
+struct MetersPanel_
+{
+    Panel super;
 
-   Settings* settings;
-   Vector* meters;
-   ScreenManager* scr;
-   MetersPanel* leftNeighbor;
-   MetersPanel* rightNeighbor;
-   bool moving;
+    Settings *settings;
+    Vector *meters;
+    ScreenManager *scr;
+    MetersPanel *leftNeighbor;
+    MetersPanel *rightNeighbor;
+    bool moving;
 };
 
 void MetersPanel_cleanup(void);
 
-void MetersPanel_setMoving(MetersPanel* this, bool moving);
+void MetersPanel_setMoving(MetersPanel *this, bool moving);
 
 extern const PanelClass MetersPanel_class;
 
-MetersPanel* MetersPanel_new(Settings* settings, const char* header, Vector* meters, ScreenManager* scr);
+MetersPanel *MetersPanel_new(Settings *settings, const char *header, Vector *meters,
+                             ScreenManager *scr);
 
 #endif

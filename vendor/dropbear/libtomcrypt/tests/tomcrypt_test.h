@@ -28,9 +28,10 @@
 #define LTC_TEST_MPI
 #endif
 
-typedef struct {
+typedef struct
+{
     char *name, *prov, *req;
-    int  (*entry)(void);
+    int (*entry)(void);
 } test_entry;
 
 /* TESTS */
@@ -58,8 +59,8 @@ int prng_test(void);
 int mpi_test(void);
 
 #ifdef LTC_PKCS_1
-struct ltc_prng_descriptor* no_prng_desc_get(void);
-void no_prng_desc_free(struct ltc_prng_descriptor*);
+struct ltc_prng_descriptor *no_prng_desc_get(void);
+void no_prng_desc_free(struct ltc_prng_descriptor *);
 #endif
 
 #endif

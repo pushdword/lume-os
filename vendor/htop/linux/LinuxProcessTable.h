@@ -11,25 +11,26 @@ in the source distribution for its full text.
 
 #include "ProcessTable.h"
 
-
-typedef struct TtyDriver_ {
-   char* path;
-   unsigned int major;
-   unsigned int minorFrom;
-   unsigned int minorTo;
+typedef struct TtyDriver_
+{
+    char *path;
+    unsigned int major;
+    unsigned int minorFrom;
+    unsigned int minorTo;
 } TtyDriver;
 
-typedef struct LinuxProcessTable_ {
-   ProcessTable super;
+typedef struct LinuxProcessTable_
+{
+    ProcessTable super;
 
-   TtyDriver* ttyDrivers;
-   bool haveSmapsRollup;
-   bool haveAutogroup;
+    TtyDriver *ttyDrivers;
+    bool haveSmapsRollup;
+    bool haveAutogroup;
 
-   #ifdef HAVE_DELAYACCT
-   int netlink_family;
-   struct nl_sock* netlink_socket;
-   #endif
+#ifdef HAVE_DELAYACCT
+    int netlink_family;
+    struct nl_sock *netlink_socket;
+#endif
 } LinuxProcessTable;
 
 #endif

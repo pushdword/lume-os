@@ -11,16 +11,16 @@ in the source distribution for its full text.
 #include "ScreenManager.h"
 #include "Settings.h"
 
+typedef struct HeaderOptionsPanel_
+{
+    Panel super;
 
-typedef struct HeaderOptionsPanel_ {
-   Panel super;
-
-   ScreenManager* scr;
-   Settings* settings;
+    ScreenManager *scr;
+    Settings *settings;
 } HeaderOptionsPanel;
 
 extern const PanelClass HeaderOptionsPanel_class;
 
-HeaderOptionsPanel* HeaderOptionsPanel_new(Settings* settings, ScreenManager* scr);
+HeaderOptionsPanel *HeaderOptionsPanel_new(Settings *settings, ScreenManager *scr);
 
 #endif /* HEADER_HeaderOptionsPanel */

@@ -39,153 +39,164 @@
  * These should be freed with ed25519_key_free.
  * Returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
 int buf_get_ed25519_pub_key(buffer *buf, dropbear_ed25519_key *key,
-	enum signkey_type expect_keytype) {
+                            enum signkey_type expect_keytype)
+{
 
+    unsigned int len, typelen;
+    char *keytype = NULL;
+    enum signkey_type buf_keytype;
 
-	unsigned int len, typelen;
-	char *keytype = NULL;
-	enum signkey_type buf_keytype;
+    TRACE(("enter buf_get_ed25519_pub_key"))
+    dropbear_assert(key != NULL);
 
-	TRACE(("enter buf_get_ed25519_pub_key"))
-	dropbear_assert(key != NULL);
+    /* consume and check the key string */
+    keytype = buf_getstring(buf, &typelen);
+    buf_keytype = signkey_type_from_name(keytype, typelen);
+    m_free(keytype);
+    if (buf_keytype != expect_keytype)
+    {
+        TRACE(("leave buf_get_ed25519_pub_key: mismatch key type"))
+        return DROPBEAR_FAILURE;
+    }
 
-	/* consume and check the key string */
-	keytype = buf_getstring(buf, &typelen);
-	buf_keytype = signkey_type_from_name(keytype, typelen);
-	m_free(keytype);
-	if (buf_keytype != expect_keytype) {
-		TRACE(("leave buf_get_ed25519_pub_key: mismatch key type"))
-		return DROPBEAR_FAILURE;
-	}
+    len = buf_getint(buf);
+    if (len != CURVE25519_LEN || buf->len - buf->pos < len)
+    {
+        TRACE(("leave buf_get_ed25519_pub_key: failure"))
+        return DROPBEAR_FAILURE;
+    }
 
-	len = buf_getint(buf);
-	if (len != CURVE25519_LEN || buf->len - buf->pos < len) {
-		TRACE(("leave buf_get_ed25519_pub_key: failure"))
-		return DROPBEAR_FAILURE;
-	}
+    m_burn(key->priv, CURVE25519_LEN);
+    memcpy(key->pub, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
+    buf_incrpos(buf, CURVE25519_LEN);
 
-	m_burn(key->priv, CURVE25519_LEN);
-	memcpy(key->pub, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
-	buf_incrpos(buf, CURVE25519_LEN);
-
-	TRACE(("leave buf_get_ed25519_pub_key: success"))
-	return DROPBEAR_SUCCESS;
+    TRACE(("leave buf_get_ed25519_pub_key: success"))
+    return DROPBEAR_SUCCESS;
 }
 
 /* Same as buf_get_ed25519_pub_key, but reads private key at the end.
  * Loads a public and private ed25519 key from a buffer
  * Returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
-int buf_get_ed25519_priv_key(buffer *buf, dropbear_ed25519_key *key) {
+int buf_get_ed25519_priv_key(buffer *buf, dropbear_ed25519_key *key)
+{
 
-	unsigned int len;
+    unsigned int len;
 
-	TRACE(("enter buf_get_ed25519_priv_key"))
-	dropbear_assert(key != NULL);
+    TRACE(("enter buf_get_ed25519_priv_key"))
+    dropbear_assert(key != NULL);
 
-	buf_incrpos(buf, 4+SSH_SIGNKEY_ED25519_LEN); /* int + "ssh-ed25519" */
+    buf_incrpos(buf, 4 + SSH_SIGNKEY_ED25519_LEN); /* int + "ssh-ed25519" */
 
-	len = buf_getint(buf);
-	if (len != CURVE25519_LEN*2 || buf->len - buf->pos < len) {
-		TRACE(("leave buf_get_ed25519_priv_key: failure"))
-		return DROPBEAR_FAILURE;
-	}
+    len = buf_getint(buf);
+    if (len != CURVE25519_LEN * 2 || buf->len - buf->pos < len)
+    {
+        TRACE(("leave buf_get_ed25519_priv_key: failure"))
+        return DROPBEAR_FAILURE;
+    }
 
-	memcpy(key->priv, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
-	buf_incrpos(buf, CURVE25519_LEN);
-	memcpy(key->pub, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
-	buf_incrpos(buf, CURVE25519_LEN);
+    memcpy(key->priv, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
+    buf_incrpos(buf, CURVE25519_LEN);
+    memcpy(key->pub, buf_getptr(buf, CURVE25519_LEN), CURVE25519_LEN);
+    buf_incrpos(buf, CURVE25519_LEN);
 
-	TRACE(("leave buf_get_ed25519_priv_key: success"))
-	return DROPBEAR_SUCCESS;
+    TRACE(("leave buf_get_ed25519_priv_key: success"))
+    return DROPBEAR_SUCCESS;
 }
 
 /* Clear and free the memory used by a public or private key */
-void ed25519_key_free(dropbear_ed25519_key *key) {
+void ed25519_key_free(dropbear_ed25519_key *key)
+{
 
-	TRACE2(("enter ed25519_key_free"))
+    TRACE2(("enter ed25519_key_free"))
 
-	if (key == NULL) {
-		TRACE2(("leave ed25519_key_free: key == NULL"))
-		return;
-	}
-	m_burn(key->priv, CURVE25519_LEN);
-	m_free(key);
+    if (key == NULL)
+    {
+        TRACE2(("leave ed25519_key_free: key == NULL"))
+        return;
+    }
+    m_burn(key->priv, CURVE25519_LEN);
+    m_free(key);
 
-	TRACE2(("leave ed25519_key_free"))
+    TRACE2(("leave ed25519_key_free"))
 }
 
 /* Put the public ed25519 key into the buffer in the required format */
-void buf_put_ed25519_pub_key(buffer *buf, const dropbear_ed25519_key *key) {
+void buf_put_ed25519_pub_key(buffer *buf, const dropbear_ed25519_key *key)
+{
 
-	TRACE(("enter buf_put_ed25519_pub_key"))
-	dropbear_assert(key != NULL);
+    TRACE(("enter buf_put_ed25519_pub_key"))
+    dropbear_assert(key != NULL);
 
-	buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
-	buf_putstring(buf, key->pub, CURVE25519_LEN);
+    buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
+    buf_putstring(buf, key->pub, CURVE25519_LEN);
 
-	TRACE(("leave buf_put_ed25519_pub_key"))
+    TRACE(("leave buf_put_ed25519_pub_key"))
 }
 
 /* Put the public and private ed25519 key into the buffer in the required format */
-void buf_put_ed25519_priv_key(buffer *buf, const dropbear_ed25519_key *key) {
+void buf_put_ed25519_priv_key(buffer *buf, const dropbear_ed25519_key *key)
+{
 
-	TRACE(("enter buf_put_ed25519_priv_key"))
-	dropbear_assert(key != NULL);
+    TRACE(("enter buf_put_ed25519_priv_key"))
+    dropbear_assert(key != NULL);
 
-	buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
-	buf_putint(buf, CURVE25519_LEN*2);
-	buf_putbytes(buf, key->priv, CURVE25519_LEN);
-	buf_putbytes(buf, key->pub, CURVE25519_LEN);
+    buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
+    buf_putint(buf, CURVE25519_LEN * 2);
+    buf_putbytes(buf, key->priv, CURVE25519_LEN);
+    buf_putbytes(buf, key->pub, CURVE25519_LEN);
 
-	TRACE(("leave buf_put_ed25519_priv_key"))
+    TRACE(("leave buf_put_ed25519_priv_key"))
 }
 
 /* Sign the data presented with key, writing the signature contents
  * to the buffer */
-void buf_put_ed25519_sign(buffer* buf, const dropbear_ed25519_key *key, const buffer *data_buf) {
+void buf_put_ed25519_sign(buffer *buf, const dropbear_ed25519_key *key, const buffer *data_buf)
+{
 
-	unsigned char s[64];
-	unsigned long slen = sizeof(s);
+    unsigned char s[64];
+    unsigned long slen = sizeof(s);
 
-	TRACE(("enter buf_put_ed25519_sign"))
-	dropbear_assert(key != NULL);
+    TRACE(("enter buf_put_ed25519_sign"))
+    dropbear_assert(key != NULL);
 
-	dropbear_ed25519_sign(data_buf->data, data_buf->len, s, &slen, key->priv, key->pub);
-	buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
-	buf_putstring(buf, s, slen);
+    dropbear_ed25519_sign(data_buf->data, data_buf->len, s, &slen, key->priv, key->pub);
+    buf_putstring(buf, SSH_SIGNKEY_ED25519, SSH_SIGNKEY_ED25519_LEN);
+    buf_putstring(buf, s, slen);
 
-	TRACE(("leave buf_put_ed25519_sign"))
+    TRACE(("leave buf_put_ed25519_sign"))
 }
 
 #if DROPBEAR_SIGNKEY_VERIFY
 /* Verify a signature in buf, made on data by the key given.
  * Returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
-int buf_ed25519_verify(buffer *buf, const dropbear_ed25519_key *key, const buffer *data_buf) {
+int buf_ed25519_verify(buffer *buf, const dropbear_ed25519_key *key, const buffer *data_buf)
+{
 
-	int ret = DROPBEAR_FAILURE;
-	unsigned char *s;
-	unsigned long slen;
+    int ret = DROPBEAR_FAILURE;
+    unsigned char *s;
+    unsigned long slen;
 
-	TRACE(("enter buf_ed25519_verify"))
-	dropbear_assert(key != NULL);
+    TRACE(("enter buf_ed25519_verify"))
+    dropbear_assert(key != NULL);
 
-	slen = buf_getint(buf);
-	if (slen != 64 || buf->len - buf->pos < slen) {
-		TRACE(("leave buf_ed25519_verify: bad size"))
-		goto out;
-	}
-	s = buf_getptr(buf, slen);
+    slen = buf_getint(buf);
+    if (slen != 64 || buf->len - buf->pos < slen)
+    {
+        TRACE(("leave buf_ed25519_verify: bad size"))
+        goto out;
+    }
+    s = buf_getptr(buf, slen);
 
-	if (dropbear_ed25519_verify(data_buf->data, data_buf->len,
-				    s, slen, key->pub) == 0) {
-		/* signature is valid */
-		TRACE(("leave buf_ed25519_verify: success!"))
-		ret = DROPBEAR_SUCCESS;
-	}
+    if (dropbear_ed25519_verify(data_buf->data, data_buf->len, s, slen, key->pub) == 0)
+    {
+        /* signature is valid */
+        TRACE(("leave buf_ed25519_verify: success!"))
+        ret = DROPBEAR_SUCCESS;
+    }
 
 out:
-	TRACE(("leave buf_ed25519_verify: ret %d", ret))
-	return ret;
+    TRACE(("leave buf_ed25519_verify: ret %d", ret))
+    return ret;
 }
 
 #endif /* DROPBEAR_SIGNKEY_VERIFY */

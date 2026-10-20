@@ -21,12 +21,11 @@
     @param length The length of the header data
     @return CRYPT_OK if successful
 */
-int eax_addheader(eax_state *eax, const unsigned char *header,
-                  unsigned long length)
+int eax_addheader(eax_state *eax, const unsigned char *header, unsigned long length)
 {
-   LTC_ARGCHK(eax    != NULL);
-   LTC_ARGCHK(header != NULL);
-   return omac_process(&eax->headeromac, header, length);
+    LTC_ARGCHK(eax != NULL);
+    LTC_ARGCHK(header != NULL);
+    return omac_process(&eax->headeromac, header, length);
 }
 
 #endif

@@ -10,4 +10,3 @@ int ascii_isprint(char c);
 char ascii_tolower(char c);
 
 #endif
-

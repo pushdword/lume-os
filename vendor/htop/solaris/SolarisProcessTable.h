@@ -23,9 +23,9 @@ in the source distribution for its full text.
 
 #include "solaris/SolarisProcess.h"
 
-
-typedef struct SolarisProcessTable_ {
-   ProcessTable super;
+typedef struct SolarisProcessTable_
+{
+    ProcessTable super;
 } SolarisProcessTable;
 
 #endif

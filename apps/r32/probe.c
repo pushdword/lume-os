@@ -1,4 +1,5 @@
 #include "api.h"
+
 int app_main(void)
 {
     if (lume_syscall(LUME_WRITE, 0xf0001010u, 4, 0) != -14)

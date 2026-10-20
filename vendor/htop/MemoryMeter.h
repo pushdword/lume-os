@@ -10,11 +10,14 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-typedef struct MemoryClass_s {
-   const char *label; // e.g. "wired", "shared", "compressed" - platform-specific memory classe names
-   bool countsAsUsed; // memory class counts as "used" memory
-   bool countsAsCache; // memory class reclaimed under pressure (displayed with "show cached memory")
-   ColorElements color; // one of the MEMORY CRT color values
+typedef struct MemoryClass_s
+{
+    const char
+        *label; // e.g. "wired", "shared", "compressed" - platform-specific memory classe names
+    bool countsAsUsed; // memory class counts as "used" memory
+    bool
+        countsAsCache; // memory class reclaimed under pressure (displayed with "show cached memory")
+    ColorElements color; // one of the MEMORY CRT color values
 } MemoryClass;
 
 extern const MeterClass MemoryMeter_class;

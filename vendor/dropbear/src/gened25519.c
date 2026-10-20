@@ -30,18 +30,20 @@
 
 #if DROPBEAR_ED25519
 
-dropbear_ed25519_key * gen_ed25519_priv_key(unsigned int size) {
+dropbear_ed25519_key *gen_ed25519_priv_key(unsigned int size)
+{
 
-	dropbear_ed25519_key *key;
+    dropbear_ed25519_key *key;
 
-	if (size != 256) {
-		dropbear_exit("Ed25519 keys have a fixed size of 256 bits");
-	}
+    if (size != 256)
+    {
+        dropbear_exit("Ed25519 keys have a fixed size of 256 bits");
+    }
 
-	key = m_malloc(sizeof(*key));
-	dropbear_ed25519_make_key(key->pub, key->priv);
+    key = m_malloc(sizeof(*key));
+    dropbear_ed25519_make_key(key->pub, key->priv);
 
-	return key;
+    return key;
 }
 
 #endif /* DROPBEAR_ED25519 */

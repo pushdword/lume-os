@@ -15,7 +15,6 @@
   like Python - Larry Bugbee, February 2013
 */
 
-
 #ifdef LTM_DESC
 void init_LTM(void)
 {
@@ -36,7 +35,6 @@ void init_GMP(void)
     ltc_mp = gmp_desc;
 }
 #endif
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

@@ -40,7 +40,7 @@ int daemon(int nochdir, int noclose);
 #endif
 
 #ifndef HAVE_BASENAME
-char *basename(const char* path);
+char *basename(const char *path);
 #endif
 
 #ifndef HAVE_GETUSERSHELL

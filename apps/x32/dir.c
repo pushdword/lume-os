@@ -1,4 +1,5 @@
 #include "api.h"
+
 int app_main(int argc, char **argv)
 {
     if (argc > 2)
@@ -14,7 +15,8 @@ int app_main(int argc, char **argv)
     for (;;)
     {
         struct lume_directory_entry e;
-        int n = lume_syscall(LUME_READDIR, (uint32_t)(uintptr_t)path, (uint32_t)(uintptr_t)&e, cursor);
+        int n =
+            lume_syscall(LUME_READDIR, (uint32_t)(uintptr_t)path, (uint32_t)(uintptr_t)&e, cursor);
         if (n < 0)
         {
             app_error("dir", n);

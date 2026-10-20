@@ -21,9 +21,8 @@
 */
 void katja_free(katja_key *key)
 {
-   LTC_ARGCHK(key != NULL);
-   mp_clear_multi( key->d,  key->N,  key->dQ,  key->dP,
-                   key->qP,  key->p,  key->q, key->pq, NULL);
+    LTC_ARGCHK(key != NULL);
+    mp_clear_multi(key->d, key->N, key->dQ, key->dP, key->qP, key->p, key->q, key->pq, NULL);
 }
 
 #endif

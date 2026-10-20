@@ -13,15 +13,15 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct EnvScreen_ {
-   InfoScreen super;
+typedef struct EnvScreen_
+{
+    InfoScreen super;
 } EnvScreen;
 
 extern const InfoScreenClass EnvScreen_class;
 
-EnvScreen* EnvScreen_new(Process* process);
+EnvScreen *EnvScreen_new(Process *process);
 
-void EnvScreen_delete(Object* this);
+void EnvScreen_delete(Object *this);
 
 #endif

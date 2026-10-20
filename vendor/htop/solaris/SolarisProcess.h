@@ -22,27 +22,27 @@ in the source distribution for its full text.
 #include "Machine.h"
 #include "Process.h"
 
-
-typedef struct SolarisProcess_ {
-   Process    super;
-   zoneid_t   zoneid;
-   char*      zname;
-   taskid_t   taskid;
-   projid_t   projid;
-   poolid_t   poolid;
-   ctid_t     contid;
-   pid_t      realpid;
-   pid_t      realppid;
-   pid_t      realtgid;
-   pid_t      lwpid;
+typedef struct SolarisProcess_
+{
+    Process super;
+    zoneid_t zoneid;
+    char *zname;
+    taskid_t taskid;
+    projid_t projid;
+    poolid_t poolid;
+    ctid_t contid;
+    pid_t realpid;
+    pid_t realppid;
+    pid_t realtgid;
+    pid_t lwpid;
 } SolarisProcess;
 
 extern const ProcessClass SolarisProcess_class;
 
 extern const ProcessFieldData Process_fields[LAST_PROCESSFIELD];
 
-Process* SolarisProcess_new(const Machine* host);
+Process *SolarisProcess_new(const Machine *host);
 
-void Process_delete(Object* cast);
+void Process_delete(Object *cast);
 
 #endif

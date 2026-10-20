@@ -31,147 +31,168 @@
 
 static const size_t MAX_CONF_LINE = 200;
 
-typedef enum {
-	opHost,
-	opHostName,
-	opHostPort,
-	opLoginUser,
-	opIdentityFile,
+typedef enum
+{
+    opHost,
+    opHostName,
+    opHostPort,
+    opLoginUser,
+    opIdentityFile,
 } cfg_option;
 
-static const struct {
-	const char *name;
-	cfg_option option;
-}
-config_options[] = {
-	/* Start of config section. */
-	{ "host", opHost },
+static const struct
+{
+    const char *name;
+    cfg_option option;
+} config_options[] = {
+    /* Start of config section. */
+    {"host", opHost},
 
-	{ "hostname", opHostName },
-	{ "port", opHostPort },
-	{ "user", opLoginUser },
-	{ "identityfile", opIdentityFile },
+    {"hostname", opHostName}, {"port", opHostPort},
+    {"user", opLoginUser},    {"identityfile", opIdentityFile},
 };
 
-void read_config_file(char* filename, FILE* config_file, cli_runopts* options) {
-	char *line = NULL;
-	int linenum = 0;
-	buffer *buf = NULL;
-	char* cfg_key;
-	char* cfg_val;
-	char* saveptr;
-	int in_host_section = 0;
+void read_config_file(char *filename, FILE *config_file, cli_runopts *options)
+{
+    char *line = NULL;
+    int linenum = 0;
+    buffer *buf = NULL;
+    char *cfg_key;
+    char *cfg_val;
+    char *saveptr;
+    int in_host_section = 0;
 
-	DEBUG1(("Reading '%.200s'", filename));
+    DEBUG1(("Reading '%.200s'", filename));
 
-	buf = buf_new(MAX_CONF_LINE);
-	line = buf->data;
-	while (buf_getline(buf, config_file) == DROPBEAR_SUCCESS) {
-		char* commentStart = NULL;
-		cfg_option cfg_opt;
-		int found;
-		size_t i;
-		/* Update line number counter. */
-		linenum++;
+    buf = buf_new(MAX_CONF_LINE);
+    line = buf->data;
+    while (buf_getline(buf, config_file) == DROPBEAR_SUCCESS)
+    {
+        char *commentStart = NULL;
+        cfg_option cfg_opt;
+        int found;
+        size_t i;
+        /* Update line number counter. */
+        linenum++;
 
-		/* Add nul terminator */
-		if (buf->len == buf->size) {
-			dropbear_exit("Long line %s:%d", filename, linenum);
-		}
-		buf_setpos(buf, buf->len);
-		buf_putbyte(buf, '\0');
-		buf_setpos(buf, 0);
+        /* Add nul terminator */
+        if (buf->len == buf->size)
+        {
+            dropbear_exit("Long line %s:%d", filename, linenum);
+        }
+        buf_setpos(buf, buf->len);
+        buf_putbyte(buf, '\0');
+        buf_setpos(buf, 0);
 
-		commentStart = strchr(line, '#');
-		if (NULL != commentStart) {
-			*commentStart = '\0'; /* Drop the comments. */
-		}
+        commentStart = strchr(line, '#');
+        if (NULL != commentStart)
+        {
+            *commentStart = '\0'; /* Drop the comments. */
+        }
 
-		cfg_key = strtok_r(line, TOKEN_CHARS, &saveptr);
-		if (NULL == cfg_key) {
-			continue;
-		}
+        cfg_key = strtok_r(line, TOKEN_CHARS, &saveptr);
+        if (NULL == cfg_key)
+        {
+            continue;
+        }
 
-		found = 0;
-		for (i = 0; i < ARRAY_SIZE(config_options); i++) {
-			if (0 == strcasecmp(cfg_key, config_options[i].name)) {
-				cfg_opt = config_options[i].option;
-				found = 1;
-				break;
-			}
-		}
+        found = 0;
+        for (i = 0; i < ARRAY_SIZE(config_options); i++)
+        {
+            if (0 == strcasecmp(cfg_key, config_options[i].name))
+            {
+                cfg_opt = config_options[i].option;
+                found = 1;
+                break;
+            }
+        }
 
-		if (!found) {
-			dropbear_exit("Unsupported option %s at %s:%d", cfg_key, filename, linenum);
-		}
+        if (!found)
+        {
+            dropbear_exit("Unsupported option %s at %s:%d", cfg_key, filename, linenum);
+        }
 
+        cfg_val = strtok_r(NULL, TOKEN_CHARS, &saveptr);
+        if (NULL == cfg_val)
+        {
+            dropbear_exit("Missing value for %s at %s:%d", cfg_key, filename, linenum);
+        }
 
-		cfg_val = strtok_r(NULL, TOKEN_CHARS, &saveptr);
-		if (NULL == cfg_val) {
-			dropbear_exit("Missing value for %s at %s:%d", cfg_key, filename, linenum);
-		}
-
-		if (in_host_section) {
-			switch (cfg_opt) {
-				case opHost: {
-					/* Hit the next host section. Done reading config. */
-					goto outloop;
-				}
-				case opHostName: {
-					/* The host name is the alias given on the command line.
+        if (in_host_section)
+        {
+            switch (cfg_opt)
+            {
+            case opHost:
+            {
+                /* Hit the next host section. Done reading config. */
+                goto outloop;
+            }
+            case opHostName:
+            {
+                /* The host name is the alias given on the command line.
 					 * Set the actual remote host specified in the config.
 					 */
-					m_free(options->remotehost);
-					options->remotehost = m_strdup(cfg_val);
-					options->remotehostfixed = 1; /* Subsequent command line parsing should leave it alone. */
-					break;
-				}
+                m_free(options->remotehost);
+                options->remotehost = m_strdup(cfg_val);
+                options->remotehostfixed =
+                    1; /* Subsequent command line parsing should leave it alone. */
+                break;
+            }
 
-				case opHostPort: {
-					m_free(options->remoteport);
-					options->remoteport = m_strdup(cfg_val);
-					break;
-				}
+            case opHostPort:
+            {
+                m_free(options->remoteport);
+                options->remoteport = m_strdup(cfg_val);
+                break;
+            }
 
-				case opLoginUser: {
-					m_free(options->username);
-					options->username = m_strdup(cfg_val);
-					break;
-				}
+            case opLoginUser:
+            {
+                m_free(options->username);
+                options->username = m_strdup(cfg_val);
+                break;
+            }
 
-				case opIdentityFile: {
+            case opIdentityFile:
+            {
 #if DROPBEAR_CLI_PUBKEY_AUTH
-					char* key_file_path;
-					if (strncmp(cfg_val, "~/", 2) == 0) {
-						key_file_path = expand_homedir_path(cfg_val);
-					} else if (cfg_val[0] != '/') {
-						char* config_dir = dirname(filename);
-						int path_len = strlen(config_dir) + strlen(cfg_val) + 10;
-						key_file_path = m_malloc(path_len);
-						snprintf(key_file_path, path_len, "%s/%s", config_dir, cfg_val);
-					} else {
-						key_file_path = m_strdup(cfg_val);
-					}
-					loadidentityfile(key_file_path, 1);
-					m_free(key_file_path);
+                char *key_file_path;
+                if (strncmp(cfg_val, "~/", 2) == 0)
+                {
+                    key_file_path = expand_homedir_path(cfg_val);
+                }
+                else if (cfg_val[0] != '/')
+                {
+                    char *config_dir = dirname(filename);
+                    int path_len = strlen(config_dir) + strlen(cfg_val) + 10;
+                    key_file_path = m_malloc(path_len);
+                    snprintf(key_file_path, path_len, "%s/%s", config_dir, cfg_val);
+                }
+                else
+                {
+                    key_file_path = m_strdup(cfg_val);
+                }
+                loadidentityfile(key_file_path, 1);
+                m_free(key_file_path);
 #else
-					dropbear_exit("identityfile isn't supported in %s", filename);
+                dropbear_exit("identityfile isn't supported in %s", filename);
 #endif
-					break;
-				}
-			}
-		}
-		else
-		{
-			if (opHost != cfg_opt || 0 != strcmp(cfg_val, options->remotehost)) {
-				/* Not our host section. */
-				continue;
-			}
-			in_host_section = 1;
-		}
-	}
+                break;
+            }
+            }
+        }
+        else
+        {
+            if (opHost != cfg_opt || 0 != strcmp(cfg_val, options->remotehost))
+            {
+                /* Not our host section. */
+                continue;
+            }
+            in_host_section = 1;
+        }
+    }
 outloop:
-	buf_free(buf);
+    buf_free(buf);
 }
 
 #endif /* DROPBEAR_USE_SSH_CONFIG */

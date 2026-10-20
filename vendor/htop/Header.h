@@ -14,35 +14,38 @@ in the source distribution for its full text.
 #include "Meter.h"
 #include "Vector.h"
 
-
-typedef struct Header_ {
-   Vector** columns;
-   Machine* host;
-   HeaderLayout headerLayout;
-   int pad;
-   int height;
+typedef struct Header_
+{
+    Vector **columns;
+    Machine *host;
+    HeaderLayout headerLayout;
+    int pad;
+    int height;
 } Header;
 
-#define Header_forEachColumn(this_, i_) for (size_t (i_)=0, H_fEC_numColumns_ = HeaderLayout_getColumns((this_)->headerLayout); (i_) < H_fEC_numColumns_; ++(i_))
+#define Header_forEachColumn(this_, i_)                                                            \
+    for (size_t(i_) = 0, H_fEC_numColumns_ = HeaderLayout_getColumns((this_)->headerLayout);       \
+         (i_) < H_fEC_numColumns_; ++(i_))
 
-Header* Header_new(Machine* host, HeaderLayout hLayout);
+Header *Header_new(Machine *host, HeaderLayout hLayout);
 
-void Header_delete(Header* this);
+void Header_delete(Header *this);
 
-void Header_setLayout(Header* this, HeaderLayout hLayout);
+void Header_setLayout(Header *this, HeaderLayout hLayout);
 
-void Header_populateFromSettings(Header* this);
+void Header_populateFromSettings(Header *this);
 
-void Header_writeBackToSettings(const Header* this);
+void Header_writeBackToSettings(const Header *this);
 
-Meter* Header_addMeterByClass(Header* this, const MeterClass* type, unsigned int param, size_t column);
+Meter *Header_addMeterByClass(Header *this, const MeterClass *type, unsigned int param,
+                              size_t column);
 
-void Header_reinit(Header* this);
+void Header_reinit(Header *this);
 
-void Header_draw(const Header* this);
+void Header_draw(const Header *this);
 
-void Header_updateData(Header* this);
+void Header_updateData(Header *this);
 
-int Header_calculateHeight(Header* this);
+int Header_calculateHeight(Header *this);
 
 #endif

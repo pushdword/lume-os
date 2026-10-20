@@ -65,23 +65,23 @@ extern int debug_trace;
 #define TRACE(X)
 #define TRACE2(X)
 /* ... unless DEBUG_TRACE is high enough */
-#if (DEBUG_TRACE>=1)
+#if (DEBUG_TRACE >= 1)
 #undef DEBUG1
 #define DEBUG1(X) dropbear_trace1 X;
 #endif
-#if (DEBUG_TRACE>=2)
+#if (DEBUG_TRACE >= 2)
 #undef DEBUG2
 #define DEBUG2(X) dropbear_trace2 X;
 #endif
-#if (DEBUG_TRACE>=3)
+#if (DEBUG_TRACE >= 3)
 #undef DEBUG3
 #define DEBUG3(X) dropbear_trace3 X;
 #endif
-#if (DEBUG_TRACE>=4)
+#if (DEBUG_TRACE >= 4)
 #undef TRACE
 #define TRACE(X) dropbear_trace4 X;
 #endif
-#if (DEBUG_TRACE>=5)
+#if (DEBUG_TRACE >= 5)
 #undef TRACE2
 #define TRACE2(X) dropbear_trace5 X;
 #endif
@@ -91,7 +91,6 @@ extern int debug_trace;
 #ifndef DEBUG_NOFORK
 #define DEBUG_NOFORK 0
 #endif
-
 
 /* For testing as non-root on shadowed systems, include the crypt of a password
  * here. You can then log in as any user with this password. Ensure that you

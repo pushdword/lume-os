@@ -16,17 +16,17 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct NetBSDProcess_ {
-   Process super;
+typedef struct NetBSDProcess_
+{
+    Process super;
 } NetBSDProcess;
 
 extern const ProcessClass NetBSDProcess_class;
 
 extern const ProcessFieldData Process_fields[LAST_PROCESSFIELD];
 
-Process* NetBSDProcess_new(const Machine* host);
+Process *NetBSDProcess_new(const Machine *host);
 
-void Process_delete(Object* cast);
+void Process_delete(Object *cast);
 
 #endif

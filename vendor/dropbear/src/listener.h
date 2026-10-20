@@ -30,41 +30,42 @@
 
 /* X11 and Agent use default. TCP has a specific type since
    it can be cancelled, so get_listener() needs to match it. */
-enum ListenerType {
-	LISTENER_TYPE_DEFAULT,
-	LISTENER_TYPE_TCPFORWARDED,
-	LISTENER_TYPE_STREAMFORWARDED,
+enum ListenerType
+{
+    LISTENER_TYPE_DEFAULT,
+    LISTENER_TYPE_TCPFORWARDED,
+    LISTENER_TYPE_STREAMFORWARDED,
 };
 
-struct Listener {
+struct Listener
+{
 
-	int socks[DROPBEAR_MAX_SOCKS];
-	unsigned int nsocks;
+    int socks[DROPBEAR_MAX_SOCKS];
+    unsigned int nsocks;
 
-	int index; /* index in the array of listeners */
+    int index; /* index in the array of listeners */
 
-	void (*acceptor)(const struct Listener*, int sock);
-	void (*cleanup)(const struct Listener*);
+    void (*acceptor)(const struct Listener *, int sock);
+    void (*cleanup)(const struct Listener *);
 
-	enum ListenerType type;
+    enum ListenerType type;
 
-	void *typedata;
-
+    void *typedata;
 };
 
 void listeners_initialise(void);
-void handle_listeners(const fd_set * readfds);
-void set_listener_fds(fd_set * readfds);
+void handle_listeners(const fd_set *readfds);
+void set_listener_fds(fd_set *readfds);
 
-struct Listener* new_listener(const int socks[], unsigned int nsocks,
-		enum ListenerType type, void* typedata,
-		void (*acceptor)(const struct Listener* listener, int sock),
-		void (*cleanup)(const struct Listener*));
+struct Listener *new_listener(const int socks[], unsigned int nsocks, enum ListenerType type,
+                              void *typedata,
+                              void (*acceptor)(const struct Listener *listener, int sock),
+                              void (*cleanup)(const struct Listener *));
 
-struct Listener * get_listener(enum ListenerType type, const void* typedata,
-		int (*match)(const void*, const void*));
+struct Listener *get_listener(enum ListenerType type, const void *typedata,
+                              int (*match)(const void *, const void *));
 
-void remove_listener(struct Listener* listener);
+void remove_listener(struct Listener *listener);
 
 void remove_all_listeners(void);
 

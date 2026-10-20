@@ -14,10 +14,11 @@ in the source distribution for its full text.
 #include "ProcessTable.h"
 #include "UsersTable.h"
 
-typedef struct FreeBSDProcessTable_ {
-   ProcessTable super;
+typedef struct FreeBSDProcessTable_
+{
+    ProcessTable super;
 
-   int osreldate;
+    int osreldate;
 } FreeBSDProcessTable;
 
 #endif

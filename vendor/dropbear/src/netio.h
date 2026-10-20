@@ -5,37 +5,38 @@
 #include "buffer.h"
 #include "queue.h"
 
-enum dropbear_prio {
-	DROPBEAR_PRIO_NORMAL = 0, /* the rest - tcp-fwd, scp, rsync, git, etc */
-	DROPBEAR_PRIO_LOWDELAY, /* pty shell, x11 */
+enum dropbear_prio
+{
+    DROPBEAR_PRIO_NORMAL = 0, /* the rest - tcp-fwd, scp, rsync, git, etc */
+    DROPBEAR_PRIO_LOWDELAY,   /* pty shell, x11 */
 };
 
 void set_sock_nodelay(int sock);
 void set_sock_priority(int sock, enum dropbear_prio prio);
 
 int get_sock_port(int sock);
-void get_socket_address(int fd, char **local_host, char **local_port,
-		char **remote_host, char **remote_port, int host_lookup);
-void getaddrstring(struct sockaddr_storage* addr, 
-		char **ret_host, char **ret_port, int host_lookup);
-int dropbear_listen(const char* address, const char* port,
-		int *socks, unsigned int sockcount, char **errstring, int *maxfd, const char* interface);
+void get_socket_address(int fd, char **local_host, char **local_port, char **remote_host,
+                        char **remote_port, int host_lookup);
+void getaddrstring(struct sockaddr_storage *addr, char **ret_host, char **ret_port,
+                   int host_lookup);
+int dropbear_listen(const char *address, const char *port, int *socks, unsigned int sockcount,
+                    char **errstring, int *maxfd, const char *interface);
 
 struct dropbear_progress_connection;
 
 /* result is DROPBEAR_SUCCESS or DROPBEAR_FAILURE.
 errstring is only set on DROPBEAR_FAILURE, returns failure message for the last attempted socket */
-typedef void(*connect_callback)(int result, int sock, void* data, const char* errstring);
+typedef void (*connect_callback)(int result, int sock, void *data, const char *errstring);
 
 /* Always returns a progress connection, if it fails it will call the callback at a later point */
-struct dropbear_progress_connection * connect_remote (const char* remotehost, const char* remoteport,
-	connect_callback cb, void *cb_data, const char* bind_address, const char* bind_port,
-	enum dropbear_prio prio);
+struct dropbear_progress_connection *connect_remote(const char *remotehost, const char *remoteport,
+                                                    connect_callback cb, void *cb_data,
+                                                    const char *bind_address, const char *bind_port,
+                                                    enum dropbear_prio prio);
 
 /* Connect to local stream, always returns a progress connection, if it fails it will call the callback at a later point */
-struct dropbear_progress_connection * connect_streamlocal (const char* localpath,
-	connect_callback cb, void *cb_data,
-	enum dropbear_prio prio);
+struct dropbear_progress_connection *connect_streamlocal(const char *localpath, connect_callback cb,
+                                                         void *cb_data, enum dropbear_prio prio);
 
 /* Sets up for select() */
 void set_connect_fds(fd_set *writefd);
@@ -67,4 +68,3 @@ void set_listen_fast_open(int sock);
 #endif
 
 #endif
-

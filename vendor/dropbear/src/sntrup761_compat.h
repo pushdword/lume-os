@@ -21,24 +21,25 @@ typedef uint32_t crypto_uint32;
 typedef int64_t crypto_int64;
 typedef uint64_t crypto_uint64;
 
-static inline void randombytes(unsigned char* buf, unsigned int len) {
+static inline void randombytes(unsigned char *buf, unsigned int len)
+{
     genrandom(buf, len);
 }
 
-static inline uint32_t small_random32(void) {
+static inline uint32_t small_random32(void)
+{
     uint32_t v;
-    genrandom((unsigned char*)&v, sizeof(v));
+    genrandom((unsigned char *)&v, sizeof(v));
     return v;
 }
 
-static int crypto_hash_sha512(uint8_t *out, const uint8_t *m,
-    unsigned long long n)
+static int crypto_hash_sha512(uint8_t *out, const uint8_t *m, unsigned long long n)
 {
-  hash_state hs;
+    hash_state hs;
 
-  sha512_init(&hs);
-  sha512_process(&hs, m, n);
-  return sha512_done(&hs, out);
+    sha512_init(&hs);
+    sha512_process(&hs, m, n);
+    return sha512_done(&hs, out);
 }
 
 #endif /* DROPBEAR_SNTRUP761 */

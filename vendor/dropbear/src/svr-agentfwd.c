@@ -44,251 +44,265 @@
 #define AGENTDIRPREFIX "/tmp/dropbear-"
 
 static int send_msg_channel_open_agent(int fd);
-static int bindagent(int fd, struct ChanSess * chansess);
-static void agentaccept(const struct Listener * listener, int sock);
+static int bindagent(int fd, struct ChanSess *chansess);
+static void agentaccept(const struct Listener *listener, int sock);
 
 /* Handles client requests to start agent forwarding, sets up listening socket.
  * Returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
-int svr_agentreq(struct ChanSess * chansess) {
-	int fd = -1;
+int svr_agentreq(struct ChanSess *chansess)
+{
+    int fd = -1;
 
-	if (!svr_pubkey_allows_agentfwd()) {
-		return DROPBEAR_FAILURE;
-	}
+    if (!svr_pubkey_allows_agentfwd())
+    {
+        return DROPBEAR_FAILURE;
+    }
 
-	if (chansess->agentlistener != NULL) {
-		return DROPBEAR_FAILURE;
-	}
+    if (chansess->agentlistener != NULL)
+    {
+        return DROPBEAR_FAILURE;
+    }
 
 #if DROPBEAR_FUZZ
-	if (fuzz.fuzzing) {
-		fd = wrapfd_new_dummy();
-	}
-	else
+    if (fuzz.fuzzing)
+    {
+        fd = wrapfd_new_dummy();
+    }
+    else
 #endif
-	{
-		/* create listening socket */
-		fd = socket(PF_UNIX, SOCK_STREAM, 0);
-		if (fd < 0) {
-			goto fail;
-		}
+    {
+        /* create listening socket */
+        fd = socket(PF_UNIX, SOCK_STREAM, 0);
+        if (fd < 0)
+        {
+            goto fail;
+        }
 
-		/* create the unix socket dir and file */
-		if (bindagent(fd, chansess) == DROPBEAR_FAILURE) {
-			goto fail;
-		}
+        /* create the unix socket dir and file */
+        if (bindagent(fd, chansess) == DROPBEAR_FAILURE)
+        {
+            goto fail;
+        }
 
-		/* listen */
-		if (listen(fd, 20) < 0) {
-			goto fail;
-		}
-	}
+        /* listen */
+        if (listen(fd, 20) < 0)
+        {
+            goto fail;
+        }
+    }
 
-	/* set non-blocking */
-	setnonblocking(fd);
+    /* set non-blocking */
+    setnonblocking(fd);
 
-	/* pass if off to listener */
-	chansess->agentlistener = new_listener( &fd, 1,
-		LISTENER_TYPE_DEFAULT, chansess,
-		agentaccept, NULL);
+    /* pass if off to listener */
+    chansess->agentlistener =
+        new_listener(&fd, 1, LISTENER_TYPE_DEFAULT, chansess, agentaccept, NULL);
 
-	if (chansess->agentlistener == NULL) {
-		goto fail;
-	}
+    if (chansess->agentlistener == NULL)
+    {
+        goto fail;
+    }
 
-	return DROPBEAR_SUCCESS;
+    return DROPBEAR_SUCCESS;
 
 fail:
-	m_close(fd);
-	/* cleanup */
-	svr_agentcleanup(chansess);
+    m_close(fd);
+    /* cleanup */
+    svr_agentcleanup(chansess);
 
-	return DROPBEAR_FAILURE;
+    return DROPBEAR_FAILURE;
 }
 
 /* accepts a connection on the forwarded socket and opens a new channel for it
  * back to the client */
 /* returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
-static void agentaccept(const struct Listener *UNUSED(listener), int sock) {
+static void agentaccept(const struct Listener *UNUSED(listener), int sock)
+{
 
-	int fd;
+    int fd;
 
-	fd = accept(sock, NULL, NULL);
-	if (fd < 0) {
-		TRACE(("accept failed"))
-		return;
-	}
+    fd = accept(sock, NULL, NULL);
+    if (fd < 0)
+    {
+        TRACE(("accept failed"))
+        return;
+    }
 
-	if (send_msg_channel_open_agent(fd) != DROPBEAR_SUCCESS) {
-		close(fd);
-	}
-
+    if (send_msg_channel_open_agent(fd) != DROPBEAR_SUCCESS)
+    {
+        close(fd);
+    }
 }
 
 /* set up the environment variable pointing to the socket. This is called
  * just before command/shell execution, after dropping privileges */
-void svr_agentset(const struct ChanSess * chansess) {
+void svr_agentset(const struct ChanSess *chansess)
+{
 
-	char *path = NULL;
-	int len;
+    char *path = NULL;
+    int len;
 
-	if (chansess->agentlistener == NULL) {
-		return;
-	}
+    if (chansess->agentlistener == NULL)
+    {
+        return;
+    }
 
-	/* 2 for "/" and "\0" */
-	len = strlen(chansess->agentdir) + strlen(chansess->agentfile) + 2;
+    /* 2 for "/" and "\0" */
+    len = strlen(chansess->agentdir) + strlen(chansess->agentfile) + 2;
 
-	path = m_malloc(len);
-	snprintf(path, len, "%s/%s", chansess->agentdir, chansess->agentfile);
-	addnewvar("SSH_AUTH_SOCK", path);
-	m_free(path);
+    path = m_malloc(len);
+    snprintf(path, len, "%s/%s", chansess->agentdir, chansess->agentfile);
+    addnewvar("SSH_AUTH_SOCK", path);
+    m_free(path);
 }
 
 /* close the socket, remove the socket-file */
-void svr_agentcleanup(struct ChanSess * chansess) {
+void svr_agentcleanup(struct ChanSess *chansess)
+{
 
-	char *path = NULL;
-	uid_t uid;
-	gid_t gid;
-	int len;
+    char *path = NULL;
+    uid_t uid;
+    gid_t gid;
+    int len;
 
-	if (chansess->agentlistener != NULL) {
-		remove_listener(chansess->agentlistener);
-		chansess->agentlistener = NULL;
-	}
+    if (chansess->agentlistener != NULL)
+    {
+        remove_listener(chansess->agentlistener);
+        chansess->agentlistener = NULL;
+    }
 
-	if (chansess->agentfile != NULL && chansess->agentdir != NULL) {
+    if (chansess->agentfile != NULL && chansess->agentdir != NULL)
+    {
 
 #if !DROPBEAR_SVR_DROP_PRIVS
-		/* Remove the dir as the user. That way they can't cause problems except
+        /* Remove the dir as the user. That way they can't cause problems except
 		 * for themselves */
-		uid = getuid();
-		gid = getgid();
-		if ((setegid(ses.authstate.pw_gid)) < 0 ||
-			(seteuid(ses.authstate.pw_uid)) < 0) {
-			dropbear_exit("Failed to set euid");
-		}
+        uid = getuid();
+        gid = getgid();
+        if ((setegid(ses.authstate.pw_gid)) < 0 || (seteuid(ses.authstate.pw_uid)) < 0)
+        {
+            dropbear_exit("Failed to set euid");
+        }
 #else
-		(void)uid;
-		(void)gid;
+        (void)uid;
+        (void)gid;
 #endif
 
-		/* 2 for "/" and "\0" */
-		len = strlen(chansess->agentdir) + strlen(chansess->agentfile) + 2;
+        /* 2 for "/" and "\0" */
+        len = strlen(chansess->agentdir) + strlen(chansess->agentfile) + 2;
 
-		path = m_malloc(len);
-		snprintf(path, len, "%s/%s", chansess->agentdir, chansess->agentfile);
-		unlink(path);
-		m_free(path);
+        path = m_malloc(len);
+        snprintf(path, len, "%s/%s", chansess->agentdir, chansess->agentfile);
+        unlink(path);
+        m_free(path);
 
-		rmdir(chansess->agentdir);
+        rmdir(chansess->agentdir);
 
 #if !DROPBEAR_SVR_DROP_PRIVS
-		if ((seteuid(uid)) < 0 ||
-			(setegid(gid)) < 0) {
-			dropbear_exit("Failed to revert euid");
-		}
+        if ((seteuid(uid)) < 0 || (setegid(gid)) < 0)
+        {
+            dropbear_exit("Failed to revert euid");
+        }
 #endif
 
-		m_free(chansess->agentfile);
-		m_free(chansess->agentdir);
-	}
-
+        m_free(chansess->agentfile);
+        m_free(chansess->agentdir);
+    }
 }
 
 static const struct ChanType chan_svr_agent = {
-	"auth-agent@openssh.com",
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL
-};
-
+    "auth-agent@openssh.com", NULL, NULL, NULL, NULL, NULL};
 
 /* helper for accepting an agent request */
-static int send_msg_channel_open_agent(int fd) {
+static int send_msg_channel_open_agent(int fd)
+{
 
-	if (send_msg_channel_open_init(fd, &chan_svr_agent) == DROPBEAR_SUCCESS) {
-		encrypt_packet();
-		return DROPBEAR_SUCCESS;
-	} else {
-		return DROPBEAR_FAILURE;
-	}
+    if (send_msg_channel_open_init(fd, &chan_svr_agent) == DROPBEAR_SUCCESS)
+    {
+        encrypt_packet();
+        return DROPBEAR_SUCCESS;
+    }
+    else
+    {
+        return DROPBEAR_FAILURE;
+    }
 }
 
 /* helper for creating the agent socket-file
    returns DROPBEAR_SUCCESS or DROPBEAR_FAILURE */
-static int bindagent(int fd, struct ChanSess * chansess) {
+static int bindagent(int fd, struct ChanSess *chansess)
+{
 
-	struct sockaddr_un addr;
-	unsigned int prefix;
-	char path[(sizeof(addr.sun_path)-1)/2], sockfile[(sizeof(addr.sun_path)-1)/2];
-	mode_t mode;
-	int i;
-	uid_t uid;
-	gid_t gid;
-	int ret = DROPBEAR_FAILURE;
+    struct sockaddr_un addr;
+    unsigned int prefix;
+    char path[(sizeof(addr.sun_path) - 1) / 2], sockfile[(sizeof(addr.sun_path) - 1) / 2];
+    mode_t mode;
+    int i;
+    uid_t uid;
+    gid_t gid;
+    int ret = DROPBEAR_FAILURE;
 
 #if !DROPBEAR_SVR_DROP_PRIVS
-	/* drop to user privs to make the dir/file */
-	uid = getuid();
-	gid = getgid();
-	if ((setegid(ses.authstate.pw_gid)) < 0 ||
-		(seteuid(ses.authstate.pw_uid)) < 0) {
-		dropbear_exit("Failed to set euid");
-	}
+    /* drop to user privs to make the dir/file */
+    uid = getuid();
+    gid = getgid();
+    if ((setegid(ses.authstate.pw_gid)) < 0 || (seteuid(ses.authstate.pw_uid)) < 0)
+    {
+        dropbear_exit("Failed to set euid");
+    }
 #else
-		(void)uid;
-		(void)gid;
+    (void)uid;
+    (void)gid;
 #endif
 
-	memset((void*)&addr, 0x0, sizeof(addr));
-	addr.sun_family = AF_UNIX;
+    memset((void *)&addr, 0x0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
 
-	mode = S_IRWXU;
+    mode = S_IRWXU;
 
-	for (i = 0; i < 20; i++) {
-		genrandom((unsigned char*)&prefix, sizeof(prefix));
-		/* we want 32 bits (8 hex digits) - "/tmp/dropbear-f19c62c0" */
-		snprintf(path, sizeof(path), AGENTDIRPREFIX "%.8x", prefix);
+    for (i = 0; i < 20; i++)
+    {
+        genrandom((unsigned char *)&prefix, sizeof(prefix));
+        /* we want 32 bits (8 hex digits) - "/tmp/dropbear-f19c62c0" */
+        snprintf(path, sizeof(path), AGENTDIRPREFIX "%.8x", prefix);
 
-		if (mkdir(path, mode) == 0) {
-			goto bindsocket;
-		}
-		if (errno != EEXIST) {
-			break;
-		}
-	}
-	/* couldn't make a dir */
-	goto out;
+        if (mkdir(path, mode) == 0)
+        {
+            goto bindsocket;
+        }
+        if (errno != EEXIST)
+        {
+            break;
+        }
+    }
+    /* couldn't make a dir */
+    goto out;
 
 bindsocket:
-	/* Format is "/tmp/dropbear-0246dead/auth-d00f7654-23".
+    /* Format is "/tmp/dropbear-0246dead/auth-d00f7654-23".
 	 * The "23" is the file desc, the random data is to avoid collisions
 	 * between subsequent user processes reusing socket fds (odds are now
 	 * 1/(2^64) */
-	genrandom((unsigned char*)&prefix, sizeof(prefix));
-	snprintf(sockfile, sizeof(sockfile), "auth-%.8x-%d", prefix, fd);
-			
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s", path, sockfile);
+    genrandom((unsigned char *)&prefix, sizeof(prefix));
+    snprintf(sockfile, sizeof(sockfile), "auth-%.8x-%d", prefix, fd);
 
-	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-		chansess->agentdir = m_strdup(path);
-		chansess->agentfile = m_strdup(sockfile);
-		ret = DROPBEAR_SUCCESS;
-	}
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s", path, sockfile);
 
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) == 0)
+    {
+        chansess->agentdir = m_strdup(path);
+        chansess->agentfile = m_strdup(sockfile);
+        ret = DROPBEAR_SUCCESS;
+    }
 
 out:
 #if !DROPBEAR_SVR_DROP_PRIVS
-	if ((seteuid(uid)) < 0 ||
-		(setegid(gid)) < 0) {
-		dropbear_exit("Failed to revert euid");
-	}
+    if ((seteuid(uid)) < 0 || (setegid(gid)) < 0)
+    {
+        dropbear_exit("Failed to revert euid");
+    }
 #endif
-	return ret;
+    return ret;
 }
 
 #endif

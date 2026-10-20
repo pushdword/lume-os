@@ -1,9 +1,18 @@
 #ifndef LUME_SSH_TERMIOS_H
 #define LUME_SSH_TERMIOS_H
 #include <stdint.h>
-typedef uint32_t tcflag_t;typedef uint32_t speed_t;typedef unsigned char cc_t;
+typedef uint32_t tcflag_t;
+typedef uint32_t speed_t;
+typedef unsigned char cc_t;
 #define NCCS 32
-struct termios {tcflag_t c_iflag,c_oflag,c_cflag,c_lflag;cc_t c_cc[NCCS];speed_t c_ispeed,c_ospeed;};
+
+struct termios
+{
+    tcflag_t c_iflag, c_oflag, c_cflag, c_lflag;
+    cc_t c_cc[NCCS];
+    speed_t c_ispeed, c_ospeed;
+};
+
 #define TCSANOW 0
 #define TCSADRAIN 1
 #define TCSAFLUSH 2
@@ -64,8 +73,12 @@ struct termios {tcflag_t c_iflag,c_oflag,c_cflag,c_lflag;cc_t c_cc[NCCS];speed_t
 #define B115200 4098
 #define B230400 4099
 #define B4000000 4111
-int tcgetattr(int,struct termios *);int tcsetattr(int,int,const struct termios *);
-speed_t cfgetispeed(const struct termios *);speed_t cfgetospeed(const struct termios *);
-int cfsetispeed(struct termios *,speed_t);int cfsetospeed(struct termios *,speed_t);
-void cfmakeraw(struct termios *);int tcflush(int,int);
+int tcgetattr(int, struct termios *);
+int tcsetattr(int, int, const struct termios *);
+speed_t cfgetispeed(const struct termios *);
+speed_t cfgetospeed(const struct termios *);
+int cfsetispeed(struct termios *, speed_t);
+int cfsetospeed(struct termios *, speed_t);
+void cfmakeraw(struct termios *);
+int tcflush(int, int);
 #endif

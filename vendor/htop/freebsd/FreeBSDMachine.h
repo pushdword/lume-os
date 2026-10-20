@@ -16,41 +16,42 @@ in the source distribution for its full text.
 #include "UsersTable.h"
 #include "zfs/ZfsArcStats.h"
 
+typedef struct CPUData_
+{
+    double userPercent;
+    double nicePercent;
+    double systemPercent;
+    double irqPercent;
+    double systemAllPercent;
 
-typedef struct CPUData_ {
-   double userPercent;
-   double nicePercent;
-   double systemPercent;
-   double irqPercent;
-   double systemAllPercent;
-
-   double frequency;
-   double temperature;
+    double frequency;
+    double temperature;
 } CPUData;
 
-typedef struct FreeBSDMachine_ {
-   Machine super;
-   kvm_t* kd;
+typedef struct FreeBSDMachine_
+{
+    Machine super;
+    kvm_t *kd;
 
-   int pageSize;
-   int pageSizeKb;
-   int kernelFScale;
+    int pageSize;
+    int pageSizeKb;
+    int kernelFScale;
 
-   memory_t wiredMem;
-   memory_t activeMem;
-   memory_t laundryMem;
-   memory_t cacheMem;
-   memory_t inactiveMem;
+    memory_t wiredMem;
+    memory_t activeMem;
+    memory_t laundryMem;
+    memory_t cacheMem;
+    memory_t inactiveMem;
 
-   ZfsArcStats zfs;
+    ZfsArcStats zfs;
 
-   CPUData* cpus;
+    CPUData *cpus;
 
-   unsigned long* cp_time_o;
-   unsigned long* cp_time_n;
+    unsigned long *cp_time_o;
+    unsigned long *cp_time_n;
 
-   unsigned long* cp_times_o;
-   unsigned long* cp_times_n;
+    unsigned long *cp_times_o;
+    unsigned long *cp_times_n;
 
 } FreeBSDMachine;
 

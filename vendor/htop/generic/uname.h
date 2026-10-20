@@ -9,10 +9,10 @@ in the source distribution for its full text.
 
 #include <stddef.h>
 
-typedef void (*Platform_FetchReleaseFunction)(char* buffer, size_t length);
+typedef void (*Platform_FetchReleaseFunction)(char *buffer, size_t length);
 
-const char* Generic_unameRelease(Platform_FetchReleaseFunction fetchRelease);
+const char *Generic_unameRelease(Platform_FetchReleaseFunction fetchRelease);
 
-const char* Generic_uname(void);
+const char *Generic_uname(void);
 
 #endif

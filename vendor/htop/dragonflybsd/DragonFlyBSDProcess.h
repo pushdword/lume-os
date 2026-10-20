@@ -14,19 +14,19 @@ in the source distribution for its full text.
 #include "Process.h"
 #include "Machine.h"
 
-
-typedef struct DragonFlyBSDProcess_ {
-   Process super;
-   int   jid;
-   char* jname;
+typedef struct DragonFlyBSDProcess_
+{
+    Process super;
+    int jid;
+    char *jname;
 } DragonFlyBSDProcess;
 
 extern const ProcessClass DragonFlyBSDProcess_class;
 
 extern const ProcessFieldData Process_fields[LAST_PROCESSFIELD];
 
-Process* DragonFlyBSDProcess_new(const Machine* host);
+Process *DragonFlyBSDProcess_new(const Machine *host);
 
-void Process_delete(Object* cast);
+void Process_delete(Object *cast);
 
 #endif

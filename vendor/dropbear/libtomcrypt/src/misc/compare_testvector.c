@@ -15,37 +15,43 @@
 */
 
 #if defined(LTC_TEST) && defined(LTC_TEST_DBG)
-static void _print_hex(const char* what, const void* v, const unsigned long l)
+static void _print_hex(const char *what, const void *v, const unsigned long l)
 {
-  const unsigned char* p = v;
-  unsigned long x, y = 0, z;
-  fprintf(stderr, "%s contents: \n", what);
-  for (x = 0; x < l; ) {
-      fprintf(stderr, "%02X ", p[x]);
-      if (!(++x % 16) || x == l) {
-         if((x % 16) != 0) {
-            z = 16 - (x % 16);
-            if(z >= 8)
-               fprintf(stderr, " ");
-            for (; z != 0; --z) {
-               fprintf(stderr, "   ");
+    const unsigned char *p = v;
+    unsigned long x, y = 0, z;
+    fprintf(stderr, "%s contents: \n", what);
+    for (x = 0; x < l;)
+    {
+        fprintf(stderr, "%02X ", p[x]);
+        if (!(++x % 16) || x == l)
+        {
+            if ((x % 16) != 0)
+            {
+                z = 16 - (x % 16);
+                if (z >= 8)
+                    fprintf(stderr, " ");
+                for (; z != 0; --z)
+                {
+                    fprintf(stderr, "   ");
+                }
             }
-         }
-         fprintf(stderr, " | ");
-         for(; y < x; y++) {
-            if((y % 8) == 0)
-               fprintf(stderr, " ");
-            if(isgraph(p[y]))
-               fprintf(stderr, "%c", p[y]);
-            else
-               fprintf(stderr, ".");
-         }
-         fprintf(stderr, "\n");
-      }
-      else if((x % 8) == 0) {
-         fprintf(stderr, " ");
-      }
-  }
+            fprintf(stderr, " | ");
+            for (; y < x; y++)
+            {
+                if ((y % 8) == 0)
+                    fprintf(stderr, " ");
+                if (isgraph(p[y]))
+                    fprintf(stderr, "%c", p[y]);
+                else
+                    fprintf(stderr, ".");
+            }
+            fprintf(stderr, "\n");
+        }
+        else if ((x % 8) == 0)
+        {
+            fprintf(stderr, " ");
+        }
+    }
 }
 #endif
 
@@ -60,26 +66,28 @@ static void _print_hex(const char* what, const void* v, const unsigned long l)
   @param which          The iteration count
   @return 0 on equality, -1 or 1 on difference
 */
-int compare_testvector(const void* is, const unsigned long is_len, const void* should, const unsigned long should_len, const char* what, int which)
+int compare_testvector(const void *is, const unsigned long is_len, const void *should,
+                       const unsigned long should_len, const char *what, int which)
 {
-   int res = 0;
-   if(is_len != should_len)
-      res = is_len > should_len ? -1 : 1;
-   else
-      res = XMEMCMP(is, should, is_len);
+    int res = 0;
+    if (is_len != should_len)
+        res = is_len > should_len ? -1 : 1;
+    else
+        res = XMEMCMP(is, should, is_len);
 
 #if defined(LTC_TEST) && defined(LTC_TEST_DBG)
-   if (res != 0) {
-      fprintf(stderr, "Testvector #%i of %s failed:\n", which, what);
-      _print_hex("SHOULD", should, should_len);
-      _print_hex("IS    ", is, is_len);
-   }
+    if (res != 0)
+    {
+        fprintf(stderr, "Testvector #%i of %s failed:\n", which, what);
+        _print_hex("SHOULD", should, should_len);
+        _print_hex("IS    ", is, is_len);
+    }
 #else
-   LTC_UNUSED_PARAM(which);
-   LTC_UNUSED_PARAM(what);
+    LTC_UNUSED_PARAM(which);
+    LTC_UNUSED_PARAM(what);
 #endif
 
-   return res;
+    return res;
 }
 
 /* ref:         $Format:%D$ */

@@ -16,47 +16,49 @@ in the source distribution for its full text.
 #include "ScreenManager.h"
 #include "Settings.h"
 
+typedef struct ScreenNamesPanel_
+{
+    Panel super;
 
-typedef struct ScreenNamesPanel_ {
-   Panel super;
-
-   ScreenManager* scr;
-   Settings* settings;
-   LineEditor editor;   /* line editor used during renaming */
-   DynamicScreen* ds;
-   char* saved;
-   ListItem* renamingItem;
+    ScreenManager *scr;
+    Settings *settings;
+    LineEditor editor; /* line editor used during renaming */
+    DynamicScreen *ds;
+    char *saved;
+    ListItem *renamingItem;
 } ScreenNamesPanel;
 
-typedef struct ScreenNameListItem_ {
-   ListItem super;
-   ScreenSettings* ss;
+typedef struct ScreenNameListItem_
+{
+    ListItem super;
+    ScreenSettings *ss;
 } ScreenNameListItem;
 
-typedef struct ScreenTabsPanel_ {
-   Panel super;
+typedef struct ScreenTabsPanel_
+{
+    Panel super;
 
-   ScreenManager* scr;
-   Settings* settings;
-   ScreenNamesPanel* names;
-   int cursor;
+    ScreenManager *scr;
+    Settings *settings;
+    ScreenNamesPanel *names;
+    int cursor;
 } ScreenTabsPanel;
 
-typedef struct ScreenTabListItem_ {
-   ListItem super;
-   DynamicScreen* ds;
+typedef struct ScreenTabListItem_
+{
+    ListItem super;
+    DynamicScreen *ds;
 } ScreenTabListItem;
 
-
-ScreenTabsPanel* ScreenTabsPanel_new(Settings* settings);
+ScreenTabsPanel *ScreenTabsPanel_new(Settings *settings);
 
 extern ObjectClass ScreenNameListItem_class;
 
-ScreenNameListItem* ScreenNameListItem_new(const char* value, ScreenSettings* ss);
+ScreenNameListItem *ScreenNameListItem_new(const char *value, ScreenSettings *ss);
 
 extern PanelClass ScreenNamesPanel_class;
 
-ScreenNamesPanel* ScreenNamesPanel_new(Settings* settings);
+ScreenNamesPanel *ScreenNamesPanel_new(Settings *settings);
 
 void ScreenTabsPanel_cleanup(void);
 

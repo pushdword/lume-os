@@ -16,9 +16,9 @@ in the source distribution for its full text.
 #include "Hashtable.h"
 #include "ProcessTable.h"
 
-
-typedef struct NetBSDProcessTable_ {
-   ProcessTable super;
+typedef struct NetBSDProcessTable_
+{
+    ProcessTable super;
 } NetBSDProcessTable;
 
 #endif

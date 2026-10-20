@@ -18,192 +18,194 @@ in the source distribution for its full text.
 
 #include "XUtils.h" // IWYU pragma: keep
 
-
 /* GNU/Hurd does not have PATH_MAX in limits.h */
 #ifndef PATH_MAX
-# define PATH_MAX 4096
+#define PATH_MAX 4096
 #endif
 
-
-int Compat_faccessat(int dirfd,
-                     const char* pathname,
-                     int mode,
-                     int flags) {
-   int ret;
+int Compat_faccessat(int dirfd, const char *pathname, int mode, int flags)
+{
+    int ret;
 
 #ifdef HAVE_FACCESSAT
 
-   // Implementation note: AT_SYMLINK_NOFOLLOW unsupported on FreeBSD, fallback to lstat in that case
+    // Implementation note: AT_SYMLINK_NOFOLLOW unsupported on FreeBSD, fallback to lstat in that case
 
-   errno = 0;
+    errno = 0;
 
-   ret = faccessat(dirfd, pathname, mode, flags);
-   if (!ret || errno != EINVAL)
-      return ret;
+    ret = faccessat(dirfd, pathname, mode, flags);
+    if (!ret || errno != EINVAL)
+        return ret;
 
 #endif
 
-   // Error out on unsupported configurations
-   if (dirfd != (int)AT_FDCWD || mode != F_OK) {
-      errno = EINVAL;
-      return -1;
-   }
+    // Error out on unsupported configurations
+    if (dirfd != (int)AT_FDCWD || mode != F_OK)
+    {
+        errno = EINVAL;
+        return -1;
+    }
 
-   // Fallback to stat(2)/lstat(2) depending on flags
-   struct stat sb;
-   if (flags) {
-      ret = lstat(pathname, &sb);
-   } else {
-      ret = stat(pathname, &sb);
-   }
+    // Fallback to stat(2)/lstat(2) depending on flags
+    struct stat sb;
+    if (flags)
+    {
+        ret = lstat(pathname, &sb);
+    }
+    else
+    {
+        ret = stat(pathname, &sb);
+    }
 
-   return ret;
+    return ret;
 }
 
-int Compat_fstatat(int dirfd,
-                   const char* dirpath,
-                   const char* pathname,
-                   struct stat* statbuf,
-                   int flags) {
+int Compat_fstatat(int dirfd, const char *dirpath, const char *pathname, struct stat *statbuf,
+                   int flags)
+{
 
 #ifdef HAVE_FSTATAT
 
-   (void)dirpath;
+    (void)dirpath;
 
-   return fstatat(dirfd, pathname, statbuf, flags);
+    return fstatat(dirfd, pathname, statbuf, flags);
 
 #else
 
-   (void)dirfd;
+    (void)dirfd;
 
-   char path[4096];
-   xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
+    char path[4096];
+    xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
 
-   if (flags & AT_SYMLINK_NOFOLLOW)
-      return lstat(path, statbuf);
+    if (flags & AT_SYMLINK_NOFOLLOW)
+        return lstat(path, statbuf);
 
-   return stat(path, statbuf);
+    return stat(path, statbuf);
 
 #endif
 }
 
 #ifndef HAVE_OPENAT
 
-int Compat_openat(const char* dirpath,
-                  const char* pathname,
-                  int flags) {
+int Compat_openat(const char *dirpath, const char *pathname, int flags)
+{
 
-   char path[4096];
-   xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
+    char path[4096];
+    xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
 
-   return open(path, flags);
+    return open(path, flags);
 }
 
 #endif /* !HAVE_OPENAT */
 
-ssize_t Compat_readlinkat(int dirfd,
-                          const char* dirpath,
-                          const char* pathname,
-                          char* buf,
-                          size_t bufsize) {
+ssize_t Compat_readlinkat(int dirfd, const char *dirpath, const char *pathname, char *buf,
+                          size_t bufsize)
+{
 
 #ifdef HAVE_READLINKAT
 
-   (void)dirpath;
+    (void)dirpath;
 
-   return readlinkat(dirfd, pathname, buf, bufsize);
+    return readlinkat(dirfd, pathname, buf, bufsize);
 
 #else
 
-   (void)dirfd;
+    (void)dirfd;
 
-   char path[4096];
-   xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
+    char path[4096];
+    xSnprintf(path, sizeof(path), "%s/%s", dirpath, pathname);
 
-   return readlink(path, buf, bufsize);
+    return readlink(path, buf, bufsize);
 
 #endif
 }
 
-ssize_t Compat_readlink(openat_arg_t dirfd,
-                        const char* pathname,
-                        char* buf,
-                        size_t bufsize) {
+ssize_t Compat_readlink(openat_arg_t dirfd, const char *pathname, char *buf, size_t bufsize)
+{
 
 #ifdef HAVE_OPENAT
 
-   char fdPath[32];
-   xSnprintf(fdPath, sizeof(fdPath), "/proc/self/fd/%d", dirfd);
+    char fdPath[32];
+    xSnprintf(fdPath, sizeof(fdPath), "/proc/self/fd/%d", dirfd);
 
-   char dirPath[PATH_MAX + 1];
-   ssize_t r = readlink(fdPath, dirPath, sizeof(dirPath) - 1);
-   if (r < 0)
-      return r;
+    char dirPath[PATH_MAX + 1];
+    ssize_t r = readlink(fdPath, dirPath, sizeof(dirPath) - 1);
+    if (r < 0)
+        return r;
 
-   dirPath[r] = '\0';
+    dirPath[r] = '\0';
 
-   char linkPath[PATH_MAX + 1];
-   xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirPath, pathname);
+    char linkPath[PATH_MAX + 1];
+    xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirPath, pathname);
 
 #else
 
-   char linkPath[PATH_MAX + 1];
-   xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirfd, pathname);
+    char linkPath[PATH_MAX + 1];
+    xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirfd, pathname);
 
 #endif /* HAVE_OPENAT */
 
-   return readlink(linkPath, buf, bufsize);
+    return readlink(linkPath, buf, bufsize);
 }
 
 ATTR_ACCESS3_W(2, 3)
-static ssize_t readfd_internal(int fd, void* buffer, size_t count) {
-   if (!count) {
-      close(fd);
-      return -EINVAL;
-   }
 
-   ssize_t alreadyRead = 0;
-   count--; // reserve one for null-terminator
+static ssize_t readfd_internal(int fd, void *buffer, size_t count)
+{
+    if (!count)
+    {
+        close(fd);
+        return -EINVAL;
+    }
 
-   for (;;) {
-      ssize_t res = read(fd, buffer, count);
-      if (res == -1) {
-         if (errno == EINTR)
-            continue;
+    ssize_t alreadyRead = 0;
+    count--; // reserve one for null-terminator
 
-         close(fd);
-         *((char*)buffer) = '\0';
-         return -errno;
-      }
+    for (;;)
+    {
+        ssize_t res = read(fd, buffer, count);
+        if (res == -1)
+        {
+            if (errno == EINTR)
+                continue;
 
-      if (res > 0) {
-         assert((size_t)res <= count);
+            close(fd);
+            *((char *)buffer) = '\0';
+            return -errno;
+        }
 
-         buffer = ((char*)buffer) + res;
-         count -= (size_t)res;
-         alreadyRead += res;
-      }
+        if (res > 0)
+        {
+            assert((size_t)res <= count);
 
-      if (count == 0 || res == 0) {
-         close(fd);
-         *((char*)buffer) = '\0';
-         return alreadyRead;
-      }
-   }
+            buffer = ((char *)buffer) + res;
+            count -= (size_t)res;
+            alreadyRead += res;
+        }
+
+        if (count == 0 || res == 0)
+        {
+            close(fd);
+            *((char *)buffer) = '\0';
+            return alreadyRead;
+        }
+    }
 }
 
-ssize_t Compat_readfile(const char* pathname, void* buffer, size_t count) {
-   int fd = open(pathname, O_RDONLY);
-   if (fd < 0)
-      return -errno;
+ssize_t Compat_readfile(const char *pathname, void *buffer, size_t count)
+{
+    int fd = open(pathname, O_RDONLY);
+    if (fd < 0)
+        return -errno;
 
-   return readfd_internal(fd, buffer, count);
+    return readfd_internal(fd, buffer, count);
 }
 
-ssize_t Compat_readfileat(openat_arg_t dirfd, const char* pathname, void* buffer, size_t count) {
-   int fd = Compat_openat(dirfd, pathname, O_RDONLY);
-   if (fd < 0)
-      return -errno;
+ssize_t Compat_readfileat(openat_arg_t dirfd, const char *pathname, void *buffer, size_t count)
+{
+    int fd = Compat_openat(dirfd, pathname, O_RDONLY);
+    if (fd < 0)
+        return -errno;
 
-   return readfd_internal(fd, buffer, count);
+    return readfd_internal(fd, buffer, count);
 }

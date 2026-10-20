@@ -8,12 +8,12 @@
  */
 #include "libbb.h"
 
-const char* FAST_FUNC bb_basename(const char *name)
+const char *FAST_FUNC bb_basename(const char *name)
 {
-	const char *cp = strrchr(name, '/');
-	if (cp)
-		return cp + 1;
-	return name;
+    const char *cp = strrchr(name, '/');
+    if (cp)
+        return cp + 1;
+    return name;
 }
 
 /*
@@ -22,14 +22,14 @@ const char* FAST_FUNC bb_basename(const char *name)
  * "abc/def"  -> "def"
  * "abc/def/" -> ""
  */
-char* FAST_FUNC bb_get_last_path_component_nostrip(const char *path)
+char *FAST_FUNC bb_get_last_path_component_nostrip(const char *path)
 {
-	const char *slash = strrchr(path, '/');
+    const char *slash = strrchr(path, '/');
 
-	if (!slash || (slash == path && !slash[1]))
-		return (char*)path;
+    if (!slash || (slash == path && !slash[1]))
+        return (char *)path;
 
-	return (char*)slash + 1;
+    return (char *)slash + 1;
 }
 
 /*
@@ -38,13 +38,13 @@ char* FAST_FUNC bb_get_last_path_component_nostrip(const char *path)
  * "abc/def"  -> "def"
  * "abc/def/" -> "def" !!
  */
-char* FAST_FUNC bb_get_last_path_component_strip(char *path)
+char *FAST_FUNC bb_get_last_path_component_strip(char *path)
 {
-	char *slash = last_char_is(path, '/');
+    char *slash = last_char_is(path, '/');
 
-	if (slash)
-		while (*slash == '/' && slash != path)
-			*slash-- = '\0';
+    if (slash)
+        while (*slash == '/' && slash != path)
+            *slash-- = '\0';
 
-	return bb_get_last_path_component_nostrip(path);
+    return bb_get_last_path_component_nostrip(path);
 }

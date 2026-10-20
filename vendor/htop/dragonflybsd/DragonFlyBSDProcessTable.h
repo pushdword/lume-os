@@ -13,9 +13,9 @@ in the source distribution for its full text.
 
 #include "ProcessTable.h"
 
-
-typedef struct DragonFlyBSDProcessTable_ {
-   ProcessTable super;
+typedef struct DragonFlyBSDProcessTable_
+{
+    ProcessTable super;
 } DragonFlyBSDProcessTable;
 
 #endif

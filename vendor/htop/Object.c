@@ -12,20 +12,20 @@ in the source distribution for its full text.
 
 #include <stddef.h>
 
+const ObjectClass Object_class = {.extends = NULL};
 
-const ObjectClass Object_class = {
-   .extends = NULL
-};
+bool Object_isA(const Object *o, const ObjectClass *klass)
+{
+    if (!o)
+        return false;
 
-bool Object_isA(const Object* o, const ObjectClass* klass) {
-   if (!o)
-      return false;
+    for (const ObjectClass *type = o->klass; type; type = type->extends)
+    {
+        if (type == klass)
+        {
+            return true;
+        }
+    }
 
-   for (const ObjectClass* type = o->klass; type; type = type->extends) {
-      if (type == klass) {
-         return true;
-      }
-   }
-
-   return false;
+    return false;
 }

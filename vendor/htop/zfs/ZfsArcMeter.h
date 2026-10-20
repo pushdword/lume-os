@@ -11,8 +11,7 @@ in the source distribution for its full text.
 
 #include "Meter.h"
 
-
-void ZfsArcMeter_readStats(Meter* this, const ZfsArcStats* stats);
+void ZfsArcMeter_readStats(Meter *this, const ZfsArcStats *stats);
 
 extern const MeterClass ZfsArcMeter_class;
 

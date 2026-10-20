@@ -5,6 +5,7 @@
 #define PAGE_HISTORY 128u
 static uint32_t starts[PAGE_HISTORY];
 static char buffer[256];
+
 static int key(void)
 {
     for (;;)
@@ -18,6 +19,7 @@ static int key(void)
         lume_syscall(LUME_YIELD, 0, 0, 0);
     }
 }
+
 static int page(int fd, unsigned lines, uint32_t *position, int *end)
 {
     unsigned count = 0, column = 0;
@@ -64,6 +66,7 @@ static int page(int fd, unsigned lines, uint32_t *position, int *end)
     }
     return 0;
 }
+
 int app_main(int argc, char **argv)
 {
     if (argc != 2)
@@ -114,8 +117,7 @@ int app_main(int argc, char **argv)
             break;
         if (c == 'b' || c == 'g')
         {
-            index = c == 'g' ? 0 : index ? index - 1
-                                         : 0;
+            index = c == 'g' ? 0 : index ? index - 1 : 0;
             position = starts[index];
             lines = PAGE_LINES;
         }

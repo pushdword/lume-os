@@ -11,11 +11,12 @@ Copyright (C) 2005 Jens Axboe <jens@axboe.dk>
 Released under the terms of the GNU General Public License version 2
 */
 
-enum {
-   IOPRIO_CLASS_NONE,
-   IOPRIO_CLASS_RT,
-   IOPRIO_CLASS_BE,
-   IOPRIO_CLASS_IDLE,
+enum
+{
+    IOPRIO_CLASS_NONE,
+    IOPRIO_CLASS_RT,
+    IOPRIO_CLASS_BE,
+    IOPRIO_CLASS_IDLE,
 };
 
 #define IOPRIO_WHO_PROCESS 1
@@ -23,8 +24,8 @@ enum {
 #define IOPRIO_CLASS_SHIFT (13)
 #define IOPRIO_PRIO_MASK ((1UL << IOPRIO_CLASS_SHIFT) - 1)
 
-#define IOPriority_class(ioprio_) ((int) ((ioprio_) >> IOPRIO_CLASS_SHIFT) )
-#define IOPriority_data(ioprio_) ((int) ((ioprio_) & IOPRIO_PRIO_MASK) )
+#define IOPriority_class(ioprio_) ((int)((ioprio_) >> IOPRIO_CLASS_SHIFT))
+#define IOPriority_data(ioprio_) ((int)((ioprio_) & IOPRIO_PRIO_MASK))
 
 typedef int IOPriority;
 

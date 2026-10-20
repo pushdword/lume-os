@@ -24,26 +24,27 @@
 */
 int cfb_setiv(const unsigned char *IV, unsigned long len, symmetric_CFB *cfb)
 {
-   int err;
+    int err;
 
-   LTC_ARGCHK(IV  != NULL);
-   LTC_ARGCHK(cfb != NULL);
+    LTC_ARGCHK(IV != NULL);
+    LTC_ARGCHK(cfb != NULL);
 
-   if ((err = cipher_is_valid(cfb->cipher)) != CRYPT_OK) {
-       return err;
-   }
+    if ((err = cipher_is_valid(cfb->cipher)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   if (len != (unsigned long)cfb->blocklen) {
-      return CRYPT_INVALID_ARG;
-   }
+    if (len != (unsigned long)cfb->blocklen)
+    {
+        return CRYPT_INVALID_ARG;
+    }
 
-   /* force next block */
-   cfb->padlen = 0;
-   return cipher_descriptor[cfb->cipher].ecb_encrypt(IV, cfb->IV, &cfb->key);
+    /* force next block */
+    cfb->padlen = 0;
+    return cipher_descriptor[cfb->cipher].ecb_encrypt(IV, cfb->IV, &cfb->key);
 }
 
 #endif
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

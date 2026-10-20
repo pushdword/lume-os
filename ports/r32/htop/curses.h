@@ -8,9 +8,14 @@
 #include <stddef.h>
 typedef uint32_t chtype;
 typedef uint32_t attr_t;
-typedef struct {int row,column;} WINDOW;
+
+typedef struct
+{
+    int row, column;
+} WINDOW;
+
 extern WINDOW *stdscr;
-extern int COLS,LINES,COLORS,COLOR_PAIRS;
+extern int COLS, LINES, COLORS, COLOR_PAIRS;
 #define TRUE 1
 #define FALSE 0
 #define OK 0
@@ -21,8 +26,8 @@ extern int COLS,LINES,COLORS,COLOR_PAIRS;
 #define A_REVERSE 0x400u
 #define A_CHARTEXT 0xffu
 #define A_COLOR 0xff0000u
-#define COLOR_PAIR(n) ((chtype)(n)<<16)
-#define PAIR_NUMBER(n) (((n)>>16)&255u)
+#define COLOR_PAIR(n) ((chtype)(n) << 16)
+#define PAIR_NUMBER(n) (((n) >> 16) & 255u)
 #define COLOR_BLACK 0
 #define COLOR_RED 1
 #define COLOR_GREEN 2
@@ -37,7 +42,7 @@ extern int COLS,LINES,COLORS,COLOR_PAIRS;
 #define KEY_RIGHT 0x105
 #define KEY_HOME 0x106
 #define KEY_BACKSPACE 0x107
-#define KEY_F(n) (0x110+(n))
+#define KEY_F(n) (0x110 + (n))
 #define KEY_DC 0x14a
 #define KEY_NPAGE 0x152
 #define KEY_PPAGE 0x153
@@ -58,18 +63,32 @@ extern int COLS,LINES,COLORS,COLOR_PAIRS;
 #define ACS_URCORNER '+'
 #define ACS_LRCORNER '+'
 WINDOW *initscr(void);
-int endwin(void),refresh(void),clear(void),erase(void),clrtoeol(void);
-int move(int,int),addch(chtype),addstr(const char *),addnstr(const char *,int);
-int mvaddch(int,int,chtype),mvaddstr(int,int,const char *),mvaddnstr(int,int,const char *,int);
-int mvaddchnstr(int,int,const chtype *,int),mvaddchstr(int,int,const chtype *);
-int mvhline(int,int,chtype,int),mvvline(int,int,chtype,int);
-int attrset(int),attron(int),attroff(int),curs_set(int),beep(void);
-int init_pair(short,short,short),pair_content(short,short *,short *);
+int endwin(void), refresh(void), clear(void), erase(void), clrtoeol(void);
+int move(int, int), addch(chtype), addstr(const char *), addnstr(const char *, int);
+int mvaddch(int, int, chtype), mvaddstr(int, int, const char *),
+    mvaddnstr(int, int, const char *, int);
+int mvaddchnstr(int, int, const chtype *, int), mvaddchstr(int, int, const chtype *);
+int mvhline(int, int, chtype, int), mvvline(int, int, chtype, int);
+int attrset(int), attron(int), attroff(int), curs_set(int), beep(void);
+int init_pair(short, short, short), pair_content(short, short *, short *);
 bool has_colors(void);
-int start_color(void),use_default_colors(void),noecho(void),cbreak(void),nocbreak(void),nonl(void);
-int intrflush(WINDOW *,bool),keypad(WINDOW *,bool),halfdelay(int),nodelay(WINDOW *,bool);
+int start_color(void), use_default_colors(void), noecho(void), cbreak(void), nocbreak(void),
+    nonl(void);
+int intrflush(WINDOW *, bool), keypad(WINDOW *, bool), halfdelay(int), nodelay(WINDOW *, bool);
 void timeout(int);
-int getch(void),napms(int),define_key(const char *,int),set_escdelay(int),mvcur(int,int,int,int);
-#define getmaxyx(w,y,x) do{(void)(w);(y)=LINES;(x)=COLS;}while(0)
-#define getyx(w,y,x) do{(y)=(w)->row;(x)=(w)->column;}while(0)
+int getch(void), napms(int), define_key(const char *, int), set_escdelay(int),
+    mvcur(int, int, int, int);
+#define getmaxyx(w, y, x)                                                                          \
+    do                                                                                             \
+    {                                                                                              \
+        (void)(w);                                                                                 \
+        (y) = LINES;                                                                               \
+        (x) = COLS;                                                                                \
+    } while (0)
+#define getyx(w, y, x)                                                                             \
+    do                                                                                             \
+    {                                                                                              \
+        (y) = (w)->row;                                                                            \
+        (x) = (w)->column;                                                                         \
+    } while (0)
 #endif

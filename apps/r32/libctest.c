@@ -7,21 +7,26 @@
 #include <sys/stat.h>
 #include <unistd.h>
 extern char **environ;
-#define CHECK(c)                                                         \
-    do                                                                   \
-    {                                                                    \
-        if (!(c))                                                        \
-        {                                                                \
-            printf("LIBCTEST FAIL line=%u errno=%d\n", __LINE__, errno); \
-            return 1;                                                    \
-        }                                                                \
+#define CHECK(c)                                                                                   \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(c))                                                                                  \
+        {                                                                                          \
+            printf("LIBCTEST FAIL line=%u errno=%d\n", __LINE__, errno);                           \
+            return 1;                                                                              \
+        }                                                                                          \
     } while (0)
-static uint32_t ptr(const void *p) { return (uint32_t)(uintptr_t)p; }
+
+static uint32_t ptr(const void *p)
+{
+    return (uint32_t)(uintptr_t)p;
+}
+
 int app_main(int argc, char **argv, char **envp)
 {
     CHECK(envp == environ && argv[argc] == NULL);
-    CHECK(lume_syscall(LUME_WRITE,0,0,0)==0);
-    CHECK(app_write(1,NULL,0)==0);
+    CHECK(lume_syscall(LUME_WRITE, 0, 0, 0) == 0);
+    CHECK(app_write(1, NULL, 0) == 0);
     if (argc == 2)
     {
         CHECK(!strcmp(argv[1], "child"));
@@ -71,7 +76,8 @@ int app_main(int argc, char **argv, char **envp)
     struct lume_wait_status status;
     CHECK(app_wait(pid, &status) == pid && status.code == 0);
     CHECK(!strcmp(getenv("SNAPSHOT"), "parent-after"));
-    struct lume_spawn_request request = {ptr("/bin/true" LUME_APP_SUFFIX ""), 1, ptr(child), 1, 0xf0000000u};
+    struct lume_spawn_request request = {ptr("/bin/true" LUME_APP_SUFFIX ""), 1, ptr(child), 1,
+                                         0xf0000000u};
     CHECK(lume_syscall(LUME_SPAWN_ENV, ptr(&request), 0, 0) == -14);
     request.envc = LUME_ENVS + 1;
     CHECK(lume_syscall(LUME_SPAWN_ENV, ptr(&request), 0, 0) == -22);

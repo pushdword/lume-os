@@ -82,116 +82,131 @@
 
 int echo_main(int argc UNUSED_PARAM, char **argv)
 {
-	char **pp;
-	const char *arg;
-	char *out;
-	char *buffer;
-	unsigned buflen;
-	int err;
+    char **pp;
+    const char *arg;
+    char *out;
+    char *buffer;
+    unsigned buflen;
+    int err;
 #if !ENABLE_FEATURE_FANCY_ECHO
-	enum {
-		eflag = 0,  /* 0 -- disable escape sequences */
-		nflag = 1,  /* 1 -- print '\n' */
-	};
+    enum
+    {
+        eflag = 0, /* 0 -- disable escape sequences */
+        nflag = 1, /* 1 -- print '\n' */
+    };
 
-	argv++;
+    argv++;
 #else
-	char nflag = 1;
-	char eflag = 0;
+    char nflag = 1;
+    char eflag = 0;
 
-	while ((arg = *++argv) != NULL) {
-		char n, e;
+    while ((arg = *++argv) != NULL)
+    {
+        char n, e;
 
-		if (arg[0] != '-')
-			break; /* not an option arg, echo it */
+        if (arg[0] != '-')
+            break; /* not an option arg, echo it */
 
-		/* If it appears that we are handling options, then make sure
+        /* If it appears that we are handling options, then make sure
 		 * that all of the options specified are actually valid.
 		 * Otherwise, the string should just be echoed.
 		 */
-		arg++;
-		n = nflag;
-		e = eflag;
-		do {
-			if (*arg == 'n')
-				n = 0;
-			else if (*arg == 'e')
-				e = '\\';
-			else if (*arg != 'E') {
-				/* "-ccc" arg with one of c's invalid, echo it */
-				/* arg consisting from just "-" also handled here */
-				goto just_echo;
-			}
-		} while (*++arg);
-		nflag = n;
-		eflag = e;
-	}
- just_echo:
+        arg++;
+        n = nflag;
+        e = eflag;
+        do
+        {
+            if (*arg == 'n')
+                n = 0;
+            else if (*arg == 'e')
+                e = '\\';
+            else if (*arg != 'E')
+            {
+                /* "-ccc" arg with one of c's invalid, echo it */
+                /* arg consisting from just "-" also handled here */
+                goto just_echo;
+            }
+        } while (*++arg);
+        nflag = n;
+        eflag = e;
+    }
+just_echo:
 #endif
 
-	buflen = 0;
-	pp = argv;
-	while ((arg = *pp) != NULL) {
-		buflen += strlen(arg) + 1;
-		pp++;
-	}
-	out = buffer = xmalloc(buflen + 1); /* +1 is needed for "no args" case */
+    buflen = 0;
+    pp = argv;
+    while ((arg = *pp) != NULL)
+    {
+        buflen += strlen(arg) + 1;
+        pp++;
+    }
+    out = buffer = xmalloc(buflen + 1); /* +1 is needed for "no args" case */
 
-	while ((arg = *argv) != NULL) {
-		int c;
+    while ((arg = *argv) != NULL)
+    {
+        int c;
 
-		if (!eflag) {
-			/* optimization for very common case */
-			out = stpcpy(out, arg);
-		} else
-		while ((c = *arg++) != '\0') {
-			if (c == eflag) {
-				/* This is an "\x" sequence */
+        if (!eflag)
+        {
+            /* optimization for very common case */
+            out = stpcpy(out, arg);
+        }
+        else
+            while ((c = *arg++) != '\0')
+            {
+                if (c == eflag)
+                {
+                    /* This is an "\x" sequence */
 
-				if (*arg == 'c') {
-					/* "\c" means cancel newline and
+                    if (*arg == 'c')
+                    {
+                        /* "\c" means cancel newline and
 					 * ignore all subsequent chars. */
-					goto do_write;
-				}
-				/* Since SUSv3 mandates a first digit of 0, 4-digit octals
+                        goto do_write;
+                    }
+                    /* Since SUSv3 mandates a first digit of 0, 4-digit octals
 				* of the form \0### are accepted. */
-				if (*arg == '0') {
-					if ((unsigned char)(arg[1] - '0') < 8) {
-						/* 2nd char is 0..7: skip leading '0' */
-						arg++;
-					}
-				}
-				/* bb_process_escape_sequence handles NUL correctly
+                    if (*arg == '0')
+                    {
+                        if ((unsigned char)(arg[1] - '0') < 8)
+                        {
+                            /* 2nd char is 0..7: skip leading '0' */
+                            arg++;
+                        }
+                    }
+                    /* bb_process_escape_sequence handles NUL correctly
 				 * ("...\" case). */
-				{
-					/* optimization: don't force arg to be on-stack,
+                    {
+                        /* optimization: don't force arg to be on-stack,
 					 * use another variable for that. ~30 bytes win */
-					const char *z = arg;
-					c = bb_process_escape_sequence(&z);
-					arg = z;
-				}
-			}
-			*out++ = c;
-		}
+                        const char *z = arg;
+                        c = bb_process_escape_sequence(&z);
+                        arg = z;
+                    }
+                }
+                *out++ = c;
+            }
 
-		if (!*++argv)
-			break;
-		*out++ = ' ';
-	}
+        if (!*++argv)
+            break;
+        *out++ = ' ';
+    }
 
-	if (nflag) {
-		*out++ = '\n';
-	}
+    if (nflag)
+    {
+        *out++ = '\n';
+    }
 
- do_write:
-	/* Careful to error out on partial writes too (think ENOSPC!) */
-	errno = 0;
-	err = full_write(STDOUT_FILENO, buffer, out - buffer) != out - buffer;
-	if (err) {
-		bb_simple_perror_msg(bb_msg_write_error);
-	}
-	free(buffer);
-	return err;
+do_write:
+    /* Careful to error out on partial writes too (think ENOSPC!) */
+    errno = 0;
+    err = full_write(STDOUT_FILENO, buffer, out - buffer) != out - buffer;
+    if (err)
+    {
+        bb_simple_perror_msg(bb_msg_write_error);
+    }
+    free(buffer);
+    return err;
 }
 
 /*
@@ -248,104 +263,118 @@ int echo_main(int argc UNUSED_PARAM, char **argv)
 
 int echo_main(int argc, char **argv)
 {
-	struct iovec io[argc];
-	struct iovec *cur_io = io;
-	char *arg;
-	char *p;
+    struct iovec io[argc];
+    struct iovec *cur_io = io;
+    char *arg;
+    char *p;
 #if !ENABLE_FEATURE_FANCY_ECHO
-	enum {
-		eflag = '\\',
-		nflag = 1,  /* 1 -- print '\n' */
-	};
-	arg = *++argv;
-	if (!arg)
-		goto newline_ret;
+    enum
+    {
+        eflag = '\\',
+        nflag = 1, /* 1 -- print '\n' */
+    };
+
+    arg = *++argv;
+    if (!arg)
+        goto newline_ret;
 #else
-	char nflag = 1;
-	char eflag = 0;
+    char nflag = 1;
+    char eflag = 0;
 
-	while (1) {
-		arg = *++argv;
-		if (!arg)
-			goto newline_ret;
-		if (*arg != '-')
-			break;
+    while (1)
+    {
+        arg = *++argv;
+        if (!arg)
+            goto newline_ret;
+        if (*arg != '-')
+            break;
 
-		/* If it appears that we are handling options, then make sure
+        /* If it appears that we are handling options, then make sure
 		 * that all of the options specified are actually valid.
 		 * Otherwise, the string should just be echoed.
 		 */
-		p = arg + 1;
-		if (!*p)	/* A single '-', so echo it. */
-			goto just_echo;
+        p = arg + 1;
+        if (!*p) /* A single '-', so echo it. */
+            goto just_echo;
 
-		do {
-			if (!strchr("neE", *p))
-				goto just_echo;
-		} while (*++p);
+        do
+        {
+            if (!strchr("neE", *p))
+                goto just_echo;
+        } while (*++p);
 
-		/* All of the options in this arg are valid, so handle them. */
-		p = arg + 1;
-		do {
-			if (*p == 'n')
-				nflag = 0;
-			if (*p == 'e')
-				eflag = '\\';
-		} while (*++p);
-	}
- just_echo:
+        /* All of the options in this arg are valid, so handle them. */
+        p = arg + 1;
+        do
+        {
+            if (*p == 'n')
+                nflag = 0;
+            if (*p == 'e')
+                eflag = '\\';
+        } while (*++p);
+    }
+just_echo:
 #endif
 
-	while (1) {
-		/* arg is already == *argv and isn't NULL */
-		int c;
+    while (1)
+    {
+        /* arg is already == *argv and isn't NULL */
+        int c;
 
-		cur_io->iov_base = p = arg;
+        cur_io->iov_base = p = arg;
 
-		if (!eflag) {
-			/* optimization for very common case */
-			p += strlen(arg);
-		} else while ((c = *arg++)) {
-			if (c == eflag) {
-				/* This is an "\x" sequence */
+        if (!eflag)
+        {
+            /* optimization for very common case */
+            p += strlen(arg);
+        }
+        else
+            while ((c = *arg++))
+            {
+                if (c == eflag)
+                {
+                    /* This is an "\x" sequence */
 
-				if (*arg == 'c') {
-					/* "\c" means cancel newline and
+                    if (*arg == 'c')
+                    {
+                        /* "\c" means cancel newline and
 					 * ignore all subsequent chars. */
-					cur_io->iov_len = p - (char*)cur_io->iov_base;
-					cur_io++;
-					goto ret;
-				}
-				/* Since SUSv3 mandates a first digit of 0, 4-digit octals
+                        cur_io->iov_len = p - (char *)cur_io->iov_base;
+                        cur_io++;
+                        goto ret;
+                    }
+                    /* Since SUSv3 mandates a first digit of 0, 4-digit octals
 				* of the form \0### are accepted. */
-				if (*arg == '0' && (unsigned char)(arg[1] - '0') < 8) {
-					arg++;
-				}
-//FIXME? we also accept non-0 starting sequences (see echo-prints-slash_41 test)
-// echo -ne '-\41-' prints "-!-". bash 5.0.17 does not (prints "-\41-").
-				/* bb_process_escape_sequence can handle nul correctly */
-				c = bb_process_escape_sequence( (void*) &arg);
-			}
-			*p++ = c;
-		}
+                    if (*arg == '0' && (unsigned char)(arg[1] - '0') < 8)
+                    {
+                        arg++;
+                    }
+                    //FIXME? we also accept non-0 starting sequences (see echo-prints-slash_41 test)
+                    // echo -ne '-\41-' prints "-!-". bash 5.0.17 does not (prints "-\41-").
+                    /* bb_process_escape_sequence can handle nul correctly */
+                    c = bb_process_escape_sequence((void *)&arg);
+                }
+                *p++ = c;
+            }
 
-		arg = *++argv;
-		if (arg)
-			*p++ = ' ';
-		cur_io->iov_len = p - (char*)cur_io->iov_base;
-		cur_io++;
-		if (!arg)
-			break;
-	}
+        arg = *++argv;
+        if (arg)
+            *p++ = ' ';
+        cur_io->iov_len = p - (char *)cur_io->iov_base;
+        cur_io++;
+        if (!arg)
+            break;
+    }
 
- newline_ret:
-	if (nflag) {
-		cur_io->iov_base = (char*)"\n";
-		cur_io->iov_len = 1;
-		cur_io++;
-	}
- ret:
-	/* TODO: implement and use full_writev? */
-	return writev(1, io, (cur_io - io)) >= 0;
+newline_ret:
+    if (nflag)
+    {
+        cur_io->iov_base = (char *)"\n";
+        cur_io->iov_len = 1;
+        cur_io++;
+    }
+ret:
+    /* TODO: implement and use full_writev? */
+    return writev(1, io, (cur_io - io)) >= 0;
 }
 #endif

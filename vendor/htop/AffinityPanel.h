@@ -11,11 +11,10 @@ in the source distribution for its full text.
 #include "Machine.h"
 #include "Panel.h"
 
-
 extern const PanelClass AffinityPanel_class;
 
-Panel* AffinityPanel_new(Machine* host, const Affinity* affinity, int* width);
+Panel *AffinityPanel_new(Machine *host, const Affinity *affinity, int *width);
 
-Affinity* AffinityPanel_getAffinity(Panel* super, Machine* host);
+Affinity *AffinityPanel_getAffinity(Panel *super, Machine *host);
 
 #endif

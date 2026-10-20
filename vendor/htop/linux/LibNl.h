@@ -10,9 +10,8 @@ in the source distribution for its full text.
 #include "linux/LinuxProcess.h"
 #include "linux/LinuxProcessTable.h"
 
+void LibNl_destroyNetlinkSocket(LinuxProcessTable *this);
 
-void LibNl_destroyNetlinkSocket(LinuxProcessTable* this);
-
-void LibNl_readDelayAcctData(LinuxProcessTable* this, LinuxProcess* process);
+void LibNl_readDelayAcctData(LinuxProcessTable *this, LinuxProcess *process);
 
 #endif /* HEADER_LibNl */

@@ -15,38 +15,41 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct ProcessLocksScreen_ {
-   InfoScreen super;
-   pid_t pid;
+typedef struct ProcessLocksScreen_
+{
+    InfoScreen super;
+    pid_t pid;
 } ProcessLocksScreen;
 
-typedef struct FileLocks_Data_ {
-   char* locktype;
-   char* exclusive;
-   char* readwrite;
-   char* filename;
-   int fd;
-   dev_t dev;
-   uint64_t inode;
-   uint64_t start;
-   uint64_t end;
+typedef struct FileLocks_Data_
+{
+    char *locktype;
+    char *exclusive;
+    char *readwrite;
+    char *filename;
+    int fd;
+    dev_t dev;
+    uint64_t inode;
+    uint64_t start;
+    uint64_t end;
 } FileLocks_Data;
 
-typedef struct FileLocks_LockData_ {
-   FileLocks_Data data;
-   struct FileLocks_LockData_* next;
+typedef struct FileLocks_LockData_
+{
+    FileLocks_Data data;
+    struct FileLocks_LockData_ *next;
 } FileLocks_LockData;
 
-typedef struct FileLocks_ProcessData_ {
-   bool error;
-   struct FileLocks_LockData_* locks;
+typedef struct FileLocks_ProcessData_
+{
+    bool error;
+    struct FileLocks_LockData_ *locks;
 } FileLocks_ProcessData;
 
 extern const InfoScreenClass ProcessLocksScreen_class;
 
-ProcessLocksScreen* ProcessLocksScreen_new(const Process* process);
+ProcessLocksScreen *ProcessLocksScreen_new(const Process *process);
 
-void ProcessLocksScreen_delete(Object* this);
+void ProcessLocksScreen_delete(Object *this);
 
 #endif

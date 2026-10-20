@@ -34,11 +34,11 @@
 
 #define MAX_TERMCODE 93
 
-struct TermCode {
+struct TermCode
+{
 
-	unsigned int mapcode;
-	unsigned char type;
-
+    unsigned int mapcode;
+    unsigned char type;
 };
 
 extern const struct TermCode termcodes[];

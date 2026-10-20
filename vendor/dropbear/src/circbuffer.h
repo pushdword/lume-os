@@ -24,29 +24,30 @@
 
 #ifndef DROPBEAR_CIRCBUFFER_H_
 #define DROPBEAR_CIRCBUFFER_H_
-struct circbuf {
 
-	unsigned int size;
-	unsigned int readpos;
-	unsigned int writepos;
-	unsigned int used;
-	unsigned char* data;
+struct circbuf
+{
+
+    unsigned int size;
+    unsigned int readpos;
+    unsigned int writepos;
+    unsigned int used;
+    unsigned char *data;
 };
 
 typedef struct circbuf circbuffer;
 
-circbuffer * cbuf_new(unsigned int size);
-void cbuf_free(circbuffer * cbuf);
+circbuffer *cbuf_new(unsigned int size);
+void cbuf_free(circbuffer *cbuf);
 
-unsigned int cbuf_getused(const circbuffer * cbuf); /* how much data stored */
-unsigned int cbuf_getavail(const circbuffer * cbuf); /* how much we can write */
+unsigned int cbuf_getused(const circbuffer *cbuf);  /* how much data stored */
+unsigned int cbuf_getavail(const circbuffer *cbuf); /* how much we can write */
 unsigned int cbuf_writelen(const circbuffer *cbuf); /* max linear write len */
 
 /* returns pointers to the two portions of the circular buffer that can be read */
-void cbuf_readptrs(const circbuffer *cbuf,
-	unsigned char **p1, unsigned int *len1, 
-	unsigned char **p2, unsigned int *len2);
-unsigned char* cbuf_writeptr(circbuffer *cbuf, unsigned int len);
+void cbuf_readptrs(const circbuffer *cbuf, unsigned char **p1, unsigned int *len1,
+                   unsigned char **p2, unsigned int *len2);
+unsigned char *cbuf_writeptr(circbuffer *cbuf, unsigned int len);
 void cbuf_incrwrite(circbuffer *cbuf, unsigned int len);
 void cbuf_incrread(circbuffer *cbuf, unsigned int len);
 #endif

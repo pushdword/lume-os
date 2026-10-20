@@ -10,15 +10,15 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "Settings.h"
 
+typedef struct ColorsPanel_
+{
+    Panel super;
 
-typedef struct ColorsPanel_ {
-   Panel super;
-
-   Settings* settings;
+    Settings *settings;
 } ColorsPanel;
 
 extern const PanelClass ColorsPanel_class;
 
-ColorsPanel* ColorsPanel_new(Settings* settings);
+ColorsPanel *ColorsPanel_new(Settings *settings);
 
 #endif

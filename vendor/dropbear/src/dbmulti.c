@@ -25,80 +25,88 @@
 #include "includes.h"
 #include "dbutil.h"
 
-static int runprog(const char *multipath,
-		const char *progname, int argc, char ** argv, int *match) {
-	*match = DROPBEAR_SUCCESS;
+static int runprog(const char *multipath, const char *progname, int argc, char **argv, int *match)
+{
+    *match = DROPBEAR_SUCCESS;
 
 #ifdef DBMULTI_dropbear
-		if (strcmp(progname, "dropbear") == 0) {
-			return dropbear_main(argc, argv, multipath);
-		}
+    if (strcmp(progname, "dropbear") == 0)
+    {
+        return dropbear_main(argc, argv, multipath);
+    }
 #endif
 #ifdef DBMULTI_dbclient
-		if (strcmp(progname, "dbclient") == 0
-				|| strcmp(progname, "ssh") == 0) {
-			return cli_main(argc, argv);
-		}
+    if (strcmp(progname, "dbclient") == 0 || strcmp(progname, "ssh") == 0)
+    {
+        return cli_main(argc, argv);
+    }
 #endif
 #ifdef DBMULTI_dropbearkey
-		if (strcmp(progname, "dropbearkey") == 0
-				|| strcmp(progname, "ssh-keygen") == 0) {
-			return dropbearkey_main(argc, argv);
-		}
+    if (strcmp(progname, "dropbearkey") == 0 || strcmp(progname, "ssh-keygen") == 0)
+    {
+        return dropbearkey_main(argc, argv);
+    }
 #endif
 #ifdef DBMULTI_dropbearconvert
-		if (strcmp(progname, "dropbearconvert") == 0) {
-			return dropbearconvert_main(argc, argv);
-		}
+    if (strcmp(progname, "dropbearconvert") == 0)
+    {
+        return dropbearconvert_main(argc, argv);
+    }
 #endif
 #ifdef DBMULTI_scp
-		if (strcmp(progname, "scp") == 0) {
-			return scp_main(argc, argv);
-		}
+    if (strcmp(progname, "scp") == 0)
+    {
+        return scp_main(argc, argv);
+    }
 #endif
-	*match = DROPBEAR_FAILURE;
-	return 1;
+    *match = DROPBEAR_FAILURE;
+    return 1;
 }
 
-int main(int argc, char ** argv) {
-	int i;
-	for (i = 0; i < 2; i++) {
-		const char* multipath = NULL;
-		if (i == 1) {
-			multipath = argv[0];
-		}
-		/* Try symlink first, then try as an argument eg "dropbearmulti dbclient host ..." */
-		if (argc > i) {
-			int match, res;
-			/* figure which form we're being called as */
-			const char* progname = basename(argv[i]);
-			res = runprog(multipath, progname, argc-i, &argv[i], &match);
-			if (match == DROPBEAR_SUCCESS) {
-				return res;
-			}
-		}
-	}
+int main(int argc, char **argv)
+{
+    int i;
+    for (i = 0; i < 2; i++)
+    {
+        const char *multipath = NULL;
+        if (i == 1)
+        {
+            multipath = argv[0];
+        }
+        /* Try symlink first, then try as an argument eg "dropbearmulti dbclient host ..." */
+        if (argc > i)
+        {
+            int match, res;
+            /* figure which form we're being called as */
+            const char *progname = basename(argv[i]);
+            res = runprog(multipath, progname, argc - i, &argv[i], &match);
+            if (match == DROPBEAR_SUCCESS)
+            {
+                return res;
+            }
+        }
+    }
 
-	fprintf(stderr, "Dropbear SSH multi-purpose v%s\n"
-			"Make a symlink pointing at this binary with one of the\n"
-			"following names or run 'dropbearmulti <command>'.\n"
+    fprintf(stderr,
+            "Dropbear SSH multi-purpose v%s\n"
+            "Make a symlink pointing at this binary with one of the\n"
+            "following names or run 'dropbearmulti <command>'.\n"
 #ifdef DBMULTI_dropbear
-			"'dropbear' - the Dropbear server\n"
+            "'dropbear' - the Dropbear server\n"
 #endif
 #ifdef DBMULTI_dbclient
-			"'dbclient' or 'ssh' - the Dropbear client\n"
+            "'dbclient' or 'ssh' - the Dropbear client\n"
 #endif
 #ifdef DBMULTI_dropbearkey
-			"'dropbearkey' or 'ssh-keygen' - the key generator\n"
+            "'dropbearkey' or 'ssh-keygen' - the key generator\n"
 #endif
 #ifdef DBMULTI_dropbearconvert
-			"'dropbearconvert' - the key converter\n"
+            "'dropbearconvert' - the key converter\n"
 #endif
 #ifdef DBMULTI_scp
-			"'scp' - secure copy\n"
+            "'scp' - secure copy\n"
 #endif
-			,
-			DROPBEAR_VERSION);
-	exit(1);
-
+            ,
+            DROPBEAR_VERSION);
+    exit(1);
 }

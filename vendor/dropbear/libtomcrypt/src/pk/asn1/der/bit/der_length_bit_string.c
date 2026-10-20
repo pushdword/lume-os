@@ -22,30 +22,36 @@
 */
 int der_length_bit_string(unsigned long nbits, unsigned long *outlen)
 {
-   unsigned long nbytes;
-   LTC_ARGCHK(outlen != NULL);
+    unsigned long nbytes;
+    LTC_ARGCHK(outlen != NULL);
 
-   /* get the number of the bytes */
-   nbytes = (nbits >> 3) + ((nbits & 7) ? 1 : 0) + 1;
+    /* get the number of the bytes */
+    nbytes = (nbits >> 3) + ((nbits & 7) ? 1 : 0) + 1;
 
-   if (nbytes < 128) {
-      /* 03 LL PP DD DD DD ... */
-      *outlen = 2 + nbytes;
-   } else if (nbytes < 256) {
-      /* 03 81 LL PP DD DD DD ... */
-      *outlen = 3 + nbytes;
-   } else if (nbytes < 65536) {
-      /* 03 82 LL LL PP DD DD DD ... */
-      *outlen = 4 + nbytes;
-   } else {
-      return CRYPT_INVALID_ARG;
-   }
+    if (nbytes < 128)
+    {
+        /* 03 LL PP DD DD DD ... */
+        *outlen = 2 + nbytes;
+    }
+    else if (nbytes < 256)
+    {
+        /* 03 81 LL PP DD DD DD ... */
+        *outlen = 3 + nbytes;
+    }
+    else if (nbytes < 65536)
+    {
+        /* 03 82 LL LL PP DD DD DD ... */
+        *outlen = 4 + nbytes;
+    }
+    else
+    {
+        return CRYPT_INVALID_ARG;
+    }
 
-   return CRYPT_OK;
+    return CRYPT_OK;
 }
 
 #endif
-
 
 /* ref:         $Format:%D$ */
 /* git commit:  $Format:%H$ */

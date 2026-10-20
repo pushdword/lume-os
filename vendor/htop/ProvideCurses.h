@@ -7,7 +7,6 @@ Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-
 // This header is also used in tests by configure, thus conditionally
 // including "config.h".
 #if defined(HAVE_CONFIG_H)

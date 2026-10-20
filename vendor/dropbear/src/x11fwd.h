@@ -29,7 +29,7 @@
 #include "chansession.h"
 #include "channel.h"
 
-int x11req(struct ChanSess * chansess);
+int x11req(struct ChanSess *chansess);
 void x11setauth(const struct ChanSess *chansess);
 void x11cleanup(struct ChanSess *chansess);
 

@@ -9,17 +9,17 @@ in the source distribution for its full text.
 
 #include "Hashtable.h"
 
-
-typedef struct UsersTable_ {
-   Hashtable* users;
+typedef struct UsersTable_
+{
+    Hashtable *users;
 } UsersTable;
 
-UsersTable* UsersTable_new(void);
+UsersTable *UsersTable_new(void);
 
-void UsersTable_delete(UsersTable* this);
+void UsersTable_delete(UsersTable *this);
 
-char* UsersTable_getRef(UsersTable* this, unsigned int uid);
+char *UsersTable_getRef(UsersTable *this, unsigned int uid);
 
-void UsersTable_foreach(UsersTable* this, Hashtable_PairFunction f, void* userData);
+void UsersTable_foreach(UsersTable *this, Hashtable_PairFunction f, void *userData);
 
 #endif

@@ -14,20 +14,20 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
+typedef struct OpenBSDProcess_
+{
+    Process super;
 
-typedef struct OpenBSDProcess_ {
-   Process super;
-
-   /* 'Kernel virtual addr of u-area' to detect main threads */
-   uint64_t addr;
+    /* 'Kernel virtual addr of u-area' to detect main threads */
+    uint64_t addr;
 } OpenBSDProcess;
 
 extern const ProcessClass OpenBSDProcess_class;
 
 extern const ProcessFieldData Process_fields[LAST_PROCESSFIELD];
 
-Process* OpenBSDProcess_new(const Machine* host);
+Process *OpenBSDProcess_new(const Machine *host);
 
-void Process_delete(Object* cast);
+void Process_delete(Object *cast);
 
 #endif

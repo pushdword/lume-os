@@ -13,7 +13,6 @@
    OFB implementation, start chain, Tom St Denis
 */
 
-
 #ifdef LTC_OFB_MODE
 
 /**
@@ -26,29 +25,31 @@
    @param ofb         The OFB state to initialize
    @return CRYPT_OK if successful
 */
-int ofb_start(int cipher, const unsigned char *IV, const unsigned char *key,
-              int keylen, int num_rounds, symmetric_OFB *ofb)
+int ofb_start(int cipher, const unsigned char *IV, const unsigned char *key, int keylen,
+              int num_rounds, symmetric_OFB *ofb)
 {
-   int x, err;
+    int x, err;
 
-   LTC_ARGCHK(IV != NULL);
-   LTC_ARGCHK(key != NULL);
-   LTC_ARGCHK(ofb != NULL);
+    LTC_ARGCHK(IV != NULL);
+    LTC_ARGCHK(key != NULL);
+    LTC_ARGCHK(ofb != NULL);
 
-   if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
-      return err;
-   }
+    if ((err = cipher_is_valid(cipher)) != CRYPT_OK)
+    {
+        return err;
+    }
 
-   /* copy details */
-   ofb->cipher = cipher;
-   ofb->blocklen = cipher_descriptor[cipher].block_length;
-   for (x = 0; x < ofb->blocklen; x++) {
-       ofb->IV[x] = IV[x];
-   }
+    /* copy details */
+    ofb->cipher = cipher;
+    ofb->blocklen = cipher_descriptor[cipher].block_length;
+    for (x = 0; x < ofb->blocklen; x++)
+    {
+        ofb->IV[x] = IV[x];
+    }
 
-   /* init the cipher */
-   ofb->padlen = ofb->blocklen;
-   return cipher_descriptor[cipher].setup(key, keylen, num_rounds, &ofb->key);
+    /* init the cipher */
+    ofb->padlen = ofb->blocklen;
+    return cipher_descriptor[cipher].setup(key, keylen, num_rounds, &ofb->key);
 }
 
 #endif

@@ -8,18 +8,18 @@
  */
 #include "libbb.h"
 
-char** FAST_FUNC skip_dash_dash(char **argv)
+char **FAST_FUNC skip_dash_dash(char **argv)
 {
-	argv++;
-	if (argv[0] && argv[0][0] == '-' && argv[0][1] == '-' && argv[0][2] == '\0')
-		argv++;
-	return argv;
+    argv++;
+    if (argv[0] && argv[0][0] == '-' && argv[0][1] == '-' && argv[0][2] == '\0')
+        argv++;
+    return argv;
 }
 
-char* FAST_FUNC single_argv(char **argv)
+char *FAST_FUNC single_argv(char **argv)
 {
-	argv = skip_dash_dash(argv);
-	if (!argv[0] || argv[1])
-		bb_show_usage();
-	return argv[0];
+    argv = skip_dash_dash(argv);
+    if (!argv[0] || argv[1])
+        bb_show_usage();
+    return argv[0];
 }

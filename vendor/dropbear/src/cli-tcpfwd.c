@@ -32,134 +32,121 @@
 #include "netio.h"
 
 #if DROPBEAR_CLI_REMOTETCPFWD
-static int newtcpforwarded(struct Channel * channel);
+static int newtcpforwarded(struct Channel *channel);
 
 const struct ChanType cli_chan_tcpremote = {
-	"forwarded-tcpip",
-	newtcpforwarded,
-	NULL,
-	NULL,
-	NULL,
-	NULL
-};
+    "forwarded-tcpip", newtcpforwarded, NULL, NULL, NULL, NULL};
 #endif
 
 #if DROPBEAR_CLI_LOCALTCPFWD
-static int cli_localtcp(const char* listenaddr, 
-		unsigned int listenport, 
-		const char* remoteaddr,
-		unsigned int remoteport);
-static const struct ChanType cli_chan_tcplocal = {
-	"direct-tcpip",
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL
-};
+static int cli_localtcp(const char *listenaddr, unsigned int listenport, const char *remoteaddr,
+                        unsigned int remoteport);
+static const struct ChanType cli_chan_tcplocal = {"direct-tcpip", NULL, NULL, NULL, NULL, NULL};
 #endif
 
 #if DROPBEAR_CLI_ANYTCPFWD
-static void fwd_failed(const char* format, ...) ATTRIB_PRINTF(1,2);
-static void fwd_failed(const char* format, ...)
+static void fwd_failed(const char *format, ...) ATTRIB_PRINTF(1, 2);
+
+static void fwd_failed(const char *format, ...)
 {
-	va_list param;
-	va_start(param, format);
+    va_list param;
+    va_start(param, format);
 
-	if (cli_opts.exit_on_fwd_failure) {
-		_dropbear_exit(EXIT_FAILURE, format, param);
-	} else {
-		_dropbear_log(LOG_WARNING, format, param);
-	}
+    if (cli_opts.exit_on_fwd_failure)
+    {
+        _dropbear_exit(EXIT_FAILURE, format, param);
+    }
+    else
+    {
+        _dropbear_log(LOG_WARNING, format, param);
+    }
 
-	va_end(param);
+    va_end(param);
 }
 #endif
 
 #if DROPBEAR_CLI_LOCALTCPFWD
-void setup_localtcp() {
-	m_list_elem *iter;
-	int ret;
+void setup_localtcp()
+{
+    m_list_elem *iter;
+    int ret;
 
-	TRACE(("enter setup_localtcp"))
+    TRACE(("enter setup_localtcp"))
 
-	for (iter = cli_opts.localfwds->first; iter; iter = iter->next) {
-		struct TCPFwdEntry * fwd = (struct TCPFwdEntry*)iter->item;
-		ret = cli_localtcp(
-				fwd->listenaddr,
-				fwd->listenport,
-				fwd->connectaddr,
-				fwd->connectport);
-		if (ret == DROPBEAR_FAILURE) {
-			fwd_failed("Failed local port forward %s:%d:%s:%d",
-					fwd->listenaddr,
-					fwd->listenport,
-					fwd->connectaddr,
-					fwd->connectport);
-		}		
-	}
-	TRACE(("leave setup_localtcp"))
-
+    for (iter = cli_opts.localfwds->first; iter; iter = iter->next)
+    {
+        struct TCPFwdEntry *fwd = (struct TCPFwdEntry *)iter->item;
+        ret = cli_localtcp(fwd->listenaddr, fwd->listenport, fwd->connectaddr, fwd->connectport);
+        if (ret == DROPBEAR_FAILURE)
+        {
+            fwd_failed("Failed local port forward %s:%d:%s:%d", fwd->listenaddr, fwd->listenport,
+                       fwd->connectaddr, fwd->connectport);
+        }
+    }
+    TRACE(("leave setup_localtcp"))
 }
 
-static int cli_localtcp(const char* listenaddr, 
-		unsigned int listenport, 
-		const char* remoteaddr,
-		unsigned int remoteport) {
+static int cli_localtcp(const char *listenaddr, unsigned int listenport, const char *remoteaddr,
+                        unsigned int remoteport)
+{
 
-	struct FwdListener* tcpinfo = NULL;
-	int ret;
+    struct FwdListener *tcpinfo = NULL;
+    int ret;
 
-	TRACE(("enter cli_localtcp: %d %s %d", listenport, remoteaddr,
-				remoteport));
+    TRACE(("enter cli_localtcp: %d %s %d", listenport, remoteaddr, remoteport));
 
-	tcpinfo = (struct FwdListener*)m_malloc(sizeof(struct FwdListener));
+    tcpinfo = (struct FwdListener *)m_malloc(sizeof(struct FwdListener));
 
-	tcpinfo->sendaddr = m_strdup(remoteaddr);
-	tcpinfo->sendport = remoteport;
+    tcpinfo->sendaddr = m_strdup(remoteaddr);
+    tcpinfo->sendport = remoteport;
 
-	if (listenaddr)
-	{
-		tcpinfo->listenaddr = m_strdup(listenaddr);
-	}
-	else
-	{
-		if (opts.listen_fwd_all) {
-			tcpinfo->listenaddr = m_strdup("");
-		} else {
-			tcpinfo->listenaddr = m_strdup("localhost");
-		}
-	}
-	tcpinfo->listenport = listenport;
+    if (listenaddr)
+    {
+        tcpinfo->listenaddr = m_strdup(listenaddr);
+    }
+    else
+    {
+        if (opts.listen_fwd_all)
+        {
+            tcpinfo->listenaddr = m_strdup("");
+        }
+        else
+        {
+            tcpinfo->listenaddr = m_strdup("localhost");
+        }
+    }
+    tcpinfo->listenport = listenport;
 
-	tcpinfo->chantype = &cli_chan_tcplocal;
-	tcpinfo->fwd_type = direct;
+    tcpinfo->chantype = &cli_chan_tcplocal;
+    tcpinfo->fwd_type = direct;
 
-	ret = listen_tcpfwd(tcpinfo, NULL);
+    ret = listen_tcpfwd(tcpinfo, NULL);
 
-	if (ret == DROPBEAR_FAILURE) {
-		m_free(tcpinfo);
-	}
-	TRACE(("leave cli_localtcp: %d", ret))
-	return ret;
+    if (ret == DROPBEAR_FAILURE)
+    {
+        m_free(tcpinfo);
+    }
+    TRACE(("leave cli_localtcp: %d", ret))
+    return ret;
 }
 #endif /* DROPBEAR_CLI_LOCALTCPFWD */
 
 #if DROPBEAR_CLI_REMOTETCPFWD
-static void send_msg_global_request_remotetcp(const char *addr, int port) {
+static void send_msg_global_request_remotetcp(const char *addr, int port)
+{
 
-	TRACE(("enter send_msg_global_request_remotetcp"))
+    TRACE(("enter send_msg_global_request_remotetcp"))
 
-	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_GLOBAL_REQUEST);
-	buf_putstring(ses.writepayload, "tcpip-forward", 13);
-	buf_putbyte(ses.writepayload, 1); /* want_reply */
-	buf_putstring(ses.writepayload, addr, strlen(addr));
-	buf_putint(ses.writepayload, port);
+    CHECKCLEARTOWRITE();
+    buf_putbyte(ses.writepayload, SSH_MSG_GLOBAL_REQUEST);
+    buf_putstring(ses.writepayload, "tcpip-forward", 13);
+    buf_putbyte(ses.writepayload, 1); /* want_reply */
+    buf_putstring(ses.writepayload, addr, strlen(addr));
+    buf_putint(ses.writepayload, port);
 
-	encrypt_packet();
+    encrypt_packet();
 
-	TRACE(("leave send_msg_global_request_remotetcp"))
+    TRACE(("leave send_msg_global_request_remotetcp"))
 }
 
 /* The only global success/failure messages are for remotetcp.
@@ -169,118 +156,133 @@ static void send_msg_global_request_remotetcp(const char *addr, int port) {
  * If the requested remote port is 0 the listen port will be
  * dynamically allocated by the server and the port number will be returned
  * to client and the port number reported to the user. */
-void cli_recv_msg_request_success() {
-	/* We just mark off that we have received the reply,
+void cli_recv_msg_request_success()
+{
+    /* We just mark off that we have received the reply,
 	 * so that we can report failure for later ones. */
-	m_list_elem * iter = NULL;
-	for (iter = cli_opts.remotefwds->first; iter; iter = iter->next) {
-		struct TCPFwdEntry *fwd = (struct TCPFwdEntry*)iter->item;
-		if (!fwd->have_reply) {
-			fwd->have_reply = 1;
-			if (fwd->listenport == 0) {
-				/* The server should let us know which port was allocated if we requested port 0 */
-				int allocport = buf_getint(ses.payload);
-				if (allocport > 0) {
-					fwd->listenport = allocport;
-					dropbear_log(LOG_INFO, "Allocated port %d for remote forward to %s:%d", 
-							allocport, fwd->connectaddr, fwd->connectport);
-				}
-			}
-			return;
-		}
-	}
+    m_list_elem *iter = NULL;
+    for (iter = cli_opts.remotefwds->first; iter; iter = iter->next)
+    {
+        struct TCPFwdEntry *fwd = (struct TCPFwdEntry *)iter->item;
+        if (!fwd->have_reply)
+        {
+            fwd->have_reply = 1;
+            if (fwd->listenport == 0)
+            {
+                /* The server should let us know which port was allocated if we requested port 0 */
+                int allocport = buf_getint(ses.payload);
+                if (allocport > 0)
+                {
+                    fwd->listenport = allocport;
+                    dropbear_log(LOG_INFO, "Allocated port %d for remote forward to %s:%d",
+                                 allocport, fwd->connectaddr, fwd->connectport);
+                }
+            }
+            return;
+        }
+    }
 }
 
-void cli_recv_msg_request_failure() {
-	m_list_elem *iter;
-	for (iter = cli_opts.remotefwds->first; iter; iter = iter->next) {
-		struct TCPFwdEntry *fwd = (struct TCPFwdEntry*)iter->item;
-		if (!fwd->have_reply) {
-			fwd->have_reply = 1;
-			fwd_failed("Remote TCP forward request failed (port %d -> %s:%d)",
-					fwd->listenport,
-					fwd->connectaddr,
-					fwd->connectport);
-			return;
-		}
-	}
+void cli_recv_msg_request_failure()
+{
+    m_list_elem *iter;
+    for (iter = cli_opts.remotefwds->first; iter; iter = iter->next)
+    {
+        struct TCPFwdEntry *fwd = (struct TCPFwdEntry *)iter->item;
+        if (!fwd->have_reply)
+        {
+            fwd->have_reply = 1;
+            fwd_failed("Remote TCP forward request failed (port %d -> %s:%d)", fwd->listenport,
+                       fwd->connectaddr, fwd->connectport);
+            return;
+        }
+    }
 }
 
-void setup_remotetcp() {
-	m_list_elem *iter;
-	TRACE(("enter setup_remotetcp"))
+void setup_remotetcp()
+{
+    m_list_elem *iter;
+    TRACE(("enter setup_remotetcp"))
 
-	for (iter = cli_opts.remotefwds->first; iter; iter = iter->next) {
-		struct TCPFwdEntry *fwd = (struct TCPFwdEntry*)iter->item;
-		if (!fwd->listenaddr)
-		{
-			/* we store the addresses so that we can compare them
+    for (iter = cli_opts.remotefwds->first; iter; iter = iter->next)
+    {
+        struct TCPFwdEntry *fwd = (struct TCPFwdEntry *)iter->item;
+        if (!fwd->listenaddr)
+        {
+            /* we store the addresses so that we can compare them
 			   when the server sends them back */
-			if (opts.listen_fwd_all) {
-				fwd->listenaddr = m_strdup("");
-			} else {
-				fwd->listenaddr = m_strdup("localhost");
-			}
-		}
-		send_msg_global_request_remotetcp(fwd->listenaddr, fwd->listenport);
-	}
+            if (opts.listen_fwd_all)
+            {
+                fwd->listenaddr = m_strdup("");
+            }
+            else
+            {
+                fwd->listenaddr = m_strdup("localhost");
+            }
+        }
+        send_msg_global_request_remotetcp(fwd->listenaddr, fwd->listenport);
+    }
 
-	TRACE(("leave setup_remotetcp"))
+    TRACE(("leave setup_remotetcp"))
 }
 
-static int newtcpforwarded(struct Channel * channel) {
+static int newtcpforwarded(struct Channel *channel)
+{
 
-	char *origaddr = NULL;
-	unsigned int origport;
-	m_list_elem * iter = NULL;
-	struct TCPFwdEntry *fwd = NULL;
-	char portstring[NI_MAXSERV];
-	int err = SSH_OPEN_ADMINISTRATIVELY_PROHIBITED;
+    char *origaddr = NULL;
+    unsigned int origport;
+    m_list_elem *iter = NULL;
+    struct TCPFwdEntry *fwd = NULL;
+    char portstring[NI_MAXSERV];
+    int err = SSH_OPEN_ADMINISTRATIVELY_PROHIBITED;
 
-	origaddr = buf_getstring(ses.payload, NULL);
-	origport = buf_getint(ses.payload);
+    origaddr = buf_getstring(ses.payload, NULL);
+    origport = buf_getint(ses.payload);
 
-	/* Find which port corresponds. First try and match address as well as port,
+    /* Find which port corresponds. First try and match address as well as port,
 	in case they want to forward different ports separately ... */
-	for (iter = cli_opts.remotefwds->first; iter; iter = iter->next) {
-		fwd = (struct TCPFwdEntry*)iter->item;
-		if (origport == fwd->listenport
-				&& strcmp(origaddr, fwd->listenaddr) == 0) {
-			break;
-		}
-	}
+    for (iter = cli_opts.remotefwds->first; iter; iter = iter->next)
+    {
+        fwd = (struct TCPFwdEntry *)iter->item;
+        if (origport == fwd->listenport && strcmp(origaddr, fwd->listenaddr) == 0)
+        {
+            break;
+        }
+    }
 
-	if (!iter)
-	{
-		/* ... otherwise try to generically match the only forwarded port 
+    if (!iter)
+    {
+        /* ... otherwise try to generically match the only forwarded port 
 		without address (also handles ::1 vs 127.0.0.1 vs localhost case).
 		rfc4254 is vague about the definition of "address that was connected" */
-		for (iter = cli_opts.remotefwds->first; iter; iter = iter->next) {
-			fwd = (struct TCPFwdEntry*)iter->item;
-			if (origport == fwd->listenport) {
-				break;
-			}
-		}
-	}
+        for (iter = cli_opts.remotefwds->first; iter; iter = iter->next)
+        {
+            fwd = (struct TCPFwdEntry *)iter->item;
+            if (origport == fwd->listenport)
+            {
+                break;
+            }
+        }
+    }
 
+    if (iter == NULL || fwd == NULL)
+    {
+        /* We didn't request forwarding on that port */
+        cleantext(origaddr, 0);
+        dropbear_log(LOG_INFO, "Server sent unrequested forward from \"%s:%d\"", origaddr,
+                     origport);
+        goto out;
+    }
 
-	if (iter == NULL || fwd == NULL) {
-		/* We didn't request forwarding on that port */
-		cleantext(origaddr, 0);
-		dropbear_log(LOG_INFO, "Server sent unrequested forward from \"%s:%d\"", 
-                origaddr, origport);
-		goto out;
-	}
+    snprintf(portstring, sizeof(portstring), "%u", fwd->connectport);
+    channel->conn_pending = connect_remote(fwd->connectaddr, portstring, channel_connect_done,
+                                           channel, NULL, NULL, DROPBEAR_PRIO_NORMAL);
 
-	snprintf(portstring, sizeof(portstring), "%u", fwd->connectport);
-	channel->conn_pending = connect_remote(fwd->connectaddr, portstring, channel_connect_done,
-		channel, NULL, NULL, DROPBEAR_PRIO_NORMAL);
-
-	err = SSH_OPEN_IN_PROGRESS;
+    err = SSH_OPEN_IN_PROGRESS;
 
 out:
-	m_free(origaddr);
-	TRACE(("leave newtcpdirect: err %d", err))
-	return err;
+    m_free(origaddr);
+    TRACE(("leave newtcpdirect: err %d", err))
+    return err;
 }
 #endif /* DROPBEAR_CLI_REMOTETCPFWD */

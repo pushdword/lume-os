@@ -13,14 +13,14 @@ in the source distribution for its full text.
 #include <signal.h>
 #endif
 
-
-typedef struct SignalItem_ {
-   const char* name;
-   int number;
+typedef struct SignalItem_
+{
+    const char *name;
+    int number;
 } SignalItem;
 
 #define SIGNALSPANEL_INITSELECTEDSIGNAL SIGTERM
 
-Panel* SignalsPanel_new(int preSelectedSignal);
+Panel *SignalsPanel_new(int preSelectedSignal);
 
 #endif

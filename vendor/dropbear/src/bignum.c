@@ -28,82 +28,93 @@
 #include "dbutil.h"
 
 /* wrapper for mp_init, failing fatally on errors (memory allocation) */
-void m_mp_init(mp_int *mp) {
+void m_mp_init(mp_int *mp)
+{
 
-	if (mp_init(mp) != MP_OKAY) {
-		dropbear_exit("Mem alloc error");
-	}
+    if (mp_init(mp) != MP_OKAY)
+    {
+        dropbear_exit("Mem alloc error");
+    }
 }
 
 /* simplified duplication of bn_mp_multi's mp_init_multi, but die fatally
  * on error */
-void m_mp_init_multi(mp_int *mp, ...) 
+void m_mp_init_multi(mp_int *mp, ...)
 {
-	mp_int* cur_arg = mp;
-	va_list args;
+    mp_int *cur_arg = mp;
+    va_list args;
 
-	va_start(args, mp);        /* init args to next argument from caller */
-	while (cur_arg != NULL) {
-		if (mp_init(cur_arg) != MP_OKAY) {
-			dropbear_exit("Mem alloc error");
-		}
-		cur_arg = va_arg(args, mp_int*);
-	}
-	va_end(args);
+    va_start(args, mp); /* init args to next argument from caller */
+    while (cur_arg != NULL)
+    {
+        if (mp_init(cur_arg) != MP_OKAY)
+        {
+            dropbear_exit("Mem alloc error");
+        }
+        cur_arg = va_arg(args, mp_int *);
+    }
+    va_end(args);
 }
 
-void m_mp_alloc_init_multi(mp_int **mp, ...) 
+void m_mp_alloc_init_multi(mp_int **mp, ...)
 {
-	mp_int** cur_arg = mp;
-	va_list args;
+    mp_int **cur_arg = mp;
+    va_list args;
 
-	va_start(args, mp);        /* init args to next argument from caller */
-	while (cur_arg != NULL) {
-		*cur_arg = m_malloc(sizeof(mp_int));
-		if (mp_init(*cur_arg) != MP_OKAY) {
-			dropbear_exit("Mem alloc error");
-		}
-		cur_arg = va_arg(args, mp_int**);
-	}
-	va_end(args);
+    va_start(args, mp); /* init args to next argument from caller */
+    while (cur_arg != NULL)
+    {
+        *cur_arg = m_malloc(sizeof(mp_int));
+        if (mp_init(*cur_arg) != MP_OKAY)
+        {
+            dropbear_exit("Mem alloc error");
+        }
+        cur_arg = va_arg(args, mp_int **);
+    }
+    va_end(args);
 }
 
-void m_mp_free_multi(mp_int **mp, ...) 
+void m_mp_free_multi(mp_int **mp, ...)
 {
-	mp_int** cur_arg = mp;
-	va_list args;
+    mp_int **cur_arg = mp;
+    va_list args;
 
-	va_start(args, mp);        /* init args to next argument from caller */
-	while (cur_arg != NULL) {
-		if (*cur_arg) {
-			mp_clear(*cur_arg);
-		}
-		m_free(*cur_arg);
-		cur_arg = va_arg(args, mp_int**);
-	}
-	va_end(args);
+    va_start(args, mp); /* init args to next argument from caller */
+    while (cur_arg != NULL)
+    {
+        if (*cur_arg)
+        {
+            mp_clear(*cur_arg);
+        }
+        m_free(*cur_arg);
+        cur_arg = va_arg(args, mp_int **);
+    }
+    va_end(args);
 }
 
-void bytes_to_mp(mp_int *mp, const unsigned char* bytes, unsigned int len) {
+void bytes_to_mp(mp_int *mp, const unsigned char *bytes, unsigned int len)
+{
 
-	if (mp_from_ubin(mp, (unsigned char*)bytes, len) != MP_OKAY) {
-		dropbear_exit("Mem alloc error");
-	}
+    if (mp_from_ubin(mp, (unsigned char *)bytes, len) != MP_OKAY)
+    {
+        dropbear_exit("Mem alloc error");
+    }
 }
 
 /* hash the ssh representation of the mp_int mp */
-void hash_process_mp(const struct ltc_hash_descriptor *hash_desc, 
-				hash_state *hs, const mp_int *mp) {
-	buffer * buf;
+void hash_process_mp(const struct ltc_hash_descriptor *hash_desc, hash_state *hs, const mp_int *mp)
+{
+    buffer *buf;
 
-	buf = buf_new(512 + 20); /* max buffer is a 4096 bit key, 
+    buf = buf_new(512 + 20); /* max buffer is a 4096 bit key, 
 								plus header + some leeway*/
-	buf_putmpint(buf, mp);
-	hash_desc->process(hs, buf->data, buf->len);
-	buf_burn_free(buf);
+    buf_putmpint(buf, mp);
+    hash_desc->process(hs, buf->data, buf->len);
+    buf_burn_free(buf);
 }
 
-void m_mp_burn(mp_int *mp) {
-	m_burn(mp->dp, mp->alloc * sizeof(*mp->dp));
-	mp->used = 0;
+void m_mp_burn(mp_int *mp)
+{
+    m_burn(mp->dp, mp->alloc * sizeof(*mp->dp));
+    mp->used = 0;
 }

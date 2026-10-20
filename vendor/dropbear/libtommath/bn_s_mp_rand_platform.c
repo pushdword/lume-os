@@ -9,10 +9,11 @@
  */
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #define BN_S_READ_ARC4RANDOM_C
+
 static mp_err s_read_arc4random(void *p, size_t n)
 {
-   arc4random_buf(p, n);
-   return MP_OKAY;
+    arc4random_buf(p, n);
+    return MP_OKAY;
 }
 #endif
 
@@ -33,18 +34,20 @@ static mp_err s_read_arc4random(void *p, size_t n)
 
 static mp_err s_read_wincsp(void *p, size_t n)
 {
-   static HCRYPTPROV hProv = 0;
-   if (hProv == 0) {
-      HCRYPTPROV h = 0;
-      if (!CryptAcquireContext(&h, NULL, MS_DEF_PROV, PROV_RSA_FULL,
-                               (CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET)) &&
-          !CryptAcquireContext(&h, NULL, MS_DEF_PROV, PROV_RSA_FULL,
-                               CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET | CRYPT_NEWKEYSET)) {
-         return MP_ERR;
-      }
-      hProv = h;
-   }
-   return CryptGenRandom(hProv, (DWORD)n, (BYTE *)p) == TRUE ? MP_OKAY : MP_ERR;
+    static HCRYPTPROV hProv = 0;
+    if (hProv == 0)
+    {
+        HCRYPTPROV h = 0;
+        if (!CryptAcquireContext(&h, NULL, MS_DEF_PROV, PROV_RSA_FULL,
+                                 (CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET)) &&
+            !CryptAcquireContext(&h, NULL, MS_DEF_PROV, PROV_RSA_FULL,
+                                 CRYPT_VERIFYCONTEXT | CRYPT_MACHINE_KEYSET | CRYPT_NEWKEYSET))
+        {
+            return MP_ERR;
+        }
+        hProv = h;
+    }
+    return CryptGenRandom(hProv, (DWORD)n, (BYTE *)p) == TRUE ? MP_OKAY : MP_ERR;
 }
 #endif /* WIN32 */
 
@@ -56,19 +59,22 @@ static mp_err s_read_wincsp(void *p, size_t n)
 
 static mp_err s_read_getrandom(void *p, size_t n)
 {
-   char *q = (char *)p;
-   while (n > 0u) {
-      ssize_t ret = getrandom(q, n, 0);
-      if (ret < 0) {
-         if (errno == EINTR) {
-            continue;
-         }
-         return MP_ERR;
-      }
-      q += ret;
-      n -= (size_t)ret;
-   }
-   return MP_OKAY;
+    char *q = (char *)p;
+    while (n > 0u)
+    {
+        ssize_t ret = getrandom(q, n, 0);
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            return MP_ERR;
+        }
+        q += ret;
+        n -= (size_t)ret;
+    }
+    return MP_OKAY;
 }
 #endif
 #endif
@@ -87,29 +93,34 @@ static mp_err s_read_getrandom(void *p, size_t n)
 
 static mp_err s_read_urandom(void *p, size_t n)
 {
-   int fd;
-   char *q = (char *)p;
+    int fd;
+    char *q = (char *)p;
 
-   do {
-      fd = open(MP_DEV_URANDOM, O_RDONLY);
-   } while ((fd == -1) && (errno == EINTR));
-   if (fd == -1) return MP_ERR;
+    do
+    {
+        fd = open(MP_DEV_URANDOM, O_RDONLY);
+    } while ((fd == -1) && (errno == EINTR));
+    if (fd == -1)
+        return MP_ERR;
 
-   while (n > 0u) {
-      ssize_t ret = read(fd, p, n);
-      if (ret < 0) {
-         if (errno == EINTR) {
-            continue;
-         }
-         close(fd);
-         return MP_ERR;
-      }
-      q += ret;
-      n -= (size_t)ret;
-   }
+    while (n > 0u)
+    {
+        ssize_t ret = read(fd, p, n);
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            close(fd);
+            return MP_ERR;
+        }
+        q += ret;
+        n -= (size_t)ret;
+    }
 
-   close(fd);
-   return MP_OKAY;
+    close(fd);
+    return MP_OKAY;
 }
 #endif
 
@@ -120,11 +131,13 @@ void (*ltm_rng_callback)(void);
 
 static mp_err s_read_ltm_rng(void *p, size_t n)
 {
-   unsigned long res;
-   if (ltm_rng == NULL) return MP_ERR;
-   res = ltm_rng(p, n, ltm_rng_callback);
-   if (res != n) return MP_ERR;
-   return MP_OKAY;
+    unsigned long res;
+    if (ltm_rng == NULL)
+        return MP_ERR;
+    res = ltm_rng(p, n, ltm_rng_callback);
+    if (res != n)
+        return MP_ERR;
+    return MP_OKAY;
 }
 #endif
 
@@ -136,13 +149,18 @@ mp_err s_read_ltm_rng(void *p, size_t n);
 
 mp_err s_mp_rand_platform(void *p, size_t n)
 {
-   mp_err err = MP_ERR;
-   if ((err != MP_OKAY) && MP_HAS(S_READ_ARC4RANDOM)) err = s_read_arc4random(p, n);
-   if ((err != MP_OKAY) && MP_HAS(S_READ_WINCSP))     err = s_read_wincsp(p, n);
-   if ((err != MP_OKAY) && MP_HAS(S_READ_GETRANDOM))  err = s_read_getrandom(p, n);
-   if ((err != MP_OKAY) && MP_HAS(S_READ_URANDOM))    err = s_read_urandom(p, n);
-   if ((err != MP_OKAY) && MP_HAS(S_READ_LTM_RNG))    err = s_read_ltm_rng(p, n);
-   return err;
+    mp_err err = MP_ERR;
+    if ((err != MP_OKAY) && MP_HAS(S_READ_ARC4RANDOM))
+        err = s_read_arc4random(p, n);
+    if ((err != MP_OKAY) && MP_HAS(S_READ_WINCSP))
+        err = s_read_wincsp(p, n);
+    if ((err != MP_OKAY) && MP_HAS(S_READ_GETRANDOM))
+        err = s_read_getrandom(p, n);
+    if ((err != MP_OKAY) && MP_HAS(S_READ_URANDOM))
+        err = s_read_urandom(p, n);
+    if ((err != MP_OKAY) && MP_HAS(S_READ_LTM_RNG))
+        err = s_read_ltm_rng(p, n);
+    return err;
 }
 
 #endif

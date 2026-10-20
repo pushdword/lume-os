@@ -1,23 +1,31 @@
 #include "api.h"
 #include "fd.h"
 static unsigned char data[1537], readback[1537];
+
 static int fail(const char *name, int r)
 {
     app_error(name, r);
     return 1;
 }
-#define REQUIRE(condition, label)   \
-    do                              \
-    {                               \
-        if (!(condition))           \
-            return fail(label, -1); \
+
+#define REQUIRE(condition, label)                                                                  \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(condition))                                                                          \
+            return fail(label, -1);                                                                \
     } while (0)
-static uint32_t p(const void *v) { return (uint32_t)(uintptr_t)v; }
+
+static uint32_t p(const void *v)
+{
+    return (uint32_t)(uintptr_t)v;
+}
+
 int app_main(int argc, char **argv)
 {
     REQUIRE(argc >= 1 && argv && argv[argc] == 0, "argv contract");
     if (argc > 1)
-        REQUIRE(argc == 3 && app_equal(argv[1], "two words") && app_equal(argv[2], "three"), "argument contents");
+        REQUIRE(argc == 3 && app_equal(argv[1], "two words") && app_equal(argv[2], "three"),
+                "argument contents");
     const char *path = "/tmp/fstest.txt";
     int r = lume_syscall(LUME_MKDIR, p("/tmp"), 0, 0);
     REQUIRE(r == 0 || r == -17, "mkdir");
@@ -41,8 +49,11 @@ int app_main(int argc, char **argv)
     REQUIRE(app_sync(fd) == 0, "fsync");
     REQUIRE(app_close(fd) == 0, "close");
     REQUIRE(app_close(fd) == -9, "double close");
-    REQUIRE(lume_syscall(LUME_SPAWN, p("/bin/cat" LUME_APP_SUFFIX ""), 1, 0xf0000000u) == -14, "bad argv pointer");
-    REQUIRE(lume_syscall(LUME_SPAWN, p("/bin/cat" LUME_APP_SUFFIX ""), LUME_ARGS + 1, p(argv)) == -22, "argument count bound");
+    REQUIRE(lume_syscall(LUME_SPAWN, p("/bin/cat" LUME_APP_SUFFIX ""), 1, 0xf0000000u) == -14,
+            "bad argv pointer");
+    REQUIRE(lume_syscall(LUME_SPAWN, p("/bin/cat" LUME_APP_SUFFIX ""), LUME_ARGS + 1, p(argv)) ==
+                -22,
+            "argument count bound");
     REQUIRE(app_wait(0, 0) == -10, "wait only owns children");
     fd = app_open(path, LUME_WRONLY | LUME_APPEND);
     REQUIRE(fd >= 3, "append open");
@@ -50,19 +61,25 @@ int app_main(int argc, char **argv)
     REQUIRE(app_write(fd, "LUME", 4) == 4, "append respects EOF");
     REQUIRE(app_close(fd) == 0, "append close");
     struct lume_stat stat;
-    REQUIRE(app_stat(path, &stat) == 0 && stat.size == 1541 && stat.uid == 0 && stat.gid == 0, "stat metadata");
+    REQUIRE(app_stat(path, &stat) == 0 && stat.size == 1541 && stat.uid == 0 && stat.gid == 0,
+            "stat metadata");
     fd = app_open(path, LUME_RDONLY);
     REQUIRE(fd >= 3, "reopen");
     REQUIRE(app_write(fd, "x", 1) == -9, "access mode");
-    REQUIRE(app_seek(fd, -4, LUME_SEEK_END) == 1537 && app_read(fd, readback, 4) == 4, "append readback");
-    REQUIRE(readback[0] == 'L' && readback[1] == 'U' && readback[2] == 'M' && readback[3] == 'E', "append bytes");
+    REQUIRE(app_seek(fd, -4, LUME_SEEK_END) == 1537 && app_read(fd, readback, 4) == 4,
+            "append readback");
+    REQUIRE(readback[0] == 'L' && readback[1] == 'U' && readback[2] == 'M' && readback[3] == 'E',
+            "append bytes");
     REQUIRE(app_close(fd) == 0, "read close");
     unsigned fd_slots = LUME_FDS - 3;
     struct lume_fd_info fd_info;
-    struct lume_fd_request fd_request = {LUME_FD_VERSION,sizeof fd_request,0,0,0,p(&fd_info),0,0};
-    if (lume_syscall(LUME_FD,LUME_FD_INFO,p(&fd_request),sizeof fd_request) == 0) {
+    struct lume_fd_request fd_request = {
+        LUME_FD_VERSION, sizeof fd_request, 0, 0, 0, p(&fd_info), 0, 0};
+    if (lume_syscall(LUME_FD, LUME_FD_INFO, p(&fd_request), sizeof fd_request) == 0)
+    {
         REQUIRE(fd_info.version == LUME_FD_VERSION && fd_info.bytes == sizeof fd_info &&
-                fd_info.open == 3 && fd_info.limit >= 3 && fd_info.limit <= LUME_FD_LIMIT,"FD info contract");
+                    fd_info.open == 3 && fd_info.limit >= 3 && fd_info.limit <= LUME_FD_LIMIT,
+                "FD info contract");
         fd_slots = fd_info.limit - fd_info.open;
     }
     int fds[LUME_FD_LIMIT - 3];
@@ -81,7 +98,8 @@ int app_main(int argc, char **argv)
     fd = app_open(path, LUME_RDWR);
     REQUIRE(fd >= 3, "rewrite");
     REQUIRE(app_write(fd, "LUME FS PERSISTENT\n", 19) == 19, "persistent text");
-    REQUIRE(lume_syscall(LUME_RENAME, p(path), p("/tmp/renamed.txt"), 0) == -16, "open rename exclusion");
+    REQUIRE(lume_syscall(LUME_RENAME, p(path), p("/tmp/renamed.txt"), 0) == -16,
+            "open rename exclusion");
     REQUIRE(app_close(fd) == 0, "text close");
     (void)lume_syscall(LUME_UNLINK, p("/tmp/renamed.txt"), 0, 0);
     REQUIRE(lume_syscall(LUME_RENAME, p(path), p("/tmp/renamed.txt"), 0) == 0, "rename");

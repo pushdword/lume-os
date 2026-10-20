@@ -12,11 +12,11 @@ in the source distribution for its full text.
 
 #include "ProcessTable.h"
 
+typedef struct DarwinProcessTable_
+{
+    ProcessTable super;
 
-typedef struct DarwinProcessTable_ {
-   ProcessTable super;
-
-   uint64_t global_diff;
+    uint64_t global_diff;
 } DarwinProcessTable;
 
 #endif

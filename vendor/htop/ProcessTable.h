@@ -16,37 +16,41 @@ in the source distribution for its full text.
 #include "Process.h"
 #include "Table.h"
 
+typedef struct ProcessTable_
+{
+    Table super;
 
-typedef struct ProcessTable_ {
-   Table super;
+    Hashtable *pidMatchList;
 
-   Hashtable* pidMatchList;
-
-   unsigned int totalTasks;
-   unsigned int runningTasks;
-   unsigned int userlandThreads;
-   unsigned int kernelThreads;
+    unsigned int totalTasks;
+    unsigned int runningTasks;
+    unsigned int userlandThreads;
+    unsigned int kernelThreads;
 } ProcessTable;
 
 /* Implemented by platforms */
-ProcessTable* ProcessTable_new(Machine* host, Hashtable* pidMatchList);
-void ProcessTable_delete(Object* cast);
-void ProcessTable_goThroughEntries(ProcessTable* this);
+ProcessTable *ProcessTable_new(Machine *host, Hashtable *pidMatchList);
+void ProcessTable_delete(Object *cast);
+void ProcessTable_goThroughEntries(ProcessTable *this);
 
-void ProcessTable_init(ProcessTable* this, const ObjectClass* klass, Machine* host, Hashtable* pidMatchList);
+void ProcessTable_init(ProcessTable *this, const ObjectClass *klass, Machine *host,
+                       Hashtable *pidMatchList);
 
-void ProcessTable_done(ProcessTable* this);
+void ProcessTable_done(ProcessTable *this);
 
 extern const TableClass ProcessTable_class;
 
-static inline void ProcessTable_add(ProcessTable* this, Process* process) {
-   Table_add(&this->super, &process->super);
+static inline void ProcessTable_add(ProcessTable *this, Process *process)
+{
+    Table_add(&this->super, &process->super);
 }
 
-Process* ProcessTable_getProcess(ProcessTable* this, pid_t pid, bool* preExisting, Process_New constructor);
+Process *ProcessTable_getProcess(ProcessTable *this, pid_t pid, bool *preExisting,
+                                 Process_New constructor);
 
-static inline Process* ProcessTable_findProcess(ProcessTable* this, pid_t pid) {
-   return (Process*) Table_findRow(&this->super, pid);
+static inline Process *ProcessTable_findProcess(ProcessTable *this, pid_t pid)
+{
+    return (Process *)Table_findRow(&this->super, pid);
 }
 
 #endif

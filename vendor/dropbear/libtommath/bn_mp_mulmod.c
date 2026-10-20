@@ -6,20 +6,22 @@
 /* d = a * b (mod c) */
 mp_err mp_mulmod(const mp_int *a, const mp_int *b, const mp_int *c, mp_int *d)
 {
-   mp_err err;
-   mp_int t;
+    mp_err err;
+    mp_int t;
 
-   if ((err = mp_init_size(&t, c->used)) != MP_OKAY) {
-      return err;
-   }
+    if ((err = mp_init_size(&t, c->used)) != MP_OKAY)
+    {
+        return err;
+    }
 
-   if ((err = mp_mul(a, b, &t)) != MP_OKAY) {
-      goto LBL_ERR;
-   }
-   err = mp_mod(&t, c, d);
+    if ((err = mp_mul(a, b, &t)) != MP_OKAY)
+    {
+        goto LBL_ERR;
+    }
+    err = mp_mod(&t, c, d);
 
 LBL_ERR:
-   mp_clear(&t);
-   return err;
+    mp_clear(&t);
+    return err;
 }
 #endif

@@ -35,10 +35,12 @@
 #define GCM_IVCTR_LEN 8
 #define GCM_NONCE_LEN (GCM_IVFIX_LEN + GCM_IVCTR_LEN)
 
-typedef struct {
-	
-	unsigned char iv[GCM_NONCE_LEN];
-    unsigned char lume_key[32];unsigned lume_key_bytes,lume_exhausted;
+typedef struct
+{
+
+    unsigned char iv[GCM_NONCE_LEN];
+    unsigned char lume_key[32];
+    unsigned lume_key_bytes, lume_exhausted;
 } dropbear_gcm_state;
 
 extern const struct dropbear_cipher_mode dropbear_mode_gcm;

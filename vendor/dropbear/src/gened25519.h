@@ -29,7 +29,7 @@
 
 #if DROPBEAR_ED25519
 
-dropbear_ed25519_key * gen_ed25519_priv_key(unsigned int size);
+dropbear_ed25519_key *gen_ed25519_priv_key(unsigned int size);
 
 #endif /* DROPBEAR_ED25519 */
 

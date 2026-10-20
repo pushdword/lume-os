@@ -15,36 +15,38 @@ in the source distribution for its full text.
 #include "Meter.h"
 #include "RichString.h"
 
-
-typedef struct PCPDynamicMetric_ {
-   size_t id; /* index into metric array */
-   ColorElements color;
-   char* name; /* derived metric name */
-   char* label;
-   char* suffix;
+typedef struct PCPDynamicMetric_
+{
+    size_t id; /* index into metric array */
+    ColorElements color;
+    char *name; /* derived metric name */
+    char *label;
+    char *suffix;
 } PCPDynamicMetric;
 
-typedef struct PCPDynamicMeter_ {
-   DynamicMeter super;
-   PCPDynamicMetric* metrics;
-   size_t totalMetrics;
+typedef struct PCPDynamicMeter_
+{
+    DynamicMeter super;
+    PCPDynamicMetric *metrics;
+    size_t totalMetrics;
 } PCPDynamicMeter;
 
-typedef struct PCPDynamicMeters_ {
-   Hashtable* table;
-   size_t count;  /* count of dynamic meters discovered by scan */
-   size_t offset; /* start offset into the Platform metric array */
-   size_t cursor; /* identifier allocator for each new metric used */
+typedef struct PCPDynamicMeters_
+{
+    Hashtable *table;
+    size_t count;  /* count of dynamic meters discovered by scan */
+    size_t offset; /* start offset into the Platform metric array */
+    size_t cursor; /* identifier allocator for each new metric used */
 } PCPDynamicMeters;
 
-void PCPDynamicMeters_init(PCPDynamicMeters* meters);
+void PCPDynamicMeters_init(PCPDynamicMeters *meters);
 
-void PCPDynamicMeters_done(Hashtable* table);
+void PCPDynamicMeters_done(Hashtable *table);
 
-void PCPDynamicMeter_enable(PCPDynamicMeter* this);
+void PCPDynamicMeter_enable(PCPDynamicMeter *this);
 
-void PCPDynamicMeter_updateValues(PCPDynamicMeter* this, Meter* meter);
+void PCPDynamicMeter_updateValues(PCPDynamicMeter *this, Meter *meter);
 
-void PCPDynamicMeter_display(PCPDynamicMeter* this, const Meter* meter, RichString* out);
+void PCPDynamicMeter_display(PCPDynamicMeter *this, const Meter *meter, RichString *out);
 
 #endif

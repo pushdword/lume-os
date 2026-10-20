@@ -185,7 +185,7 @@ typedef u_int32_t uint32_t;
 #endif
 
 #ifndef environ
-extern char** environ;
+extern char **environ;
 #endif
 
 #include "fake-rfc2553.h"
@@ -197,13 +197,13 @@ extern char** environ;
 #endif
 
 /* so we can avoid warnings about unused params (ie in signal handlers etc) */
-#ifdef UNUSED 
-#elif defined(__GNUC__) 
-# define UNUSED(x) UNUSED_ ## x __attribute__((unused)) 
-#elif defined(__LCLINT__) 
-# define UNUSED(x) /*@unused@*/ x 
-#else 
-# define UNUSED(x) x 
+#ifdef UNUSED
+#elif defined(__GNUC__)
+#define UNUSED(x) UNUSED_##x __attribute__((unused))
+#elif defined(__LCLINT__)
+#define UNUSED(x) /*@unused@*/ x
+#else
+#define UNUSED(x) x
 #endif
 
 /* static_assert() is a keyword in c23, earlier libc often supports

@@ -48,45 +48,54 @@
 /* This is a NOFORK applet. Be very careful! */
 
 int basename_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+
 int basename_main(int argc UNUSED_PARAM, char **argv)
 {
-	unsigned opts;
-	const char *suffix = NULL;
+    unsigned opts;
+    const char *suffix = NULL;
 
-	/* '+': stop at first non-option */
-	opts = getopt32(argv, "^+" "as:"
-		"\0" "-1" /* At least one argument */
-		, &suffix
-	);
-	argv += optind;
+    /* '+': stop at first non-option */
+    opts = getopt32(argv,
+                    "^+"
+                    "as:"
+                    "\0"
+                    "-1" /* At least one argument */
+                    ,
+                    &suffix);
+    argv += optind;
 
-	do {
-		char *s;
-		size_t m;
+    do
+    {
+        char *s;
+        size_t m;
 
-		/* It should strip slash: /abc/def/ -> def */
-		s = bb_get_last_path_component_strip(*argv++);
-		m = strlen(s);
-		if (!opts) {
-			if (*argv) {
-				suffix = *argv;
-				if (argv[1])
-					bb_show_usage();
-			}
-		}
-		if (suffix) {
-			size_t n = strlen(suffix);
-			if ((m > n) && (strcmp(s + m - n, suffix) == 0)) {
-				m -= n;
-				/*s[m] = '\0'; - redundant */
-			}
-		}
-		/* puts(s) will do, but we can do without stdio this way: */
-		s[m++] = '\n';
-		/* NB: != is correct here: */
-		if (full_write(STDOUT_FILENO, s, m) != (ssize_t)m)
-			return EXIT_FAILURE;
-	} while (opts && *argv);
+        /* It should strip slash: /abc/def/ -> def */
+        s = bb_get_last_path_component_strip(*argv++);
+        m = strlen(s);
+        if (!opts)
+        {
+            if (*argv)
+            {
+                suffix = *argv;
+                if (argv[1])
+                    bb_show_usage();
+            }
+        }
+        if (suffix)
+        {
+            size_t n = strlen(suffix);
+            if ((m > n) && (strcmp(s + m - n, suffix) == 0))
+            {
+                m -= n;
+                /*s[m] = '\0'; - redundant */
+            }
+        }
+        /* puts(s) will do, but we can do without stdio this way: */
+        s[m++] = '\n';
+        /* NB: != is correct here: */
+        if (full_write(STDOUT_FILENO, s, m) != (ssize_t)m)
+            return EXIT_FAILURE;
+    } while (opts && *argv);
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

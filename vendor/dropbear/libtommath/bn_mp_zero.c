@@ -6,8 +6,8 @@
 /* set to zero */
 void mp_zero(mp_int *a)
 {
-   a->sign = MP_ZPOS;
-   a->used = 0;
-   MP_ZERO_DIGITS(a->dp, a->alloc);
+    a->sign = MP_ZPOS;
+    a->used = 0;
+    MP_ZERO_DIGITS(a->dp, a->alloc);
 }
 #endif

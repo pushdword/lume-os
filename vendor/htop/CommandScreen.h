@@ -12,15 +12,15 @@ in the source distribution for its full text.
 #include "Object.h"
 #include "Process.h"
 
-
-typedef struct CommandScreen_ {
-   InfoScreen super;
+typedef struct CommandScreen_
+{
+    InfoScreen super;
 } CommandScreen;
 
 extern const InfoScreenClass CommandScreen_class;
 
-CommandScreen* CommandScreen_new(Process* process);
+CommandScreen *CommandScreen_new(Process *process);
 
-void CommandScreen_delete(Object* this);
+void CommandScreen_delete(Object *this);
 
 #endif

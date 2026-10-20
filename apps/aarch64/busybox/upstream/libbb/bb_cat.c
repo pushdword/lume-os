@@ -10,24 +10,26 @@
 
 int FAST_FUNC bb_cat(char **argv)
 {
-	int fd;
-	int retval = EXIT_SUCCESS;
+    int fd;
+    int retval = EXIT_SUCCESS;
 
-	if (!*argv)
-		argv = (char**) &bb_argv_dash;
+    if (!*argv)
+        argv = (char **)&bb_argv_dash;
 
-	do {
-		fd = open_or_warn_stdin(*argv);
-		if (fd >= 0) {
-			/* This is not a xfunc - never exits */
-			off_t r = bb_copyfd_eof(fd, STDOUT_FILENO);
-			if (fd != STDIN_FILENO)
-				close(fd);
-			if (r >= 0)
-				continue;
-		}
-		retval = EXIT_FAILURE;
-	} while (*++argv);
+    do
+    {
+        fd = open_or_warn_stdin(*argv);
+        if (fd >= 0)
+        {
+            /* This is not a xfunc - never exits */
+            off_t r = bb_copyfd_eof(fd, STDOUT_FILENO);
+            if (fd != STDIN_FILENO)
+                close(fd);
+            if (r >= 0)
+                continue;
+        }
+        retval = EXIT_FAILURE;
+    } while (*++argv);
 
-	return retval;
+    return retval;
 }

@@ -39,225 +39,255 @@ static void sigchld_handler(int dummy);
 static void sigsegv_handler(int);
 static void sigintterm_handler(int fish);
 static void main_inetd(void);
-static void main_noinetd(int argc, char ** argv, const char* multipath);
+static void main_noinetd(int argc, char **argv, const char *multipath);
 static void commonsetup(void);
 
 #if defined(DBMULTI_dropbear) || !DROPBEAR_MULTI
 #if defined(DBMULTI_dropbear) && DROPBEAR_MULTI
-int dropbear_main(int argc, char ** argv, const char* multipath)
+int dropbear_main(int argc, char **argv, const char *multipath)
 #else
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 #endif
 {
 #if !DROPBEAR_MULTI
-	const char* multipath = NULL;
+    const char *multipath = NULL;
 #endif
 
-	_dropbear_exit = svr_dropbear_exit;
-	_dropbear_log = svr_dropbear_log;
+    _dropbear_exit = svr_dropbear_exit;
+    _dropbear_log = svr_dropbear_log;
 
-	disallow_core();
+    disallow_core();
 
-	if (argc < 1) {
-		dropbear_exit("Bad argc");
-	}
+    if (argc < 1)
+    {
+        dropbear_exit("Bad argc");
+    }
 
-	/* get commandline options */
-	svr_getopts(argc, argv);
+    /* get commandline options */
+    svr_getopts(argc, argv);
 
 #if INETD_MODE
-	/* service program mode */
-	if (svr_opts.inetdmode) {
-		main_inetd();
-		/* notreached */
-	}
+    /* service program mode */
+    if (svr_opts.inetdmode)
+    {
+        main_inetd();
+        /* notreached */
+    }
 #endif
 
 #if DROPBEAR_DO_REEXEC
-	if (svr_opts.reexec_childpipe >= 0) {
+    if (svr_opts.reexec_childpipe >= 0)
+    {
 #ifdef PR_SET_NAME
-		/* Fix the "Name:" in /proc/pid/status, otherwise it's
+        /* Fix the "Name:" in /proc/pid/status, otherwise it's
 		a FD number from fexecve.
 		Failure doesn't really matter, it's mostly aesthetic */
-		prctl(PR_SET_NAME, basename(argv[0]), 0, 0);
+        prctl(PR_SET_NAME, basename(argv[0]), 0, 0);
 #endif
-		main_inetd();
-		/* notreached */
-	}
+        main_inetd();
+        /* notreached */
+    }
 #endif
 
 #if NON_INETD_MODE
-	main_noinetd(argc, argv, multipath);
-	/* notreached */
+    main_noinetd(argc, argv, multipath);
+    /* notreached */
 #endif
 
-	dropbear_exit("Compiled without normal mode, can't run without -i\n");
-	return -1;
+    dropbear_exit("Compiled without normal mode, can't run without -i\n");
+    return -1;
 }
 #endif
 
 #if INETD_MODE || DROPBEAR_DO_REEXEC
-static void main_inetd() {
-	char *host, *port = NULL;
+static void main_inetd()
+{
+    char *host, *port = NULL;
 
-	/* Set up handlers, syslog */
-	commonsetup();
+    /* Set up handlers, syslog */
+    commonsetup();
 
-	seedrandom();
+    seedrandom();
 
-	if (svr_opts.reexec_childpipe < 0) {
-		/* In case our inetd was lax in logging source addresses */
-		get_socket_address(0, NULL, NULL, &host, &port, 0);
-			if (strchr(host, ':') != NULL) {
-				dropbear_log(LOG_INFO, "Child connection from [%s]:%s", host, port);
-			} else {
-				dropbear_log(LOG_INFO, "Child connection from %s:%s", host, port);
-			}
+    if (svr_opts.reexec_childpipe < 0)
+    {
+        /* In case our inetd was lax in logging source addresses */
+        get_socket_address(0, NULL, NULL, &host, &port, 0);
+        if (strchr(host, ':') != NULL)
+        {
+            dropbear_log(LOG_INFO, "Child connection from [%s]:%s", host, port);
+        }
+        else
+        {
+            dropbear_log(LOG_INFO, "Child connection from %s:%s", host, port);
+        }
 
-		m_free(host);
-		m_free(port);
+        m_free(host);
+        m_free(port);
 
-		/* Don't check the return value - it may just fail since inetd has
+        /* Don't check the return value - it may just fail since inetd has
 		 * already done setsid() after forking (xinetd on Darwin appears to do
 		 * this */
-		setsid();
-	}
+        setsid();
+    }
 
-	/* -1 for childpipe in the inetd case is discarded */
-	svr_session(0, svr_opts.reexec_childpipe);
+    /* -1 for childpipe in the inetd case is discarded */
+    svr_session(0, svr_opts.reexec_childpipe);
 
-	/* notreached */
+    /* notreached */
 }
 #endif /* INETD_MODE */
 
 #if NON_INETD_MODE
-static void main_noinetd(int argc, char ** argv, const char* multipath) {
+static void main_noinetd(int argc, char **argv, const char *multipath)
+{
 
-    (void)argc;(void)argv;(void)multipath;
-    commonsetup();seedrandom();
+    (void)argc;
+    (void)argv;
+    (void)multipath;
+    commonsetup();
+    seedrandom();
     struct lume_net_info information;
-    while(net_info(&information)<0 || !(information.flags&LUME_NET_CONFIGURED))net_idle(100);
-    int listener=socket(AF_INET,SOCK_STREAM,0);
-    struct sockaddr_in address={.sin_family=AF_INET,.sin_port=htons(22)};
-    if(listener<0||bind(listener,(void *)&address,sizeof address)<0||listen(listener,1)<0)dropbear_exit("Lume SSH listen failed: %s",strerror(errno));
-    dropbear_log(LOG_INFO,"SSH_READY port=22 single-session root-publickey");
-    struct sockaddr_in peer;socklen_t bytes=sizeof peer;
-    int client=accept(listener,(void *)&peer,&bytes);
-    if(client<0)dropbear_exit("Lume SSH accept failed");
-    const unsigned char *ip=(const void *)&peer.sin_addr;
-    if(ip[0]!=172||ip[1]!=30||ip[2]!=1||!ip[3]||ip[3]==255)dropbear_exit("Client outside trusted LAN");
-    ssh_profile_reset();close(listener);svr_session(client,-1);
-
+    while (net_info(&information) < 0 || !(information.flags & LUME_NET_CONFIGURED))
+        net_idle(100);
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in address = {.sin_family = AF_INET, .sin_port = htons(22)};
+    if (listener < 0 || bind(listener, (void *)&address, sizeof address) < 0 ||
+        listen(listener, 1) < 0)
+        dropbear_exit("Lume SSH listen failed: %s", strerror(errno));
+    dropbear_log(LOG_INFO, "SSH_READY port=22 single-session root-publickey");
+    struct sockaddr_in peer;
+    socklen_t bytes = sizeof peer;
+    int client = accept(listener, (void *)&peer, &bytes);
+    if (client < 0)
+        dropbear_exit("Lume SSH accept failed");
+    const unsigned char *ip = (const void *)&peer.sin_addr;
+    if (ip[0] != 172 || ip[1] != 30 || ip[2] != 1 || !ip[3] || ip[3] == 255)
+        dropbear_exit("Client outside trusted LAN");
+    ssh_profile_reset();
+    close(listener);
+    svr_session(client, -1);
 }
 #endif /* NON_INETD_MODE */
 
-
 /* catch + reap zombie children */
-static void sigchld_handler(int UNUSED(unused)) {
-	struct sigaction sa_chld;
+static void sigchld_handler(int UNUSED(unused))
+{
+    struct sigaction sa_chld;
 
-	const int saved_errno = errno;
+    const int saved_errno = errno;
 
-	while(waitpid(-1, NULL, WNOHANG) > 0) {}
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+    {
+    }
 
-	sa_chld.sa_handler = sigchld_handler;
-	sa_chld.sa_flags = SA_NOCLDSTOP;
-	sigemptyset(&sa_chld.sa_mask);
-	if (sigaction(SIGCHLD, &sa_chld, NULL) < 0) {
-		dropbear_exit("signal() error");
-	}
-	errno = saved_errno;
+    sa_chld.sa_handler = sigchld_handler;
+    sa_chld.sa_flags = SA_NOCLDSTOP;
+    sigemptyset(&sa_chld.sa_mask);
+    if (sigaction(SIGCHLD, &sa_chld, NULL) < 0)
+    {
+        dropbear_exit("signal() error");
+    }
+    errno = saved_errno;
 }
 
 /* catch any segvs */
-static void sigsegv_handler(int UNUSED(unused)) {
-	int i;
-	const char *msg = "Aiee, segfault! You should probably report "
-			"this as a bug to the developer\n";
-	i = write(STDERR_FILENO, msg, strlen(msg));
-	/* ignore short writes */
-	(void)i;
-	_exit(EXIT_FAILURE);
+static void sigsegv_handler(int UNUSED(unused))
+{
+    int i;
+    const char *msg = "Aiee, segfault! You should probably report "
+                      "this as a bug to the developer\n";
+    i = write(STDERR_FILENO, msg, strlen(msg));
+    /* ignore short writes */
+    (void)i;
+    _exit(EXIT_FAILURE);
 }
 
 /* catch ctrl-c or sigterm */
-static void sigintterm_handler(int UNUSED(unused)) {
+static void sigintterm_handler(int UNUSED(unused))
+{
 
-	ses.exitflag = 1;
+    ses.exitflag = 1;
 }
 
 /* Things used by inetd and non-inetd modes */
-static void commonsetup() {
+static void commonsetup()
+{
 
-	struct sigaction sa_chld;
+    struct sigaction sa_chld;
 #ifndef DISABLE_SYSLOG
-	if (opts.usingsyslog) {
-		startsyslog(PROGNAME);
-	}
+    if (opts.usingsyslog)
+    {
+        startsyslog(PROGNAME);
+    }
 #endif
 
-	/* set up cleanup handler */
-	if (signal(SIGINT, sigintterm_handler) == SIG_ERR || 
+    /* set up cleanup handler */
+    if (signal(SIGINT, sigintterm_handler) == SIG_ERR ||
 #ifndef DEBUG_VALGRIND
-		signal(SIGTERM, sigintterm_handler) == SIG_ERR ||
+        signal(SIGTERM, sigintterm_handler) == SIG_ERR ||
 #endif
-		signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-		dropbear_exit("signal() error");
-	}
+        signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+    {
+        dropbear_exit("signal() error");
+    }
 
-	/* catch and reap zombie children */
-	sa_chld.sa_handler = sigchld_handler;
-	sa_chld.sa_flags = SA_NOCLDSTOP;
-	sigemptyset(&sa_chld.sa_mask);
-	if (sigaction(SIGCHLD, &sa_chld, NULL) < 0) {
-		dropbear_exit("signal() error");
-	}
-	if (signal(SIGSEGV, sigsegv_handler) == SIG_ERR) {
-		dropbear_exit("signal() error");
-	}
+    /* catch and reap zombie children */
+    sa_chld.sa_handler = sigchld_handler;
+    sa_chld.sa_flags = SA_NOCLDSTOP;
+    sigemptyset(&sa_chld.sa_mask);
+    if (sigaction(SIGCHLD, &sa_chld, NULL) < 0)
+    {
+        dropbear_exit("signal() error");
+    }
+    if (signal(SIGSEGV, sigsegv_handler) == SIG_ERR)
+    {
+        dropbear_exit("signal() error");
+    }
 
-	crypto_init();
+    crypto_init();
 
-	/* Now we can setup the hostkeys - needs to be after logging is on,
+    /* Now we can setup the hostkeys - needs to be after logging is on,
 	 * otherwise we might end up blatting error messages to the socket */
-	load_all_hostkeys();
+    load_all_hostkeys();
 }
 
 /* Set up listening sockets for all the requested ports */
-static size_t listensockets(int *socks, size_t sockcount, int *maxfd) {
+static size_t listensockets(int *socks, size_t sockcount, int *maxfd)
+{
 
-	unsigned int i, n;
-	char* errstring = NULL;
-	size_t sockpos = 0;
-	int nsock;
+    unsigned int i, n;
+    char *errstring = NULL;
+    size_t sockpos = 0;
+    int nsock;
 
-	TRACE(("listensockets: %d to try", svr_opts.portcount))
+    TRACE(("listensockets: %d to try", svr_opts.portcount))
 
-	for (i = 0; i < svr_opts.portcount; i++) {
+    for (i = 0; i < svr_opts.portcount; i++)
+    {
 
-		TRACE(("listening on '%s:%s'", svr_opts.addresses[i], svr_opts.ports[i]))
+        TRACE(("listening on '%s:%s'", svr_opts.addresses[i], svr_opts.ports[i]))
 
-		nsock = dropbear_listen(svr_opts.addresses[i], svr_opts.ports[i], &socks[sockpos], 
-				sockcount - sockpos,
-				&errstring, maxfd, svr_opts.interface);
+        nsock = dropbear_listen(svr_opts.addresses[i], svr_opts.ports[i], &socks[sockpos],
+                                sockcount - sockpos, &errstring, maxfd, svr_opts.interface);
 
-		if (nsock < 0) {
-			dropbear_log(LOG_WARNING, "Failed listening on '%s': %s", 
-							svr_opts.ports[i], errstring);
-			m_free(errstring);
-			continue;
-		}
+        if (nsock < 0)
+        {
+            dropbear_log(LOG_WARNING, "Failed listening on '%s': %s", svr_opts.ports[i], errstring);
+            m_free(errstring);
+            continue;
+        }
 
-		for (n = 0; n < (unsigned int)nsock; n++) {
-			int sock = socks[sockpos + n];
-			set_sock_priority(sock, DROPBEAR_PRIO_LOWDELAY);
+        for (n = 0; n < (unsigned int)nsock; n++)
+        {
+            int sock = socks[sockpos + n];
+            set_sock_priority(sock, DROPBEAR_PRIO_LOWDELAY);
 #if DROPBEAR_SERVER_TCP_FAST_OPEN
-			set_listen_fast_open(sock);
+            set_listen_fast_open(sock);
 #endif
-		}
+        }
 
-		sockpos += nsock;
-
-	}
-	return sockpos;
+        sockpos += nsock;
+    }
+    return sockpos;
 }

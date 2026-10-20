@@ -24,35 +24,36 @@ in the source distribution for its full text.
 #define SCREEN_NAME_LEN 20
 #endif
 
-typedef struct ScreensPanel_ {
-   Panel super;
+typedef struct ScreensPanel_
+{
+    Panel super;
 
-   ScreenManager* scr;
-   Settings* settings;
-   ColumnsPanel* columns;
-   AvailableColumnsPanel* availableColumns;
-   LineEditor editor;    /* line editor used during renaming */
-   char buffer[SCREEN_NAME_LEN + 1]; /* backing buffer (editor.buffer copied here) */
-   bool moving;
-   char* saved;          /* saved original item->value pointer */
-   ListItem* renamingItem;
-   bool renamingNewItem;
+    ScreenManager *scr;
+    Settings *settings;
+    ColumnsPanel *columns;
+    AvailableColumnsPanel *availableColumns;
+    LineEditor editor;                /* line editor used during renaming */
+    char buffer[SCREEN_NAME_LEN + 1]; /* backing buffer (editor.buffer copied here) */
+    bool moving;
+    char *saved; /* saved original item->value pointer */
+    ListItem *renamingItem;
+    bool renamingNewItem;
 } ScreensPanel;
 
-typedef struct ScreenListItem_ {
-   ListItem super;
-   DynamicScreen* ds;
-   ScreenSettings* ss;
+typedef struct ScreenListItem_
+{
+    ListItem super;
+    DynamicScreen *ds;
+    ScreenSettings *ss;
 } ScreenListItem;
-
 
 extern ObjectClass ScreenListItem_class;
 
-ScreenListItem* ScreenListItem_new(const char* value, ScreenSettings* ss);
+ScreenListItem *ScreenListItem_new(const char *value, ScreenSettings *ss);
 
-ScreensPanel* ScreensPanel_new(Settings* settings);
+ScreensPanel *ScreensPanel_new(Settings *settings);
 
-void ScreensPanel_update(Panel* super);
+void ScreensPanel_update(Panel *super);
 
 void ScreensPanel_cleanup(void);
 

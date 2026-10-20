@@ -7,8 +7,7 @@ Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-
-char* CGroup_filterName(const char* cgroup);
-char* CGroup_filterContainer(const char* cgroup);
+char *CGroup_filterName(const char *cgroup);
+char *CGroup_filterContainer(const char *cgroup);
 
 #endif /* HEADER_CGroupUtils */

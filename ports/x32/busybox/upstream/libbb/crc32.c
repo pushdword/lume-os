@@ -19,57 +19,65 @@
 
 uint32_t *global_crc32_table;
 
-uint32_t* FAST_FUNC crc32_filltable(uint32_t *crc_table, int endian)
+uint32_t *FAST_FUNC crc32_filltable(uint32_t *crc_table, int endian)
 {
-	uint32_t polynomial = endian ? 0x04c11db7 : 0xedb88320;
-	uint32_t c;
-	unsigned i, j;
+    uint32_t polynomial = endian ? 0x04c11db7 : 0xedb88320;
+    uint32_t c;
+    unsigned i, j;
 
-	if (!crc_table)
-		crc_table = xmalloc(256 * sizeof(uint32_t));
+    if (!crc_table)
+        crc_table = xmalloc(256 * sizeof(uint32_t));
 
-	for (i = 0; i < 256; i++) {
-		c = endian ? (i << 24) : i;
-		for (j = 8; j; j--) {
-			if (endian)
-				c = (c&0x80000000) ? ((c << 1) ^ polynomial) : (c << 1);
-			else
-				c = (c&1) ? ((c >> 1) ^ polynomial) : (c >> 1);
-		}
-		*crc_table++ = c;
-	}
+    for (i = 0; i < 256; i++)
+    {
+        c = endian ? (i << 24) : i;
+        for (j = 8; j; j--)
+        {
+            if (endian)
+                c = (c & 0x80000000) ? ((c << 1) ^ polynomial) : (c << 1);
+            else
+                c = (c & 1) ? ((c >> 1) ^ polynomial) : (c >> 1);
+        }
+        *crc_table++ = c;
+    }
 
-	return crc_table - 256;
+    return crc_table - 256;
 }
+
 /* Common uses: */
-uint32_t* FAST_FUNC crc32_new_table_le(void)
+uint32_t *FAST_FUNC crc32_new_table_le(void)
 {
-	return crc32_filltable(NULL, 0);
-}
-uint32_t* FAST_FUNC global_crc32_new_table_le(void)
-{
-	global_crc32_table = crc32_new_table_le();
-	return global_crc32_table;
+    return crc32_filltable(NULL, 0);
 }
 
-uint32_t FAST_FUNC crc32_block_endian1(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table)
+uint32_t *FAST_FUNC global_crc32_new_table_le(void)
 {
-	const void *end = (uint8_t*)buf + len;
-
-	while (buf != end) {
-		val = (val << 8) ^ crc_table[(val >> 24) ^ *(uint8_t*)buf];
-		buf = (uint8_t*)buf + 1;
-	}
-	return val;
+    global_crc32_table = crc32_new_table_le();
+    return global_crc32_table;
 }
 
-uint32_t FAST_FUNC crc32_block_endian0(uint32_t val, const void *buf, unsigned len, uint32_t *crc_table)
+uint32_t FAST_FUNC crc32_block_endian1(uint32_t val, const void *buf, unsigned len,
+                                       uint32_t *crc_table)
 {
-	const void *end = (uint8_t*)buf + len;
+    const void *end = (uint8_t *)buf + len;
 
-	while (buf != end) {
-		val = crc_table[(uint8_t)val ^ *(uint8_t*)buf] ^ (val >> 8);
-		buf = (uint8_t*)buf + 1;
-	}
-	return val;
+    while (buf != end)
+    {
+        val = (val << 8) ^ crc_table[(val >> 24) ^ *(uint8_t *)buf];
+        buf = (uint8_t *)buf + 1;
+    }
+    return val;
+}
+
+uint32_t FAST_FUNC crc32_block_endian0(uint32_t val, const void *buf, unsigned len,
+                                       uint32_t *crc_table)
+{
+    const void *end = (uint8_t *)buf + len;
+
+    while (buf != end)
+    {
+        val = crc_table[(uint8_t)val ^ *(uint8_t *)buf] ^ (val >> 8);
+        buf = (uint8_t *)buf + 1;
+    }
+    return val;
 }

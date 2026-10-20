@@ -176,7 +176,6 @@ IMPORTANT: Some options will require "make clean" after changes */
    with badly seeded /dev/urandom when systems first boot. */
 #define DROPBEAR_DELAY_HOSTKEY 1
 
-
 /* Key exchange algorithm.
 
  * group14_sha1 - 2048 bit, sha1
@@ -348,7 +347,6 @@ group1 in Dropbear server too */
 /* The command to invoke for xauth when using X11 forwarding.
  * "-q" for quiet */
 #define XAUTH_COMMAND "/usr/bin/xauth -q"
-
 
 /* If you want to enable running an sftp server (such as the one included with
  * OpenSSH), set the path below and set DROPBEAR_SFTPSERVER.
