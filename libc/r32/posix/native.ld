@@ -8,6 +8,16 @@ SECTIONS {
  .text : { KEEP(*(.text.entry)) *(.text .text.*) } :code
  .rodata ALIGN(4096) : { *(.rodata .rodata.*) } :ro
  .data ALIGN(4096) : { *(.data .data.*) } :data
+ .ctors ALIGN(4) : {
+   __ctors_start = .;
+   KEEP(*(.ctors)) KEEP(*(SORT(.ctors.*)))
+   __ctors_end = .;
+ } :data
+ .dtors ALIGN(4) : {
+   __dtors_start = .;
+   KEEP(*(.dtors)) KEEP(*(SORT(.dtors.*)))
+   __dtors_end = .;
+ } :data
  .init_array ALIGN(4) : {
    __init_array_start = .;
    KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*))) KEEP(*(.init_array))
@@ -19,9 +29,10 @@ SECTIONS {
    KEEP(*(.fini_array_onexit))
    __fini_array_end = .;
  } :data
- .bss ALIGN(8) (NOLOAD) : { *(.bss .bss.* COMMON) } :data
+ . = ALIGN(8);
+ .bss (NOLOAD) : { *(.bss .bss.* COMMON) } :data
  __heap_start = ALIGN(4096);
- /* sbrk asks BRK35 for dynamic pages; this symbol is only for old libc units. */
+ /* Compatibility symbol for libc units predating BRK35-backed sbrk. */
  __heap_end = __heap_start;
  ASSERT(__heap_start < (__lume_user_limit - 0x102000), "Native image leaves no room for heap/stack")
  /DISCARD/ : { *(.comment .eh_frame .note.*) }

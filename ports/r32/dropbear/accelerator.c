@@ -5,8 +5,8 @@
 static int qualified = -1;
 static unsigned hardware_packets, curve_calls[3];
 
-/* This board profile requires hardware. Missing capabilities and device errors
- * fail closed; there is no slow scalar/AES fallback for SSH. */
+/* SSH requires the hardware scalar and AES engines.
+ * Missing capabilities or device errors abort the operation. */
 int ssh_aes_packet(unsigned decrypt, const unsigned char *key, unsigned key_bytes,
                    const unsigned char nonce[12], const unsigned char *header,
                    const unsigned char *input, unsigned char *output, unsigned bytes,
@@ -70,7 +70,7 @@ int ssh_curve_packet(unsigned operation, const unsigned char *a, const unsigned 
     return result;
 }
 
-int ssh_crypto_require_hardware(void)
+int ssh_crypto_initialize(void)
 {
     struct lume_crypto_info info;
     int result = app_crypto(LUME_CRYPTO_INFO, &info, sizeof info);

@@ -75,7 +75,8 @@ static int rename_path(const char *from, const char *to)
 static int writable(const char *path)
 {
     return !strncmp(path, "/root/", 6) || !strncmp(path, "/usr/bin/", 9) ||
-           !strcmp(path, "/boot/lume.bin") || !strcmp(path, "/sbin/init" LUME_APP_SUFFIX "");
+           !strncmp(path, "/usr/lib/", 9) || !strncmp(path, "/usr/libexec/", 13) ||
+           !strcmp(path, "/boot/lume.r32") || !strcmp(path, "/sbin/init" LUME_APP_SUFFIX "");
 }
 
 static int temporary(const char *target, char *out)
@@ -413,8 +414,8 @@ static int acquire(void)
     memcpy(configuration.dns, lease.dns, 4);
     if (net_config(&configuration) < 0)
         return 0;
-    /* Reacquire at half lease. No stale address is kept if that acquisition
-     * fails; the initial service can briefly disconnect at this boundary. */
+    /* Reacquire at half-lease and clear the address on failure.
+     * Reacquisition may briefly disconnect clients. */
     unsigned seconds = lease.seconds > 172800u ? 172800u : lease.seconds;
     renewal = net_now() + (seconds > 1 ? seconds * 500u : 500u);
     expiry = net_now() + seconds * 1000u;

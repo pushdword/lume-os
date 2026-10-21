@@ -7,7 +7,8 @@ SECTIONS {
  ASSERT(. <= 0x40010000, "User code exceeds64KiB window")
  . = 0x40010000;
  .data : { *(.data .data.*) } :data
- .bss ALIGN(8) (NOLOAD) : {
+ . = ALIGN(8);
+ .bss (NOLOAD) : {
      *(.bss .bss.* COMMON) . = ALIGN(8); __heap_start = .;
      ASSERT(. <= 0x40018000, "User globals exceed data window")
      . = 0x40018000; __heap_end = .;

@@ -166,7 +166,7 @@ static std::string shortname(const std::string &name)
            std::string(3 - ext.size(), ' ');
 }
 
-static void fat(const fs::path &root, const fs::path &output, bool mbr)
+static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t mib = 34)
 {
     check(fs::is_directory(root), "Root directory required");
     std::vector<Node> nodes = {{root, "", true, {}, 0, 0, 0}};
@@ -198,7 +198,7 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr)
                 nodes.push_back({e.path(), name, dir, {}, 0, uint32_t(size), i});
             }
         }
-    const uint32_t sectors = 34 * 1024 * 1024 / 512, reserved = 32;
+    const uint32_t sectors = mib * 1024 * 1024 / 512, reserved = 32;
     uint32_t fatsectors = 1, clusters;
     for (;;)
     {
@@ -318,11 +318,22 @@ int main(int argc, char **argv)
 {
     try
     {
-        check(argc >= 2, "Usage: image-tool {fat|disk|r32-kernel|alias} INPUT OUTPUT");
+        check(argc >= 2, "Usage: image-tool {fat|disk|r32-kernel|alias} INPUT OUTPUT [VOLUME_MIB]");
         std::string op = argv[1];
-        check(argc == 4, "Input and output required");
+        check(argc == 4 || argc == 5, "Input and output required");
+        uint32_t mib = 34;
+        if (argc == 5)
+        {
+            check(op == "fat" || op == "disk", "Volume size only applies to FAT images");
+            std::string value = argv[4];
+            check(!value.empty() && value.find_first_not_of("0123456789") == std::string::npos,
+                  "Invalid volume size in MiB");
+            uint64_t size = std::stoull(value);
+            check(size >= 34 && size <= 1024, "Volume size must be between 34 and 1024 MiB");
+            mib = uint32_t(size);
+        }
         if (op == "fat" || op == "disk")
-            fat(argv[2], argv[3], op == "disk");
+            fat(argv[2], argv[3], op == "disk", mib);
         else if (op == "r32-kernel")
             package(argv[2], argv[3]);
         else if (op == "alias")
