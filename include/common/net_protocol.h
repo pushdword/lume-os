@@ -61,7 +61,7 @@ static inline int net_valid_path(const char *p)
         else
             part++;
     }
-    /* Reject traversal and dot components while accepting executable suffixes. */
+    /* Reject dot path components and traversal while allowing ordinary .x32 filename suffixes. */
     for (unsigned i = 0; p[i]; i++)
         if (p[i] == '/' && p[i + 1] == '.' && (p[i + 2] == '/' || !p[i + 2] || p[i + 2] == '.'))
             return 0;

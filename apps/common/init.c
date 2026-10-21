@@ -40,7 +40,7 @@ int app_main(void)
         app_puts("init: shell load failed\n");
         return 1;
     }
-    /* Kernels without selector 2 return EINVAL and retain a single shell. */
+    /* Kernels that lack selector 2 return EINVAL and continue with one shell. */
     if (lume_syscall(LUME_TERMINAL, 2, 1, 0) == 0)
     {
         shell_pid[1] = lume_syscall(LUME_SPAWN, (uint32_t)(uintptr_t)shell, 0, 0);
@@ -52,9 +52,9 @@ int app_main(void)
     struct lume_stat network_stat;
     if (app_stat("/usr/bin/netd" LUME_APP_SUFFIX "", &network_stat) == 0)
         network_pid = app_spawn("/usr/bin/netd" LUME_APP_SUFFIX "", 0, 0);
-    /* Dropbear handles one connection per process, without fork. Optional
-     * provisioning keeps older cards bootable. Each restart rotates the seed
-     * durably before listening. Init supervises the server in its existing slot. */
+    /* Dropbear handles one connection per process without fork. Optional provisioning lets
+     * older cards boot. Each restart persists a rotated seed before listening. init supervises
+     * the service without consuming another process slot. */
     if (ssh_available())
     {
         ssh_pid = ssh_start();

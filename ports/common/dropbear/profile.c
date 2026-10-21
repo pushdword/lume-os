@@ -37,8 +37,8 @@ void ssh_profile_reset(void)
     }
 #endif
     profile_pid = (unsigned)lume_syscall(LUME_PID, 0, 0, 0);
-    /* Read syscall counters collected by the kernel.
-     * Old kernels report this optional capability as unavailable. */
+    /* The kernel collects these counters without an extra INFO call for each measured syscall.
+     * Older kernels report the capability as unavailable. */
     kernel_costs = lume_syscall(LUME_IO, 5, 1, profile_pid) == 0;
     started = profile_clock();
     active = 1;

@@ -18,7 +18,8 @@ extern "C"
     int app_seek(int, int32_t, unsigned);
     int app_sync(int);
     int app_stat(const char *, struct lume_stat *);
-    /* Raw stdio processing belongs to each process. Console input uses byte values. */
+    /* The runtime keeps raw stdio mode separately for each process. Kernel console input
+     * supplies bytes. */
     void lume_stdio_raw(int);
     int app_spawn(const char *, unsigned, const char *const *);
     int app_spawn_env(const char *, unsigned, const char *const *, unsigned, const char *const *);

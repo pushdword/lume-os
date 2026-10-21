@@ -51,8 +51,8 @@ static void measured_idle(unsigned ms)
 #define net_io measured_io
 #define net_idle measured_idle
 #endif
-/* Network descriptors are process-local adapters to kernel service37. They
- * are not inherited. Session children receive kernel pipes through service 39. */
+/* Network descriptors adapt kernel service 37 within each process. Child processes receive
+ * kernel pipes through service 39 instead of inheriting network descriptors. */
 struct sock
 {
     int handle, flags;
@@ -166,9 +166,9 @@ int listen(int fd, int backlog)
     int n = net_listen(s->handle);
     if (n < 0)
         return result(n);
-    /* POSIX listen must finish before SSH_READY is advertised. Raw service37
-  * starts OPEN asynchronously. Early SYNs can hit SOCK_INIT and
-  * require a client retransmission. Only the kernel reads the W5500 status. */
+    /* POSIX listen must complete before advertising SSH_READY. Service 37 starts OPEN
+     * asynchronously. An early SYN can reach SOCK_INIT and require retransmission. Only the
+     * kernel reads W5500 status. */
     uint32_t started = net_now();
     for (;;)
     {
@@ -739,8 +739,8 @@ ssize_t writev(int fd, const struct iovec *v, int count)
     }
     if (sock(fd))
     {
-        /* Coalesce queued encrypted packets into one existing service37 transfer.
-   * Dropbear retains any tail not consumed by a partial writev result. */
+        /* Combine queued encrypted packets into one service 37 transfer. writev may return a
+         * completed prefix, and Dropbear retains the remaining bytes. */
         unsigned char block[1024];
         unsigned used = 0;
         for (int i = 0; i < count && used < sizeof block; i++)

@@ -1,4 +1,4 @@
-/* Kernel I/O counters use a separate observation period from PERF and top. */
+/* This command reads kernel I/O diagnostics independently of PERF and top observer sessions. */
 #include "api.h"
 #include "io.h"
 #include <stdint.h>

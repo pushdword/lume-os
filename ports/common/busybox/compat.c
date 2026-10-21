@@ -59,8 +59,9 @@ char *last_char_is(const char *s, int c)
     return n && s[n - 1] == c ? (char *)s + n - 1 : NULL;
 }
 
-/* Selected short-option grammar. Unsupported sort/mkdir features are rejected
- * before the applet runs. */
+/* The option parser accepts only the supported short-option grammar. It rejects unsupported
+ * sort and mkdir options before the applet can ignore them. The upstream applet code uses this
+ * parser without modification. */
 unsigned getopt32(char **argv, const char *spec, ...)
 {
     int argc = 0;
@@ -96,7 +97,7 @@ unsigned getopt32(char **argv, const char *spec, ...)
             {
                 list[bits] = 1;
                 q++;
-            } /* Accept repeated vi -c options and reject sort -k. */
+            } /* vi accepts repeated -c options. The parser rejects sort -k. */
         }
         bits++;
     }
@@ -390,8 +391,8 @@ mode_t bb_parse_mode(const char *s, mode_t old)
     bb_error_msg_and_die("file modes are not stored on this FAT profile");
 }
 
-/* Reject mkdir -m because FAT exposes synthetic 0755 modes.
- * chmod and umask cannot change FAT permissions. */
+/* FAT reports synthetic 0755 modes. Option parsing rejects mkdir -m. The adapter does not
+ * report successful permission changes that FAT cannot perform. */
 int bb_make_directory(char *path, long mode, int flags)
 {
     if (mode != -1)

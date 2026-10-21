@@ -51,7 +51,7 @@ static int page(int fd, unsigned lines, uint32_t *position, int *end)
                 count++;
             }
         }
-        /* Filter binary controls before sending text to the terminal. */
+        /* Display printable text so binary control bytes cannot operate the terminal. */
         for (unsigned i = 0; i < used; i++)
         {
             unsigned c = (unsigned char)buffer[i];

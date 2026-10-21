@@ -1,5 +1,5 @@
-/* Native EL0 network manager. Drivers/stack expose mechanisms; all persistent
- * selection, autoconnect and retry policy is here, outside the kernel. */
+/* The EL0 network manager selects persistent profiles and controls automatic connection and
+ * retry. Drivers and the network stack expose the operations it uses. */
 #include "lib.h"
 #include "lume/service.h"
 #include "net_policy.h"

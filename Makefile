@@ -20,57 +20,7 @@ HOSTEXE := $(if $(filter Windows_NT,$(OS)),.exe,)
 TOOLBIN = $(if $(strip $(SDK)),$(SDK)/bin/,)
 .PHONY: all image check clean kernel headers
 ifeq ($(ARCH),aarch64)
-CC := "$(TOOLBIN)clang$(HOSTEXE)" --target=aarch64-unknown-none-elf
-LD := "$(TOOLBIN)ld.lld$(HOSTEXE)"
-CFLAGS := -O2 -std=c11 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a76 -mgeneral-regs-only -mstrict-align -ffunction-sections -fdata-sections
-CPPFLAGS := -Iapps/aarch64 -I"$(KERNEL)/$(KERNEL_OUT)/include"
-BB := apps/aarch64/busybox
-APPLET_NAMES := cat echo false true pwd printenv basename dirname head wc mkdir rmdir
-BB_SOURCES := $(BB)/main.c $(BB)/lume_tools.c $(BB)/compat.c $(addprefix $(BB)/upstream/coreutils/,$(addsuffix .c,$(APPLET_NAMES))) $(addprefix $(BB)/upstream/libbb/,$(addsuffix .c,single_argv process_escape_sequence get_last_path_component full_write bb_cat))
-ARM_LINK := -nostdlib -static -Wl,--gc-sections,--build-id=none,-z,max-page-size=4096,-T,apps/aarch64/user.ld
-all: headers $(OUT)/shell.elf $(OUT)/busybox.elf $(OUT)/progtest.elf $(OUT)/net.elf kernel
-$(OUT)/shell.elf $(OUT)/busybox.elf $(OUT)/progtest.elf $(OUT)/net.elf: | headers
-$(OUT)/shell.elf: apps/aarch64/start.S apps/aarch64/shell.c $(wildcard apps/aarch64/*.h)
-	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(ARM_LINK) apps/aarch64/start.S apps/aarch64/shell.c -o "$@"
-$(OUT)/busybox.elf: $(BB_SOURCES) apps/aarch64/libc.c apps/aarch64/apps_start.S
-	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -I$(BB) $(CFLAGS) $(ARM_LINK) apps/aarch64/apps_start.S apps/aarch64/libc.c $(BB_SOURCES) -o "$@"
-$(OUT)/progtest.elf: apps/aarch64/progtest.c apps/aarch64/libc.c apps/aarch64/apps_start.S
-	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/net.elf: apps/aarch64/start.S apps/aarch64/netd.c apps/aarch64/net_policy.c libc/aarch64/memory.c
-	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-kernel: $(OUT)/shell.elf
-	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) BOARD=$(BOARD) SDK="$(SDK)" OUT="$(KERNEL_OUT)" SHELL_ELF="$(CURDIR)/$(OUT)/shell.elf" HOSTCXX='$(HOSTCXX)' HOSTCXXFLAGS='$(HOSTCXXFLAGS)'
-image: all $(OUT)/image-tool$(HOSTEXE)
-	rm -rf -- "$(OUT)/root"
-	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/etc" "$(OUT)/root/lib/firmware"
-	cp "$(OUT)/shell.elf" "$(OUT)/root/bin/sh"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/busybox"
-	cp "$(OUT)/progtest.elf" "$(OUT)/root/bin/progtest"
-	cp "$(OUT)/net.elf" "$(OUT)/root/bin/net"
-	cp assets/pi5/wifi.bin assets/pi5/wifi.clm assets/pi5/wifi.txt assets/pi5/license "$(OUT)/root/lib/firmware/"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/cat"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/echo"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/false"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/true"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/pwd"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/printenv"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/basename"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/dirname"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/head"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/wc"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/mkdir"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/rmdir"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/ls"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/cp"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/rm"
-	cp "$(OUT)/busybox.elf" "$(OUT)/root/bin/touch"
-	cp root/aarch64/etc/programs "$(OUT)/root/etc/programs"
-	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
-$(OUT)/shell.elf $(OUT)/busybox.elf $(OUT)/progtest.elf $(OUT)/net.elf: Makefile $(wildcard apps/aarch64/*.h) $(wildcard $(KERNEL)/include/uapi/aarch64/lume/*.h)
+include mk/userland-aarch64.mk
 else
 ifeq ($(ARCH),r32)
 CC := "$(TOOLBIN)r32-clang$(HOSTEXE)"
@@ -284,5 +234,5 @@ FORCE:
 $(OUT):
 	mkdir -p "$@"
 $(OUT)/configuration: FORCE | $(OUT)
-	$(file >$@.tmp,$(CC) | $(CPPFLAGS) | $(CFLAGS) | $(SDK) | $(SHELL_ELF)$(if $(filter r32,$(ARCH)), | $(SSH_CRYPTO),))
+	$(file >$@.tmp,$(CC) | $(CPPFLAGS) | $(CFLAGS) | $(SDK) | $(SHELL_ELF) | $(SSH_CRYPTO))
 	cmp -s "$@.tmp" "$@" || cp "$@.tmp" "$@"

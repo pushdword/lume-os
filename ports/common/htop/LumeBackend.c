@@ -302,8 +302,8 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
     }
 }
 
-/* htop's relative refresh/highlighting clock uses monotonic time. There is
- * no wall-clock meter or CLOCK_REALTIME service in this profile. */
+/* htop uses monotonic time for refresh and highlighting. This profile does not provide a
+ * wall-clock meter or CLOCK_REALTIME service. */
 void Generic_gettime_realtime(struct timespec *t, uint64_t *ms)
 {
     *ms = (uint32_t)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0);

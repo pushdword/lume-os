@@ -1,0 +1,5 @@
+export PATH=/data/bin:/bin:/usr/bin
+export HOME=/data/home
+export USER=root
+export TERM=vt100
+export TMPDIR=/data/tmp

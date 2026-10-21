@@ -22,7 +22,7 @@ SECTIONS {
  } :data
  .bss ALIGN(8) (NOLOAD) : { *(.bss .bss.* COMMON) } :data
  __heap_start = ALIGN(4096);
- /* sbrk asks BRK35 for dynamic pages; this symbol is only for old libc units. */
+ /* sbrk obtains dynamic pages through BRK35. This symbol supports older libc units. */
  __heap_end = __heap_start;
  ASSERT(__heap_start < (__lume_user_limit - 0x102000), "Native image leaves no room for heap/stack")
  /DISCARD/ : { *(.comment .eh_frame .note.*) }

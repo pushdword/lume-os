@@ -220,6 +220,27 @@ int main(void)
     prepare("", 0, 0);
     CHECK(shell_main(3, argv) == 0);
     CHECK(!strcmp(output, "command\n") && read_calls == 0);
+    CHECK(script("echo first && echo second || echo skipped; echo last\n", 0, 0) == 0);
+    CHECK(!strcmp(output, "first\nsecond\nlast\n"));
+    CHECK(script("missing && echo skipped || echo recovered && echo last\n", 0, 0) == 0);
+    CHECK(!strcmp(output, "missing: command not found\nrecovered\nlast\n"));
+    CHECK(script("echo 'a; b && c || d'\n", 0, 0) == 0);
+    CHECK(!strcmp(output, "a; b && c || d\n"));
+    CHECK(script("echo broken &&\n", 0, 0) == 2);
+    CHECK(failures == 1 && !output_bytes);
+#if defined(LUME_ARCH_AARCH64)
+    char make_flags[610] = "MAKEFLAGS=";
+    memset(make_flags + 10, 'x', 599);
+    make_flags[609] = 0;
+    char *make_environment[] = {make_flags, NULL};
+    char inherited_command[] = "echo inherited";
+    char *inherited_argv[] = {name, option, inherited_command, NULL};
+    prepare("", 0, 0);
+    shell_environment = make_environment;
+    CHECK(shell_main(3, inherited_argv) == 0);
+    CHECK(!strcmp(output, "inherited\n"));
+    CHECK(!strcmp(value("MAKEFLAGS"), make_flags + 10));
+#endif
     printf("PASS_SHELL_SCRIPT checks=%u\n", checks);
     return 0;
 }

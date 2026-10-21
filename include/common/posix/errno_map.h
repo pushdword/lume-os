@@ -1,4 +1,4 @@
-/* Translate Lume ABI errors at the POSIX boundary. */
+/* This adapter translates the hosted POSIX interface without changing raw Lume ABI numbers. */
 #ifndef LUME_NATIVE_ERRNO_MAP_H
 #define LUME_NATIVE_ERRNO_MAP_H
 #include <stdint.h>

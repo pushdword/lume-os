@@ -79,8 +79,8 @@ static ssize_t write_raw(int fd, const void *buffer, size_t bytes)
     while (done < bytes)
     {
         unsigned take = bytes - done;
-        if (take > 4096)
-            take = 4096;
+        if (take > LUME_FILE_IO_LIMIT)
+            take = LUME_FILE_IO_LIMIT;
         int n = app_write(fd, (const char *)buffer + done, take);
         if (n == -EINTR)
             continue;
@@ -101,8 +101,8 @@ static ssize_t write_raw(int fd, const void *buffer, size_t bytes)
 
 ssize_t write(int fd, const void *buffer, size_t bytes)
 {
-    /* A direct write must not overtake older stdio output. Still deliver
-     * stderr diagnostics if stdout fails, leaving its unsent suffix queued. */
+    /* Direct writes must follow queued stdio output. If stdout fails, keep its unsent suffix
+     * queued and allow stderr diagnostics to continue. */
     if (bytes && output_used && (fd == 1 || fd == 2) && fflush(stdout) < 0 && fd == 1)
         return -1;
     if (bytes && error_used && (fd == 1 || fd == 2) && fflush(stderr) < 0)
@@ -119,7 +119,7 @@ ssize_t read(int fd, void *buffer, size_t bytes)
         return -1;
     if (fd == 0 && error_used && fflush(stderr) < 0)
         return -1;
-    unsigned take = bytes > 4096 ? 4096 : bytes;
+    unsigned take = bytes > LUME_FILE_IO_LIMIT ? LUME_FILE_IO_LIMIT : bytes;
     if (fd == 0 && input_used)
     {
         if (take > input_used)
@@ -232,6 +232,9 @@ int stat(const char *path, struct stat *out)
         return result(r);
     memset(out, 0, sizeof *out);
     out->st_size = s.size;
+#if defined(LUME_ARCH_AARCH64)
+    out->st_ino = s.inode;
+#endif
     out->st_mode = s.mode;
     out->st_uid = s.uid;
     out->st_gid = s.gid;
@@ -249,6 +252,9 @@ int fstat(int fd, struct stat *out)
         return result(r);
     memset(out, 0, sizeof *out);
     out->st_size = s.size;
+#if defined(LUME_ARCH_AARCH64)
+    out->st_ino = s.inode;
+#endif
     out->st_mode = s.mode;
     out->st_uid = s.uid;
     out->st_gid = s.gid;

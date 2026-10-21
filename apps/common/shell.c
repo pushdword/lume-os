@@ -7,13 +7,65 @@
 #include <stdio.h>
 extern char **environ;
 
+#if defined(LUME_ARCH_AARCH64)
+#define SHELL_VALUE_BYTES LUME_ENV_BYTES
+#else
+#define SHELL_VALUE_BYTES 129u
+#endif
 struct variable
 {
-    char name[32], value[129];
+    char name[32], value[SHELL_VALUE_BYTES];
     unsigned used, exported;
 };
 static struct variable variables[LUME_ENVS];
 static unsigned last_status;
+#if defined(LUME_ARCH_AARCH64)
+#define SHELL_LINE_BYTES LUME_ARG_BYTES
+#else
+#define SHELL_LINE_BYTES 256u
+#endif
+
+static int list_segment(char *line, char **next)
+{
+    char quote = 0;
+    *next = NULL;
+    for (char *p = line; *p; ++p)
+    {
+        if (*p == '\\' && quote != '\'' && p[1])
+        {
+            ++p;
+            continue;
+        }
+        if (quote)
+        {
+            if (*p == quote)
+                quote = 0;
+            continue;
+        }
+        if (*p == '\'' || *p == '"')
+        {
+            quote = *p;
+            continue;
+        }
+        unsigned width = *p == ';' ? 1 : ((*p == '&' || *p == '|') && p[1] == *p ? 2 : 0);
+        if (!width)
+            continue;
+        char *start = line;
+        while (*start == ' ' || *start == '\t')
+            ++start;
+        if (start == p)
+            return -22;
+        int condition = width == 1 ? 1 : *p == '&' ? 2 : 3;
+        *next = p + width;
+        while (**next == ' ' || **next == '\t')
+            ++*next;
+        if (width == 2 && !**next)
+            return -22;
+        *p = 0;
+        return condition;
+    }
+    return 0;
+}
 
 static int name_start(char c)
 {
@@ -45,7 +97,7 @@ static struct variable *find(const char *name)
 
 static int assign(const char *name, const char *value, int exported)
 {
-    if (!name_valid(name) || strlen(value) > 128)
+    if (!name_valid(name) || strlen(value) >= SHELL_VALUE_BYTES)
         return -22;
     struct variable *v = find(name);
     if (!v)
@@ -448,19 +500,31 @@ int app_main(unsigned initial_argc, char **initial_argv)
     for (char **s = environ; *s; s++)
         if (assignment(*s, 1) < 0)
             app_puts("shell: initial environment exceeds limits\n");
-    profile();
-    (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
-    (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
+    if (!command_mode && script < 0)
+    {
+        profile();
+        (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
+        (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
+    }
     if (!command_mode && script < 0)
 #ifdef LUME_SHELL_FDS
         app_puts("LumeOS SSH shell / root / syscall ABI0\n");
 #else
         app_puts("LumeOS shell / root / syscall ABI0\nType help for commands.\n");
 #endif
+    char pending[SHELL_LINE_BYTES] = {0};
+    unsigned condition = 0;
     for (;;)
     {
-        if (command_mode && executed)
+        if (command_mode && executed && !pending[0])
             return (int)last_status;
+        char line[SHELL_LINE_BYTES];
+        if (pending[0])
+        {
+            strcpy(line, pending);
+            pending[0] = 0;
+            goto line_ready;
+        }
         char cwd[128];
         if (lume_syscall(LUME_GETCWD, pointer(cwd), sizeof cwd, 0) < 0)
         {
@@ -487,7 +551,6 @@ int app_main(unsigned initial_argc, char **initial_argv)
             app_puts(cwd);
             app_puts("# ");
         }
-        char line[256];
         unsigned used = 0, overflow = 0, escape = 0;
         if (command_mode)
         {
@@ -576,7 +639,7 @@ int app_main(unsigned initial_argc, char **initial_argv)
                 app_puts("^C\n");
                 break;
             }
-            if (ch >= 32 && ch != 127 && ch < 256 && used < 255)
+            if (ch >= 32 && ch != 127 && ch < 256 && used + 1 < sizeof line)
             {
                 line[used++] = (char)ch;
                 char e[2] = {(char)ch, 0};
@@ -594,6 +657,21 @@ int app_main(unsigned initial_argc, char **initial_argv)
         }
         line[used] = 0;
     line_ready:;
+        unsigned gate = condition;
+        char *next;
+        int separator = list_segment(line, &next);
+        if (separator < 0)
+        {
+            app_error("shell: command list", separator);
+            last_status = 2;
+            condition = 0;
+            continue;
+        }
+        condition = (unsigned)separator;
+        if (next)
+            strcpy(pending, next);
+        if ((gate == 2 && last_status) || (gate == 3 && !last_status))
+            continue;
         char expanded[LUME_ARG_BYTES], *argv[LUME_ARGS + 1];
         int argc = split(line, expanded, argv);
         if (argc < 0)
@@ -665,7 +743,9 @@ int app_main(unsigned initial_argc, char **initial_argv)
                 "Builtins: help uname id ps uptime cd echo run export unset set sched protecttest rm mv exit\nPATH programs: busybox ls dir less cat head wc printenv basename dirname pwd true false\nMore programs: sort cut cmp cksum crc32 expand unexpand mkdir rmdir\nEditor: vi FILE; video [800x600|1024x768|font FILE]\n$NAME ${NAME} $?; quotes; FAT32/8.3; echo text > file or >> file.\nDiagnostics: run /usr/libexec/fstest" LUME_APP_SUFFIX
                 "\n");
         else if (app_equal(cmd, "uname"))
-#if defined(LUME_ARCH_R32)
+#if defined(LUME_ARCH_AARCH64)
+            app_puts("LumeOS / Lume Kernel / AArch64 / Raspberry Pi 5\n");
+#elif defined(LUME_ARCH_R32)
             app_puts("LumeOS / Lume Kernel / R32 ISA v1 / single core / fair scheduler\n");
 #else
             app_puts("LumeOS / Lume Kernel / X32 ISA v1 / SMP2 / round-robin\n");
@@ -740,6 +820,10 @@ int app_main(unsigned initial_argc, char **initial_argv)
             app_number((uint32_t)lume_syscall(LUME_INFO, LUME_QUANTUM_MS, 0, 0));
             app_puts(" cores=2\n");
         }
+#ifdef LUME_ARCH_AARCH64
+        else if (app_equal(cmd, "reboot"))
+            return 0;
+#endif
         else if (app_equal(cmd, "exit"))
             return argc > 1 ? (int)number(arg) : (int)previous;
         else

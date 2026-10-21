@@ -1,0 +1,16 @@
+set(CMAKE_SYSTEM_NAME Generic)
+set(LLVM_APPEND_VC_REV OFF CACHE BOOL "Version control information in LLVM version strings" FORCE)
+set(CMAKE_SYSTEM_PROCESSOR aarch64)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+set(CMAKE_C_COMPILER_TARGET aarch64-unknown-none-elf)
+set(CMAKE_CXX_COMPILER_TARGET aarch64-unknown-none-elf)
+set(CMAKE_ASM_COMPILER_TARGET aarch64-unknown-none-elf)
+set(CMAKE_C_FLAGS_INIT "-mcpu=cortex-a76 -ffunction-sections -fdata-sections -fno-pic -fno-stack-protector -D__lume__=1")
+set(CMAKE_CXX_FLAGS_INIT "-mcpu=cortex-a76 -ffunction-sections -fdata-sections -fno-pic -fno-stack-protector -fno-exceptions -fno-rtti -D__lume__=1 -D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS -U__BITINT_MAXWIDTH__")
+set(CMAKE_C_FLAGS_RELEASE "-Oz -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-Oz -DNDEBUG")
+foreach(feature HAVE_LIBPTHREAD PTHREAD_IN_LIBC HAVE_PTHREAD_MUTEX_LOCK
+    HAVE_PTHREAD_RWLOCK_INIT HAVE_LIBDL HAVE_LIBRT CMAKE_HAVE_LIBC_PTHREAD
+    CMAKE_HAVE_PTHREADS_CREATE CMAKE_HAVE_PTHREAD_CREATE)
+    set(${feature} 0 CACHE INTERNAL "Unavailable thread or shared-library service" FORCE)
+endforeach()

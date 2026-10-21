@@ -180,8 +180,8 @@ int select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
     return -1;
 }
 
-/* Track the requested mask in the process runtime.
- * FAT permissions and kernel access checks do not use this mask. */
+/* FAT does not store POSIX mode bits. The adapter tracks the requested mask within the process
+ * without changing filesystem permissions or bypassing kernel checks. */
 mode_t umask(mode_t n)
 {
     static mode_t mask = 022;

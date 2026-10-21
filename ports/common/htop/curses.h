@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Bounded ASCII curses-compatible terminal adapter for original htop UI.
- * This is not ncurses; only the interfaces used by this port are implemented. */
+ *
+ * This adapter implements the bounded ASCII curses interfaces used by the htop UI. */
 #ifndef LUME_HTOP_CURSES_H
 #define LUME_HTOP_CURSES_H
 #include <stdbool.h>

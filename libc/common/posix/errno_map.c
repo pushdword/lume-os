@@ -1,5 +1,5 @@
-/* Map the Linux errno numbers used by Lume ABI 0 to Picolibc's Newlib values.
- * Unknown ABI errors map to EIO. */
+/* Lume ABI0 uses Linux errno numbers. Picolibc uses Newlib errno numbers. Map the kernel values
+ * explicitly, including matching values. Unknown ABI errors map to EIO. */
 #include "errno_map.h"
 #include "api.h"
 #include <errno.h>
@@ -137,7 +137,12 @@ int lume_posix_write(int f, const void *p, unsigned n)
 
 int lume_posix_seek(int f, int32_t p, unsigned w)
 {
+#if defined(LUME_ARCH_AARCH64)
+    extern int32_t lume_aarch64_posix_seek(int, int32_t, unsigned);
+    return mapped(lume_aarch64_posix_seek(f, p, w));
+#else
     return mapped(app_seek(f, p, w));
+#endif
 }
 
 int lume_posix_sync(int f)

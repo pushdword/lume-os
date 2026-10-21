@@ -112,8 +112,8 @@ int safe_poll(struct pollfd *fds, nfds_t count, int timeout)
     } while (1);
 }
 
-/* The kernel already supplies unbuffered bytes. These profile adapters switch
- * only this process's Picolibc CR/EOF translations. */
+/* The kernel supplies unbuffered bytes. These adapters change only the calling process's
+ * Picolibc carriage-return and EOF translations. */
 void set_termios_to_raw(int fd, struct termios *saved, int flags)
 {
     (void)flags;

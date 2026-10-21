@@ -289,8 +289,8 @@ static int run_command(int argc, char **argv, char **envp)
             }
             envc++;
         }
-    /* Include the child's output and load in the measurement.
-     * Render the report after the child has completed. */
+    /* Print the report after the child completes. The measurement includes the child's output
+     * and load and excludes report rendering. */
     if (!snapshot(&samples[0]))
         return 1;
     int pid = app_spawn_env(argv[2], (unsigned)argc - 2, (const char *const *)(argv + 2), envc,
