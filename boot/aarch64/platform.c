@@ -77,6 +77,12 @@ void lume_console_putc(char c)
     send(NULL, &c, 1);
 }
 
+void lume_console_write(const char *data, size_t bytes)
+{
+    for (size_t i = 0; i < bytes; ++i)
+        lume_console_putc(data[i]);
+}
+
 static _Noreturn void failure(const char *reason)
 {
     send(NULL, "\nLUME RECOVERY ", 15);
