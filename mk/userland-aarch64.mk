@@ -32,7 +32,7 @@ $(BB_OBJECTS): CPPFLAGS += -Iports/common/busybox
 $(VI_OBJECTS): CPPFLAGS += -Iports/common/vi -Iports/common/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/common/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/common/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/common/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
-all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf kernel
+all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf kernel
 $(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(ARM_APPS))): | headers
 $(OUT)/obj/%.c.o: %.c $(OUT)/configuration Makefile mk/userland-aarch64.mk
 	mkdir -p "$(@D)"
@@ -54,6 +54,9 @@ $(OUT)/netd.elf: apps/aarch64/start.S apps/aarch64/netd.c apps/aarch64/net_polic
 $(OUT)/net.elf: apps/aarch64/start.S apps/aarch64/net.c apps/aarch64/net_client.h apps/aarch64/net_service_client.h libc/aarch64/memory.c | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+$(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/aarch64/%.c apps/aarch64/network_tool.h apps/aarch64/lib.h apps/aarch64/start.S libc/aarch64/memory.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
 $(OUT)/update.elf: apps/aarch64/start.S apps/common/update.c libc/common/sha256.c libc/common/sha256.h libc/aarch64/memory.c | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/aarch64 -Ilibc/common $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
@@ -71,12 +74,18 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	cp assets/pi5/* "$(OUT)/root/lib/firmware/"
 	cp root/aarch64/etc/* "$(OUT)/root/etc/"
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
-	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	cp "$(OUT)/nc.elf" "$(OUT)/root/bin/netcat"
 	$(foreach app,less top vi htop video smpdemo iostat iobench,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/bin/$(app)";)
 	$(foreach app,worker probe fstest libctest,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/libexec/$(app)";)
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
-.PHONY: check-update
+.PHONY: check-update check-network-tools
+check-network-tools: $(OUT)/tests/network-tool$(HOSTEXE)
+	env "$(OUT)/tests/network-tool$(HOSTEXE)"
+$(OUT)/tests/network-tool$(HOSTEXE): tests/aarch64/network_tool_test.c apps/aarch64/network_tool.h apps/aarch64/lib.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"
 check-update: $(OUT)/tests/sha256$(HOSTEXE) $(OUT)/tests/update$(HOSTEXE) $(OUT)/tests/abi$(HOSTEXE)
 	env "$(OUT)/tests/sha256$(HOSTEXE)"
 	env "$(OUT)/tests/update$(HOSTEXE)"

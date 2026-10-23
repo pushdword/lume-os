@@ -198,17 +198,15 @@ endif
 endif
 headers:
 	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) OUT="$(KERNEL_OUT)" headers
-ifneq ($(filter x32 r32,$(ARCH)),)
 .PHONY: check-shell
 check: check-shell
 check-shell: $(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE)
 	env "$(OUT)/tests/shell-console$(HOSTEXE)"
 	env "$(OUT)/tests/shell-ssh$(HOSTEXE)"
 $(OUT)/tests/shell-ssh$(HOSTEXE): SHELL_TEST_FLAGS := -DLUME_SHELL_FDS=1
-$(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/common/shell.c apps/common/shell.c include/common/api.h include/common/fd_client.h $(KERNEL)/include/uapi/common/lume/app.h | headers
+$(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/common/shell.c apps/common/shell.c apps/common/shell_io.h include/common/api.h include/common/fd_client.h $(KERNEL)/include/uapi/common/lume/app.h | headers
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) $(SHELL_TEST_FLAGS) $(if $(filter r32,$(ARCH)),-DLUME_ARCH_R32=1,) -Iinclude/common -I"$(KERNEL)/$(KERNEL_OUT)/include" "$<" -o "$@"
-endif
+	$(HOSTCC) $(HOSTCFLAGS) $(SHELL_TEST_FLAGS) $(if $(filter aarch64,$(ARCH)),-DLUME_ARCH_AARCH64=1,$(if $(filter r32,$(ARCH)),-DLUME_ARCH_R32=1,)) -Iinclude/common -I"$(KERNEL)/$(KERNEL_OUT)/include" "$<" -o "$@"
 $(OUT)/image-tool$(HOSTEXE): tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"

@@ -41,8 +41,9 @@ int32_t lume_aarch64_posix_seek(int fd, int32_t offset, unsigned whence)
     int64_t status = native(LUME_SYS_STAT, (unsigned)fd, (uintptr_t)&stat, 0);
     if (status < 0)
         return (int32_t)status;
-    int64_t base = whence == 0 ? 0 : whence == 2 ? (int64_t)stat.size
-                                                : native(LUME_SYS_SEEK, (unsigned)fd, 0, 1);
+    int64_t base = whence == 0   ? 0
+                   : whence == 2 ? (int64_t)stat.size
+                                 : native(LUME_SYS_SEEK, (unsigned)fd, 0, 1);
     if (base < 0)
         return (int32_t)base;
     if (base > INT32_MAX || (offset > 0 && offset > INT32_MAX - base))
@@ -69,7 +70,8 @@ static int metadata(uint32_t source, uint32_t output, unsigned fd)
     return 0;
 }
 
-static int spawn(uint32_t path, unsigned argc, uint32_t argv, unsigned envc, uint32_t envp)
+static int spawn(uint32_t path, unsigned argc, uint32_t argv, unsigned envc, uint32_t envp,
+                 unsigned inherit)
 {
     if (argc > LUME_ARGS || envc > LUME_ENVS)
         return -22;
@@ -87,7 +89,7 @@ static int spawn(uint32_t path, unsigned argc, uint32_t argv, unsigned envc, uin
     arguments[argc] = 0;
     struct lume_run_request request = {
         .path = path, .argv = (uintptr_t)arguments, .envp = envp, .argc = argc, .envc = envc};
-    return (int)native(LUME_SYS_RUN_ENV, (uintptr_t)&request, 0, 0);
+    return (int)native(inherit ? LUME_SYS_RUN_FDS : LUME_SYS_RUN_ENV, (uintptr_t)&request, 0, 0);
 }
 
 int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
@@ -125,13 +127,13 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     case LUME_PS:
         return (int32_t)native(LUME_SYS_PROCESS, a, b, sizeof(struct lume_task_info));
     case LUME_SPAWN:
-        return spawn(a, b, c, 0, 0);
+        return spawn(a, b, c, 0, 0, 0);
     case LUME_SPAWN_ENV:
     {
         if (valid(a, sizeof(struct lume_spawn_request), 0))
             return -14;
         const struct lume_spawn_request *r = (const void *)(uintptr_t)a;
-        return spawn(r->path, r->argc, r->argv, r->envc, r->envp);
+        return spawn(r->path, r->argc, r->argv, r->envc, r->envp, 0);
     }
     case LUME_WAIT:
     case LUME_WAITPID:
@@ -246,31 +248,39 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         return (int32_t)native(LUME_SYS_TERMINAL, a, b, c);
     case LUME_FD:
     {
-        if (a != LUME_FD_INFO)
-            return -38;
         if (c != sizeof(struct lume_fd_request))
             return -22;
-        if (valid(b, c, 0))
+        if (valid(b, c, 0) || valid(b, c, 1))
             return -14;
-        const struct lume_fd_request *request = (const void *)(uintptr_t)b;
-        if (request->version != LUME_FD_VERSION || request->bytes != c || request->fd ||
-            request->other || request->flags || request->count || request->timeout_ms)
+        struct lume_fd_request *request = (void *)(uintptr_t)b;
+        if (request->version != LUME_FD_VERSION || request->bytes != c)
             return -22;
-        if (valid(request->buffer, sizeof(struct lume_fd_info), 1))
-            return -14;
-        unsigned opened = 0;
-        for (unsigned fd = 0; fd < LUME_FD_MAX; ++fd)
+        if (a == LUME_FD_SPAWN)
         {
-            struct lume_native_stat stat;
-            int64_t error = native(LUME_SYS_STAT, fd, (uintptr_t)&stat, 0);
-            if (!error)
-                ++opened;
-            else if (error != -9)
-                return (int32_t)error;
+            if (request->flags || request->other || request->count || request->timeout_ms)
+                return -22;
+            if (valid(request->buffer, sizeof(struct lume_spawn_request), 0))
+                return -14;
+            const struct lume_spawn_request *r = (const void *)(uintptr_t)request->buffer;
+            return spawn(r->path, r->argc, r->argv, r->envc, r->envp, 1);
         }
-        *(struct lume_fd_info *)(uintptr_t)request->buffer = (struct lume_fd_info){
-            LUME_FD_VERSION, sizeof(struct lume_fd_info), LUME_FD_MAX, opened, opened, 0, 0, 0};
-        return 0;
+        if (a != LUME_FD_POLL)
+            return (int32_t)native(LUME_SYS_FD, a, b, c);
+        uint32_t timeout = request->timeout_ms;
+        if (timeout > 60000 && timeout != UINT32_MAX)
+            return -22;
+        struct lume_fd_request poll = *request;
+        poll.timeout_ms = 0;
+        uint64_t started = (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0);
+        for (;;)
+        {
+            int result = (int)native(LUME_SYS_FD, a, (uintptr_t)&poll, sizeof(poll));
+            if (result || !timeout ||
+                (timeout != UINT32_MAX &&
+                 (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0) - started >= timeout))
+                return result;
+            (void)native(LUME_SYS_SLEEP, 1, 0, 0);
+        }
     }
     case LUME_BRK:
         return (int32_t)native(LUME_SYS_BRK, a, 0, 0);

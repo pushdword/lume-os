@@ -50,6 +50,12 @@ void lume_stdio_raw(int raw)
     raw_input = !!raw;
 }
 
+void lume_stdio_reset(void)
+{
+    output_used = error_used = 0;
+    input_reset();
+}
+
 void lume_runtime_init(unsigned argc, char **argv, char **envp)
 {
     (void)argc;

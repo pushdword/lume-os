@@ -21,6 +21,9 @@ extern "C"
     /* The runtime keeps raw stdio mode separately for each process. Kernel console input
      * supplies bytes. */
     void lume_stdio_raw(int);
+    /* Flush standard streams before changing their descriptors, then discard cached bytes
+     * associated with the previous descriptors. */
+    void lume_stdio_reset(void);
     int app_spawn(const char *, unsigned, const char *const *);
     int app_spawn_env(const char *, unsigned, const char *const *, unsigned, const char *const *);
     int app_wait(int, struct lume_wait_status *);

@@ -11,6 +11,8 @@ char **shell_environment;
 #undef environ
 
 static char output[16384];
+static char errors[16384];
+static unsigned error_bytes;
 static unsigned output_bytes, input_bytes, input_at, read_calls, read_limit, failures;
 static unsigned read_error, wait_calls, checks;
 static const char *input;
@@ -90,7 +92,16 @@ int app_read(int fd, void *buffer, unsigned bytes)
 
 int app_write(int fd, const void *data, unsigned bytes)
 {
-    CHECK(fd == 1);
+    CHECK(fd == 1 || fd == 2);
+    if (fd == 2)
+    {
+        ++failures;
+        CHECK(bytes < sizeof errors - error_bytes);
+        memcpy(errors + error_bytes, data, bytes);
+        error_bytes += bytes;
+        errors[error_bytes] = 0;
+        return (int)bytes;
+    }
     CHECK(bytes < sizeof output - output_bytes);
     memcpy(output + output_bytes, data, bytes);
     output_bytes += bytes;
@@ -122,6 +133,10 @@ int app_stat(const char *name, struct lume_stat *status)
 void lume_stdio_raw(int enabled)
 {
     (void)enabled;
+}
+
+void lume_stdio_reset(void)
+{
 }
 
 int app_spawn(const char *name, unsigned argc, const char *const *argv)
@@ -178,6 +193,8 @@ static void prepare(const char *text, unsigned short_read, unsigned error)
     input_bytes = (unsigned)strlen(text);
     input_at = output_bytes = read_calls = failures = wait_calls = 0;
     output[0] = 0;
+    errors[0] = 0;
+    error_bytes = 0;
     read_limit = short_read;
     read_error = error;
 }
@@ -223,7 +240,8 @@ int main(void)
     CHECK(script("echo first && echo second || echo skipped; echo last\n", 0, 0) == 0);
     CHECK(!strcmp(output, "first\nsecond\nlast\n"));
     CHECK(script("missing && echo skipped || echo recovered && echo last\n", 0, 0) == 0);
-    CHECK(!strcmp(output, "missing: command not found\nrecovered\nlast\n"));
+    CHECK(!strcmp(output, "recovered\nlast\n"));
+    CHECK(!strcmp(errors, "missing: command not found\n"));
     CHECK(script("echo 'a; b && c || d'\n", 0, 0) == 0);
     CHECK(!strcmp(output, "a; b && c || d\n"));
     CHECK(script("echo broken &&\n", 0, 0) == 2);
@@ -241,6 +259,35 @@ int main(void)
     CHECK(!strcmp(output, "inherited\n"));
     CHECK(!strcmp(value("MAKEFLAGS"), make_flags + 10));
 #endif
+    char expanded[LUME_ARG_BYTES], *arguments[LUME_ARGS + SHELL_STAGES];
+    struct shell_command commands[SHELL_STAGES];
+    struct shell_redirect redirects[LUME_ARGS];
+    CHECK(shell_parse("echo 'a|b'|cat<in>>out", expanded, arguments, commands, redirects) == 2);
+    CHECK(commands[0].argc == 2 && !strcmp(commands[0].argv[1], "a|b"));
+    CHECK(commands[1].argc == 1 && commands[1].redirects == 2);
+    CHECK(redirects[0].type == '<' && !strcmp(redirects[0].path, "in"));
+    CHECK(redirects[1].type == 'a' && !strcmp(redirects[1].path, "out"));
+    CHECK(shell_parse("echo x 2>&1", expanded, arguments, commands, redirects) == 1);
+    CHECK(redirects[0].type == 'd' && redirects[0].fd == 2 && !strcmp(redirects[0].path, "1"));
+    CHECK(shell_parse("echo 2>&1>file", expanded, arguments, commands, redirects) == 1);
+    CHECK(commands[0].argc == 1 && commands[0].redirects == 2);
+    CHECK(redirects[0].type == 'd' && !strcmp(redirects[0].path, "1"));
+    CHECK(redirects[1].type == '>' && redirects[1].fd == 1 && !strcmp(redirects[1].path, "file"));
+    CHECK(shell_parse("echo \\> \\| '2>' \"<\"", expanded, arguments, commands, redirects) == 1);
+    CHECK(commands[0].argc == 5 && !commands[0].redirects);
+    CHECK(!strcmp(commands[0].argv[1], ">") && !strcmp(commands[0].argv[2], "|"));
+    CHECK(shell_parse("|cat", expanded, arguments, commands, redirects) == -22);
+    CHECK(shell_parse("echo x|", expanded, arguments, commands, redirects) == -22);
+    CHECK(shell_parse("echo x||cat", expanded, arguments, commands, redirects) == -22);
+    CHECK(shell_parse("cat <", expanded, arguments, commands, redirects) == -22);
+    CHECK(shell_parse("cat > | cat", expanded, arguments, commands, redirects) == -22);
+    CHECK(shell_parse("echo x 16>out", expanded, arguments, commands, redirects) == -22);
+    char snapshot[] = "05:FOO=x15:BAR=y";
+    CHECK(shell_import(snapshot) == 0);
+    CHECK(!strcmp(value("FOO"), "x") && !find("FOO")->exported);
+    CHECK(!strcmp(value("BAR"), "y") && find("BAR")->exported);
+    char invalid_snapshot[] = "099:FOO=x";
+    CHECK(shell_import(invalid_snapshot) == -22);
     printf("PASS_SHELL_SCRIPT checks=%u\n", checks);
     return 0;
 }
