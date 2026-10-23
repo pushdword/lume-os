@@ -75,7 +75,7 @@ static int write_screen(void)
 
 static const char *state(uint32_t value)
 {
-    switch (value)
+    switch (value & ~LUME_PERF_THREAD)
     {
     case LUME_READY:
         return "READY";

@@ -11,6 +11,7 @@
 static unsigned checks, connections, dhcps, drops;
 static uint64_t milliseconds;
 static bool connection_fail, dhcp_fail, write_fail, admin = true, link, address;
+static bool connection_pending, dhcp_pending;
 
 static struct
 {
@@ -135,15 +136,19 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
             if (address)
                 r->data.interfaces[0].address[0] = 172;
             return 0;
-        case LUME_NET_WIFI_CONNECT:
+        case LUME_NET_WIFI_CONNECT_BEGIN:
             ++connections;
             T(r->data.connect.key_bytes == 8 && !memcmp(r->data.connect.key, "password", 8));
-            link = !connection_fail;
+            link = !connection_fail && !connection_pending;
             address = false;
             return connection_fail ? -LUME_EIO : 0;
-        case LUME_NET_DHCP_START:
+        case LUME_NET_WIFI_STATE:
+            r->data.wireless.state = connection_pending ? LUME_WIFI_CONNECTING
+                                                       : link ? LUME_WIFI_CONNECTED : LUME_WIFI_FAILED;
+            return 0;
+        case LUME_NET_DHCP_BEGIN:
             ++dhcps;
-            address = !dhcp_fail;
+            address = !dhcp_fail && !dhcp_pending;
             return dhcp_fail ? -LUME_EAGAIN : 0;
         case LUME_NET_WIFI_DISCONNECT:
             ++drops;
@@ -164,6 +169,13 @@ static void cmd(unsigned op, const char *name)
     command(&m);
 }
 
+static void settle(uint64_t now)
+{
+    milliseconds = now;
+    for (unsigned i = 0; i < 3; ++i)
+        step(now);
+}
+
 int main(void)
 {
     files[2].exists = true;
@@ -176,34 +188,34 @@ int main(void)
     T(load());
     T(store_slot == 0 && profiles.count == 1 && profiles.automatic && profiles.generation == 2);
     T(files[0].exists && !files[1].exists);
-    step(0);
+    settle(0);
     T(status.state == NETD_ONLINE && connections == 1 && dhcps == 1);
-    step(250);
+    settle(250);
     T(connections == 1);
     /* Spontaneous loss, delayed retry, then successful WPA + DHCP. */
     link = address = false;
-    step(1000);
+    settle(1000);
     T(status.state == NETD_WAITING && status.retry_at == 2000 && connections == 1);
-    step(1999);
+    settle(1999);
     T(connections == 1);
-    step(2000);
+    settle(2000);
     T(status.state == NETD_ONLINE && connections == 2);
     cmd(NETD_PAUSE, 0);
     T(!status.result && paused && !link);
-    step(100000);
+    settle(100000);
     T(status.state == NETD_OFF && connections == 2);
     cmd(NETD_RECONNECT, 0);
-    step(100001);
+    settle(100001);
     T(status.state == NETD_ONLINE && connections == 3);
     cmd(NETD_AUTO_OFF, 0);
     T(!status.result && !profiles.automatic && profiles.generation == 3 && store_slot == 1);
     paused = false;
     force = false;
-    step(200000);
+    settle(200000);
     T(status.state == NETD_OFF && connections == 3);
     T(load() && !profiles.automatic);
     cmd(NETD_AUTO_ON, 0);
-    step(200001);
+    settle(200001);
     T(status.state == NETD_ONLINE && connections == 4);
     cmd(NETD_IMPORT, "backup");
     T(!status.result && profiles.count == 2);
@@ -217,31 +229,63 @@ int main(void)
     cmd(NETD_RECONNECT, 0);
     connection_fail = true;
     milliseconds = 300000;
-    step(milliseconds);
+    settle(milliseconds);
     T(status.state == NETD_WAITING && status.attempts == 1 && status.retry_at == 301000);
     unsigned count = connections;
-    step(300999);
+    settle(300999);
     T(connections == count);
     milliseconds = 301000;
-    step(milliseconds);
+    settle(milliseconds);
     T(status.attempts == 2 && status.retry_at == 303000);
     T(chosen == -1);
     connection_fail = false;
     dhcp_fail = true;
     milliseconds = 303000;
-    step(milliseconds);
+    settle(milliseconds);
     T(status.attempts == 3 && status.retry_at == 307000 && !link);
     dhcp_fail = false;
-    step(307000);
+    settle(307000);
     T(status.state == NETD_ONLINE && !status.attempts);
     admin = false;
     link = address = false;
     count = connections;
-    step(400000);
+    settle(400000);
     T(status.state == NETD_OFF && connections == count);
     admin = true;
-    step(400001);
+    settle(400001);
     T(status.state == NETD_ONLINE && connections == count + 1);
+    /* Association and DHCP remain pending across manager iterations. Service commands
+     * can cancel either stage without waiting for its deadline. */
+    cmd(NETD_RECONNECT, 0);
+    connection_pending = true;
+    milliseconds = 500000;
+    step(milliseconds);
+    T(phase == CONNECT_AUTHENTICATING && status.state == NETD_CONNECTING);
+    unsigned previous_dhcps = dhcps;
+    count = connections;
+    for (unsigned i = 1; i <= 8; ++i)
+        step(milliseconds + i * 250);
+    T(connections == count && dhcps == previous_dhcps);
+    connection_pending = false;
+    link = true;
+    dhcp_pending = true;
+    step(milliseconds + 2500);
+    T(phase == CONNECT_DHCP && !address && dhcps == previous_dhcps + 1);
+    for (unsigned i = 12; i <= 40; ++i)
+        step(milliseconds + i * 250);
+    T(phase == CONNECT_DHCP && connections == count && dhcps == previous_dhcps + 1);
+    cmd(NETD_PAUSE, 0);
+    T(phase == CONNECT_IDLE && !link && !status.result);
+    step(milliseconds + 11000);
+    T(status.state == NETD_OFF);
+    cmd(NETD_RECONNECT, 0);
+    settle(520000);
+    T(phase == CONNECT_DHCP);
+    step(550000);
+    T(status.state == NETD_WAITING && phase == CONNECT_IDLE && !link);
+    dhcp_pending = false;
+    settle(551000);
+    T(status.state == NETD_ONLINE);
     /* A failed replacement preserves the previous durable generation. */
     uint64_t generation = profiles.generation;
     write_fail = true;

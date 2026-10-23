@@ -210,8 +210,9 @@ void Machine_scan(Machine *m)
     previous = sample;
     have_previous = valid;
     int n = lume_syscall(LUME_PERF, (uint32_t)(uintptr_t)&sample, sizeof sample, LUME_PERF_VERSION);
-    valid = n == 0 && sample.version == 1 && sample.bytes == sizeof sample &&
-            sample.core_count > 0 && sample.core_count <= 2 && sample.process_count <= 8 &&
+    valid = n == 0 && sample.version == LUME_PERF_VERSION && sample.bytes == sizeof sample &&
+            sample.core_count > 0 && sample.core_count <= LUME_PERF_CORES &&
+            sample.process_count <= LUME_PERF_PROCESSES &&
             sample.clock_hz;
     if (!valid)
     {
@@ -266,20 +267,28 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
         bool exists;
         Process *p = ProcessTable_getProcess(t, (pid_t)a->pid, &exists, UnsupportedProcess_new);
         Process_setParent(p, a->parent == UINT32_MAX ? 0 : (pid_t)a->parent);
-        Process_setThreadGroup(p, (pid_t)a->pid);
+        bool thread = (a->state & LUME_PERF_THREAD) != 0;
+        unsigned state = a->state & ~LUME_PERF_THREAD;
+        Process_setThreadGroup(p, (pid_t)(thread ? a->parent : a->pid));
         Process_updateComm(p, a->name);
         Process_updateCmdline(p, a->name, 0, strlen(a->name));
         p->super.updated = true;
         p->super.show = true;
-        p->isKernelThread = p->isUserlandThread = false;
-        p->state = a->state == LUME_RUNNING  ? RUNNING
-                   : a->state == LUME_READY  ? RUNNABLE
-                   : a->state == LUME_ZOMBIE ? ZOMBIE
+        p->isKernelThread = false;
+        p->isUserlandThread = thread;
+        p->state = state == LUME_RUNNING  ? RUNNING
+                   : state == LUME_READY  ? RUNNABLE
+                   : state == LUME_ZOMBIE ? ZOMBIE
                                              : SLEEPING;
         p->st_uid = 0;
         p->user = "root";
         p->nice = PROCESS_NICE_UNKNOWN;
         p->nlwp = 1;
+        if (!thread)
+            for (unsigned j = 0; j < sample.process_count; ++j)
+                if ((sample.processes[j].state & LUME_PERF_THREAD) &&
+                    sample.processes[j].parent == a->pid)
+                    ++p->nlwp;
         uint64_t ticks = b ? (uint64_t)delta(a->user_ticks, b->user_ticks) +
                                  delta(a->kernel_ticks, b->kernel_ticks)
                            : 0;
@@ -295,7 +304,9 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
         p->time = lp->lume_time_ticks * 100u / sample.clock_hz;
         Process_updateCPUFieldWidths(p->percent_cpu);
         t->totalTasks++;
-        if (a->state == LUME_RUNNING)
+        if (thread)
+            t->userlandThreads++;
+        if (state == LUME_RUNNING)
             t->runningTasks++;
         if (!exists)
             ProcessTable_add(t, p);

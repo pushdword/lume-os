@@ -118,9 +118,11 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         if (a == LUME_UPTIME)
             return (int32_t)native(LUME_SYS_CLOCK, 0, 0, 0);
         if (a == LUME_CORES)
-            return 1;
+            return (int32_t)native(LUME_SYS_CPU, 0, 0, 0);
+        if (a == LUME_CORE)
+            return (int32_t)native(LUME_SYS_CPU, 1, 0, 0);
         if (a == LUME_QUANTUM_MS)
-            return 250;
+            return (int32_t)native(LUME_SYS_CPU, 2, 0, 0);
         if (a == LUME_PERF_STATUS)
             return 0x101;
         return a == LUME_CORE || a == LUME_FORMS ? 0 : -22;
@@ -151,7 +153,8 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         int64_t value;
         do
         {
-            value = native(LUME_SYS_WAIT, number == LUME_WAIT || a == UINT32_MAX ? 0 : a, 0, 0);
+            value = native(LUME_SYS_WAIT, number == LUME_WAIT || a == UINT32_MAX ? 0 : a,
+                           c ? 0 : 1, 0);
             if (value == -11 && !c)
                 (void)native(LUME_SYS_SLEEP, 1, 0, 0);
         } while (value == -11 && !c);

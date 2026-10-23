@@ -20,7 +20,9 @@ ifeq ($(DEBUG),1)
 CFLAGS += -g -fno-omit-frame-pointer
 ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
 endif
-ARM_COMMON_SOURCES := arch/aarch64/start.S libc/common/api.c libc/common/runtime.c libc/aarch64/api.c libc/common/posix/sbrk.c libc/common/posix/errno_map.c
+ARM_COMMON_SOURCES := arch/aarch64/start.S libc/common/api.c libc/common/runtime.c libc/aarch64/api.c libc/common/posix/sbrk.c libc/common/posix/errno_map.c libc/aarch64/thread_backend.c libc/common/posix/pthread.c
+ARM_COMMON_SOURCES += libc/common/posix/time.c
+$(OUT)/obj/libc/common/posix/pthread.c.o $(OUT)/obj/libc/aarch64/thread_backend.c.o: CPPFLAGS += -Iinclude/common/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
 include mk/busybox.mk
 include mk/htop.mk
@@ -28,7 +30,7 @@ ARM_APPS := shell ls dir less top worker probe fstest libctest video smpdemo ios
 ARM_APPLETS := basename cat dirname echo false head printenv pwd true wc sort cut cmp cksum crc32 expand unexpand mkdir rmdir
 ARM_APP_TARGETS := $(addprefix $(OUT)/,$(addsuffix .elf,$(ARM_APPS)))
 VI_SOURCES := ports/common/busybox/compat.c ports/common/vi/compat.c ports/common/vi/upstream/vi.c
-HTOP_SOURCES += $(addprefix ports/common/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/common/posix/,sbrk.c time.c posix_runtime.c errno_map.c)
+HTOP_SOURCES += $(addprefix ports/common/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/common/posix/,sbrk.c posix_runtime.c errno_map.c)
 BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
 VI_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(VI_SOURCES)))
 HTOP_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(HTOP_SOURCES)))
@@ -37,6 +39,9 @@ $(VI_OBJECTS): CPPFLAGS += -Iports/common/vi -Iports/common/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/common/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/common/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/common/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
 all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf kernel
+$(OUT)/tests/pthread-probe.elf: tests/aarch64/pthread_probe.c $(ARM_COMMON_OBJECTS) | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iinclude/common/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
 $(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(ARM_APPS))): | headers
 $(OUT)/obj/%.c.o: %.c $(OUT)/configuration Makefile mk/userland-aarch64.mk
 	mkdir -p "$(@D)"

@@ -18,12 +18,18 @@ static uint32_t kind = LUME_NODE_FILE;
 static int stat_error;
 static int64_t wait_result = -11;
 static unsigned wait_calls;
+static unsigned wait_block;
 
 int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
+    if (number == LUME_SYS_CPU)
+    {
+        assert(!b && !c && a <= 2);
+        return a == 2 ? 17 : a == 1 ? 3 : 4;
+    }
     if (number == LUME_SYS_WAIT)
     {
-        assert(!a && !b && !c);
+        assert(!a && b == wait_block && !c);
         ++wait_calls;
         return wait_result;
     }
@@ -45,6 +51,9 @@ int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 
 int main(void)
 {
+    assert(lume_syscall(LUME_INFO, LUME_QUANTUM_MS, 0, 0) == 17);
+    assert(lume_syscall(LUME_INFO, LUME_CORES, 0, 0) == 4);
+    assert(lume_syscall(LUME_INFO, LUME_CORE, 0, 0) == 3);
     assert(lume_syscall(LUME_SEEK, 3, 0, LUME_SEEK_SET) == 0);
     assert(lume_syscall(LUME_SEEK, 3, 12, LUME_SEEK_SET) == 12);
     assert(lume_syscall(LUME_SEEK, 3, 1, LUME_SEEK_CUR) == -22 && position == 12);
@@ -64,6 +73,8 @@ int main(void)
     assert(lume_syscall(LUME_WAITPID, UINT32_MAX, 0, 1) == 0 && wait_calls == 1);
     wait_result = (INT64_C(4) << 32) | 7;
     assert(lume_syscall(LUME_WAITPID, UINT32_MAX, 0, 1) == 4 && wait_calls == 2);
+    wait_block = 1;
+    assert(lume_syscall(LUME_WAITPID, UINT32_MAX, 0, 0) == 4 && wait_calls == 3);
     puts("PASS_COMMON_ABI seek bounds, signed offsets, overflow, access and stream errors");
     return 0;
 }

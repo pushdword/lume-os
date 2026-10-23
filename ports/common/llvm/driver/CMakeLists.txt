@@ -62,6 +62,8 @@ add_library(lume_native_crt OBJECT
     ../cxxabi.cpp ../thread_compat.cpp
     ${LUME_OS_ROOT}/libc/common/api.c
     ${LUME_OS_ROOT}/libc/aarch64/api.c
+    ${LUME_OS_ROOT}/libc/aarch64/thread_backend.c
+    ${LUME_OS_ROOT}/libc/common/posix/pthread.c
     ${LUME_OS_ROOT}/libc/common/posix/posix_runtime.c
     ${LUME_OS_ROOT}/libc/common/posix/errno_map.c
     ${LUME_OS_ROOT}/libc/common/posix/sbrk.c

@@ -9,6 +9,14 @@ static struct lume_net_control request;
 static int store_slot = -1, chosen = -1;
 static unsigned rotation;
 static bool paused, force;
+enum
+{
+    CONNECT_IDLE,
+    CONNECT_AUTHENTICATING,
+    CONNECT_DHCP
+};
+static unsigned phase;
+static uint64_t deadline;
 static const char *const stores[] = {"/data/system/net0.cfg", "/data/system/net1.cfg"};
 
 static int load_file(const char *path, uint8_t *b, unsigned size)
@@ -152,6 +160,7 @@ static void disconnect(void)
         (void)control(LUME_NET_WIFI_DISCONNECT);
     }
     chosen = -1;
+    phase = CONNECT_IDLE;
 }
 
 static void publish(void)
@@ -318,6 +327,15 @@ static void command(const struct lume_service_message *m)
     status.result = result;
 }
 
+static void failed(uint64_t now)
+{
+    disconnect();
+    ++rotation;
+    status.retry_at = net_retry(now, status.attempts - 1);
+    status.state = NETD_WAITING;
+    puts("net: connection failed; retry pending\n");
+}
+
 static void step(uint64_t now)
 {
     if (!status.ifindex)
@@ -350,9 +368,47 @@ static void step(uint64_t now)
     }
     if ((info.flags & LUME_IF_LINK) && (info.flags & LUME_IF_DHCP) && info.address[0])
     {
+        if (status.state != NETD_ONLINE)
+            online();
         status.state = NETD_ONLINE;
+        phase = CONNECT_IDLE;
         status.attempts = 0;
         status.retry_at = 0;
+        return;
+    }
+    if (phase != CONNECT_IDLE)
+    {
+        if (now >= deadline)
+        {
+            failed(now);
+            return;
+        }
+        if (phase == CONNECT_AUTHENTICATING)
+        {
+            init(status.ifindex);
+            if (control(LUME_NET_WIFI_STATE))
+            {
+                failed(now);
+                return;
+            }
+            if (request.data.wireless.state == LUME_WIFI_CONNECTING)
+                return;
+            if (request.data.wireless.state != LUME_WIFI_CONNECTED)
+            {
+                failed(now);
+                return;
+            }
+            init(status.ifindex);
+            if (control(LUME_NET_DHCP_BEGIN))
+                failed(now);
+            else
+            {
+                phase = CONNECT_DHCP;
+                deadline = now + 30000;
+            }
+        }
+        else if (!(info.flags & LUME_IF_LINK))
+            failed(now);
         return;
     }
     if (status.state == NETD_ONLINE)
@@ -386,28 +442,15 @@ static void step(uint64_t now)
         request.data.connect.ssid[i] = p->ssid[i];
     for (unsigned i = 0; i < p->key_bytes; ++i)
         request.data.connect.key[i] = p->key[i];
-    int result = control(LUME_NET_WIFI_CONNECT);
+    int result = control(LUME_NET_WIFI_CONNECT_BEGIN);
     net_wipe(&request, sizeof(request));
     if (!result)
     {
-        init(status.ifindex);
-        result = control(LUME_NET_DHCP_START);
-    }
-    if (!result)
-    {
-        status.state = NETD_ONLINE;
-        status.retry_at = 0;
-        status.attempts = 0;
-        online();
+        phase = CONNECT_AUTHENTICATING;
+        deadline = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) + 30000;
     }
     else
-    {
-        disconnect();
-        ++rotation;
-        status.retry_at = net_retry((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0), status.attempts - 1);
-        status.state = NETD_WAITING;
-        puts("net: connection failed; retry pending\n");
-    }
+        failed((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0));
 }
 
 int main(int argc, char **argv)

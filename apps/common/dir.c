@@ -28,7 +28,7 @@ int app_main(int argc, char **argv)
         count++;
         app_puts(e.name);
         app_puts("  ");
-        if (e.mode & 0x4000u)
+        if ((e.mode & 0170000u) == 0040000u)
             app_puts("<DIR>");
         else
             app_number(e.size);

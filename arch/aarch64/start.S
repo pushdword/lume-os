@@ -3,6 +3,7 @@
 _start:
     mov x29, xzr
     mov x30, xzr
+    bl lume_tls_init
     ldr x19, [sp]
     add x20, sp, #8
     add x21, x20, x19, lsl #3

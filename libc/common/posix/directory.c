@@ -60,10 +60,13 @@ struct dirent *readdir(DIR *directory)
         return NULL;
     }
     directory->index = (unsigned)result;
-    directory->entry =
-        (struct dirent){.d_ino = (ino_t)result,
-                        .d_reclen = sizeof(struct dirent),
-                        .d_type = (entry.mode & 0170000) == 0040000 ? DT_DIR : DT_REG};
+    directory->entry = (struct dirent){.d_ino = (ino_t)result,
+                                       .d_reclen = sizeof(struct dirent),
+                                       .d_type = (entry.mode & 0170000) == 0040000   ? DT_DIR
+                                                 : (entry.mode & 0170000) == 0060000 ? DT_BLK
+                                                 : (entry.mode & 0170000) == 0020000 ? DT_CHR
+                                                 : (entry.mode & 0170000) == 0010000 ? DT_FIFO
+                                                                                     : DT_REG};
     memcpy(directory->entry.d_name, entry.name, sizeof(entry.name));
     directory->entry.d_name[sizeof(directory->entry.d_name) - 1] = 0;
     return &directory->entry;

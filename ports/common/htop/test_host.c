@@ -215,11 +215,11 @@ static void test_terminal(void)
 static void test_backend(void)
 {
     memset(&injected, 0, sizeof injected);
-    injected.version = 1;
+    injected.version = LUME_PERF_VERSION;
     injected.bytes = sizeof injected;
     injected.clock_hz = 30000000;
     injected.uptime_ms = 1000;
-    injected.core_count = 2;
+    injected.core_count = LUME_PERF_CORES;
     injected.process_count = 2;
     injected.processes[0].pid = 0;
     injected.processes[0].parent = UINT32_MAX;
@@ -237,6 +237,7 @@ static void test_backend(void)
     Settings *settings = Settings_new(m, NULL, NULL, NULL);
     Machine_populateTablesFromSettings(m, settings, &t->super);
     Machine_scan(m);
+    assert(m->activeCPUs == LUME_PERF_CORES && m->existingCPUs == LUME_PERF_CORES);
     ProcessTable_goThroughEntries(t);
     bool exists;
     Process *init = ProcessTable_getProcess(t, 0, &exists, UnsupportedProcess_new);
@@ -249,7 +250,7 @@ static void test_backend(void)
     Platform_setMemoryValues(&meter);
     assert(meter.total == 4000 && values[0] == 1000);
     injected.uptime_ms += 1000;
-    for (unsigned c = 0; c < 2; c++)
+    for (unsigned c = 0; c < LUME_PERF_CORES; c++)
     {
         injected.cores[c].counter += 30000000;
         injected.cores[c].ticks[0] += 12000000;
@@ -265,6 +266,7 @@ static void test_backend(void)
     assert(fabs(Platform_setCPUValues(&meter, 0) - 70) < 0.001 &&
            fabs(values[CPU_METER_NORMAL] - 40) < 0.001);
     assert(fabs(Platform_setCPUValues(&meter, 2) - 70) < 0.001);
+    assert(fabs(Platform_setCPUValues(&meter, LUME_PERF_CORES) - 70) < 0.001);
     assert(Process_compareByKey_Base(p, init, PERCENT_CPU) > 0);
     t->super.incFilter = "CLANG";
     assert(!Process_rowMatchesFilter(&p->super, &t->super) &&
@@ -322,7 +324,7 @@ int main(void)
     test_backend();
     memory_bad = 0;
     auto_sample = 1;
-    injected.core_count = 2;
+    injected.core_count = LUME_PERF_CORES;
     input = "";
     geometry = (24 << 16) | 80;
     reset_output();
