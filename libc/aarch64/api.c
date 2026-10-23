@@ -128,6 +128,12 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         return (int32_t)native(LUME_SYS_PROCESS, a, b, sizeof(struct lume_task_info));
     case LUME_SPAWN:
         return spawn(a, b, c, 0, 0, 0);
+    case LUME_SPAWN_ACTIONS:
+        if (b != sizeof(struct lume_spawn_actions_request) || c)
+            return -22;
+        if (valid(a, b, 0))
+            return -14;
+        return (int32_t)native(LUME_SYS_RUN_ACTIONS, a, 0, 0);
     case LUME_SPAWN_ENV:
     {
         if (valid(a, sizeof(struct lume_spawn_request), 0))

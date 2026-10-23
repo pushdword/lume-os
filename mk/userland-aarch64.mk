@@ -16,6 +16,10 @@ ARM_LINK := -nostdlib -static -Wl,--gc-sections,--build-id=none,--strip-debug,-z
 ARM_LIBS := -Wl,--start-group "$(SYSROOT)/lib/libc.a" -Wl,--end-group
 ARM_LD_FLAGS := --gc-sections --build-id=none --strip-debug -z max-page-size=4096 -T apps/aarch64/user.ld
 ARM_LD_LIBS := --start-group "$(SYSROOT)/lib/libc.a" --end-group
+ifeq ($(DEBUG),1)
+CFLAGS += -g -fno-omit-frame-pointer
+ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
+endif
 ARM_COMMON_SOURCES := arch/aarch64/start.S libc/common/api.c libc/common/runtime.c libc/aarch64/api.c libc/common/posix/sbrk.c libc/common/posix/errno_map.c
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
 include mk/busybox.mk

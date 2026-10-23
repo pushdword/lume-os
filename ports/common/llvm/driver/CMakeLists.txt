@@ -68,6 +68,7 @@ add_library(lume_native_crt OBJECT
     ${LUME_OS_ROOT}/libc/common/posix/directory.c
     ${LUME_OS_ROOT}/libc/common/posix/filesystem.c
     ${LUME_OS_ROOT}/libc/common/posix/process.c
+    ${LUME_OS_ROOT}/libc/common/posix/fd.c
     ${LUME_OS_ROOT}/libc/common/posix/time.c)
 target_include_directories(lume_native_crt PRIVATE
     ../include ${LUME_OS_ROOT}/include/common ${LUME_OS_ROOT}/include/common/posix

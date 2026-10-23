@@ -8,6 +8,8 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include "lume/spawn.h"
 
 struct __posix_spawnattr
 {
@@ -17,6 +19,8 @@ struct __posix_spawnattr
 struct __posix_spawn_file_actions
 {
     unsigned count;
+    struct lume_spawn_action action[LUME_SPAWN_ACTION_MAX];
+    char *paths[LUME_SPAWN_ACTION_MAX];
 };
 
 pid_t getpid(void)
@@ -108,6 +112,10 @@ int posix_spawn_file_actions_init(posix_spawn_file_actions_t *actions)
 
 int posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *actions)
 {
+    if (!actions || !*actions)
+        return EINVAL;
+    for (unsigned i = 0; i < (*actions)->count; ++i)
+        free((*actions)->paths[i]);
     free(*actions);
     *actions = NULL;
     return 0;
@@ -115,26 +123,91 @@ int posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *actions)
 
 int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *actions, int source, int target)
 {
-    if (!actions || !*actions || source < 0 || target < 0)
+    if (!actions || !*actions || source < 0 || target < 0 || source >= 16 || target >= 16)
         return EINVAL;
-    return source == target ? 0 : ENOTSUP;
+    if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
+        return ENOMEM;
+    (*actions)->action[(*actions)->count++] = (struct lume_spawn_action){
+        .operation = LUME_SPAWN_DUP2, .fd = (unsigned)source, .target = (unsigned)target};
+    return 0;
+}
+
+int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *actions, int fd)
+{
+    if (!actions || !*actions || fd < 0 || fd >= 16)
+        return EINVAL;
+    if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
+        return ENOMEM;
+    (*actions)->action[(*actions)->count++] =
+        (struct lume_spawn_action){.operation = LUME_SPAWN_CLOSE, .fd = (unsigned)fd};
+    return 0;
+}
+
+int posix_spawn_file_actions_addopen(posix_spawn_file_actions_t *actions, int fd, const char *path,
+                                     int flags, mode_t mode)
+{
+    (void)mode;
+    if (!actions || !*actions || fd < 0 || fd >= 16 || !path)
+        return EINVAL;
+    unsigned allowed = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
+    if (((unsigned)flags & ~allowed) || (flags & O_ACCMODE) > O_RDWR)
+        return ENOTSUP;
+    if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
+        return ENOMEM;
+    size_t bytes = strlen(path) + 1;
+    if (bytes > 128)
+        return ENAMETOOLONG;
+    char *copy = malloc(bytes);
+    if (!copy)
+        return ENOMEM;
+    memcpy(copy, path, bytes);
+    unsigned native = flags & O_ACCMODE;
+    if (flags & O_CREAT)
+        native |= 0x100;
+    if (flags & O_TRUNC)
+        native |= 0x200;
+    if (flags & O_APPEND)
+        native |= 0x400;
+    if (flags & O_EXCL)
+        native |= 0x800;
+    unsigned i = (*actions)->count++;
+    (*actions)->paths[i] = copy;
+    (*actions)->action[i] = (struct lume_spawn_action){
+        .path = (uintptr_t)copy, .operation = LUME_SPAWN_OPEN, .fd = (unsigned)fd, .flags = native};
+    return 0;
 }
 
 int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
                 const posix_spawnattr_t *attribute, char *const argv[], char *const envp[])
 {
-    if (!pid || !path || !argv || (actions && (!*actions || (*actions)->count)) ||
+    if (!pid || !path || !argv || (actions && !*actions) ||
         (attribute && (!*attribute || (*attribute)->flags)))
         return EINVAL;
     unsigned argc = 0, envc = 0;
-    while (argv[argc] && argc < LUME_ARGS)
+    while (argc < LUME_ARGS && argv[argc])
         ++argc;
-    while (envp && envp[envc] && envc < LUME_ENVS)
+    while (envp && envc < LUME_ENVS && envp[envc])
         ++envc;
     if (argv[argc] || (envp && envp[envc]))
         return E2BIG;
-    int result =
-        app_spawn_env(path, argc, (const char *const *)argv, envc, (const char *const *)envp);
+    int result;
+    if (actions && (*actions)->count)
+    {
+        char *fallback[] = {(char *)path, NULL};
+        struct lume_spawn_actions_request request = {.path = (uintptr_t)path,
+                                                     .argv = (uintptr_t)(argc ? argv : fallback),
+                                                     .argc = argc ? argc : 1,
+                                                     .envp = (uintptr_t)envp,
+                                                     .envc = envc,
+                                                     .actions = (uintptr_t)(*actions)->action,
+                                                     .count = (*actions)->count,
+                                                     .version = LUME_SPAWN_VERSION};
+        result =
+            lume_syscall(LUME_SPAWN_ACTIONS, (uint32_t)(uintptr_t)&request, sizeof(request), 0);
+    }
+    else
+        result =
+            app_spawn_env(path, argc, (const char *const *)argv, envc, (const char *const *)envp);
     if (result < 0)
         return lume_errno_from_syscall((unsigned)-result);
     *pid = result;
