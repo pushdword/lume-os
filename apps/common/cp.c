@@ -90,7 +90,7 @@ int app_main(int argc, char **argv)
         app_error("cp", out);
         return 1;
     }
-    char buffer[512];
+    char buffer[16384];
     int n, error = 0;
     while ((n = app_read(in, buffer, sizeof(buffer))) > 0)
     {

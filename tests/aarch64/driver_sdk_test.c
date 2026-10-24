@@ -101,7 +101,13 @@ int main(int argc, char **argv)
     CHECK(invoke(LUME_SYS_FEATURES, UINT64_MAX, sizeof(info), LUME_FEATURE_VERSION) ==
           -LUME_EFAULT);
     CHECK(invoke(LUME_SYS_RUN_ACTIONS, UINT64_MAX, 0, 0) == -LUME_EFAULT);
-    int output = open("/data/ddk/posix-out", O_CREAT | O_TRUNC | O_WRONLY, 0600);
+    const char *directory = argc == 3 && !strcmp(argv[1], "--directory") ? argv[2] : "/data/ddk";
+    char output_path[128], error_path[128];
+    int output_bytes = snprintf(output_path, sizeof(output_path), "%s/posix-out", directory);
+    int error_bytes = snprintf(error_path, sizeof(error_path), "%s/posix-err", directory);
+    CHECK(output_bytes > 0 && (unsigned)output_bytes < sizeof(output_path));
+    CHECK(error_bytes > 0 && (unsigned)error_bytes < sizeof(error_path));
+    int output = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, 0600);
     CHECK(output == 3 && !fcntl(output, F_SETFD, FD_CLOEXEC));
     CHECK(!fcntl(output, F_SETFL, O_APPEND) && (fcntl(output, F_GETFL) & O_APPEND));
     CHECK(!fcntl(output, F_SETFL, 0) && !(fcntl(output, F_GETFL) & O_APPEND));
@@ -109,7 +115,6 @@ int main(int argc, char **argv)
     CHECK(!posix_spawn_file_actions_init(&actions));
     CHECK(!posix_spawn_file_actions_adddup2(&actions, output, output));
     CHECK(!posix_spawn_file_actions_adddup2(&actions, output, 1));
-    char error_path[] = "/data/ddk/posix-err";
     CHECK(!posix_spawn_file_actions_addopen(&actions, 2, error_path, O_CREAT | O_TRUNC | O_WRONLY,
                                             0600));
     error_path[0] = 'X';
