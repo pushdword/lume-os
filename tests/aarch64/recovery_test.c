@@ -15,6 +15,11 @@ int lume_console_getc(void)
     return -LUME_EAGAIN;
 }
 
+bool lume_console_ready(void)
+{
+    return false;
+}
+
 void lume_console_write(const char *data, size_t bytes)
 {
     (void)data;
@@ -132,7 +137,17 @@ int main(int argc, char **argv)
             assert(!lrec_kernel_valid(image, sizeof(image)));
             image[i] ^= 1;
         }
-    request("B K 00200001 00000000 00000000", " ERR SIZE ");
+    image[16] = 1;
+    image[17] = 0;
+    image[18] = 0x20;
+    assert(lrec_kernel_valid(image, sizeof(image)));
+    image[16] = 0;
+    image[18] = 0x40;
+    assert(lrec_kernel_valid(image, sizeof(image)));
+    image[16] = 1;
+    assert(!lrec_kernel_valid(image, sizeof(image)));
+    kernel(image);
+    request("B K 00400001 00000000 00000000", " ERR SIZE ");
     request("B R 04000001 00000000 00000000", " ERR SIZE ");
     request("B K 00000048 00000000 00000001", " ERR SIZE ");
     request("B R 00000200 00000000 00000001", " ERR BASE ");

@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define LREC_KERNEL_LIMIT 0x200000u
+#define LREC_KERNEL_LIMIT 0x400000u
 #define LREC_ROOT_LIMIT 0x4000000u
 #define LREC_BLOCK 512u
 #define LREC_LINE 1152u
