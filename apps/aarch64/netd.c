@@ -9,14 +9,25 @@ static struct lume_net_control request;
 static int store_slot = -1, chosen = -1;
 static unsigned rotation;
 static bool paused, force;
+
 enum
 {
     CONNECT_IDLE,
     CONNECT_AUTHENTICATING,
     CONNECT_DHCP
 };
+
 static unsigned phase;
 static uint64_t deadline;
+
+static struct ethernet_state
+{
+    uint32_t ifindex;
+    unsigned attempts;
+    uint64_t deadline, retry_at;
+    bool pending, online;
+} ethernet[LUME_NET_INTERFACES];
+
 static const char *const stores[] = {"/data/system/net0.cfg", "/data/system/net1.cfg"};
 
 static int load_file(const char *path, uint8_t *b, unsigned size)
@@ -150,6 +161,78 @@ static void online(void)
     }
     out[used++] = '\n';
     (void)write(1, out, used);
+}
+
+/* Ethernet leases do not depend on wireless profiles or association state. */
+static void ethernet_step(uint64_t now)
+{
+    init(0);
+    if (control(LUME_NET_ENUM))
+        return;
+    struct lume_netif_info interfaces[LUME_NET_INTERFACES];
+    unsigned count = request.count;
+    if (count > LUME_NET_INTERFACES)
+        count = LUME_NET_INTERFACES;
+    for (unsigned i = 0; i < count; ++i)
+        interfaces[i] = request.data.interfaces[i];
+    for (unsigned i = 0; i < count; ++i)
+    {
+        const struct lume_netif_info *info = &interfaces[i];
+        if (info->kind != LUME_IF_ETHERNET)
+            continue;
+        struct ethernet_state *state = 0;
+        for (unsigned j = 0; j < LUME_NET_INTERFACES; ++j)
+            if (ethernet[j].ifindex == info->ifindex)
+                state = &ethernet[j];
+        if (!state)
+            for (unsigned j = 0; j < LUME_NET_INTERFACES; ++j)
+                if (!ethernet[j].ifindex)
+                {
+                    state = &ethernet[j];
+                    state->ifindex = info->ifindex;
+                    break;
+                }
+        if (!state)
+            continue;
+        if ((info->flags & (LUME_IF_UP | LUME_IF_LINK)) != (LUME_IF_UP | LUME_IF_LINK))
+        {
+            *state = (struct ethernet_state){.ifindex = info->ifindex};
+            continue;
+        }
+        if ((info->flags & LUME_IF_DHCP) && info->address[0])
+        {
+            if (!state->online)
+            {
+                puts("net: ");
+                puts(info->name);
+                puts(" online (Ethernet + DHCP)\n");
+            }
+            state->online = true;
+            state->pending = false;
+            state->attempts = 0;
+            state->retry_at = 0;
+            continue;
+        }
+        state->online = false;
+        if (state->pending)
+        {
+            if (now < state->deadline)
+                continue;
+            state->pending = false;
+            state->retry_at = net_retry(now, state->attempts - 1);
+        }
+        if (now < state->retry_at)
+            continue;
+        init(info->ifindex);
+        ++state->attempts;
+        if (control(LUME_NET_DHCP_BEGIN))
+            state->retry_at = net_retry(now, state->attempts - 1);
+        else
+        {
+            state->pending = true;
+            state->deadline = now + 30000;
+        }
+    }
 }
 
 static void disconnect(void)
@@ -477,7 +560,7 @@ int main(int argc, char **argv)
     {
         paused = true;
         status.state = NETD_ERROR;
-        puts("net: profiles unavailable; automatic connection disabled\n");
+        puts("net: Wi-Fi profiles unavailable. Wireless automatic connection disabled\n");
     }
     else
         puts("net: persistent profiles loaded\n");
@@ -486,8 +569,10 @@ int main(int argc, char **argv)
         struct lume_service_message m = {0};
         if (!call(LUME_SYS_SERVICE, LUME_SERVICE_RECEIVE, (uintptr_t)&m, sizeof(m)))
             command(&m);
+        uint64_t now = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+        ethernet_step(now);
         if (loaded || profiles.generation)
-            step((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0));
+            step(now);
         publish();
         (void)call(LUME_SYS_SLEEP, 250, 0, 0);
     }

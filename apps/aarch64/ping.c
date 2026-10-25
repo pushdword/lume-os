@@ -1,4 +1,43 @@
 #include "network_tool.h"
+#include <fd.h>
+
+static bool input_enabled;
+static struct lume_pollfd input_poll = {.fd = 0, .events = LUME_POLLIN};
+
+static bool cancelled(void)
+{
+    if (!input_enabled)
+        return false;
+    for (unsigned i = 0; i < 32; ++i)
+    {
+        struct lume_fd_request poll = {.version = LUME_FD_VERSION,
+                                       .bytes = sizeof(poll),
+                                       .fd = -1,
+                                       .buffer = (uint32_t)(uintptr_t)&input_poll,
+                                       .count = 1};
+        if (call(LUME_SYS_FD, LUME_FD_POLL, (uintptr_t)&poll, sizeof(poll)) <= 0)
+            break;
+        unsigned char byte;
+        if (read(0, &byte, 1) != 1)
+            break;
+        if (byte == 3)
+            return true;
+    }
+    return false;
+}
+
+static bool pause_ping(unsigned ms)
+{
+    while (ms)
+    {
+        if (cancelled())
+            return false;
+        unsigned delay = ms > 10 ? 10 : ms;
+        tool_sleep(delay);
+        ms -= delay;
+    }
+    return !cancelled();
+}
 
 int main(int argc, char **argv)
 {
@@ -43,25 +82,49 @@ int main(int argc, char **argv)
     tool_text(1, " (");
     tool_ip(1, address);
     tool_text(1, ") 24 ICMP bytes\n");
-    struct lume_net_request request = {0};
-    unsigned position = 0;
-    for (unsigned i = 0; i < 4; ++i)
-    {
-        if (i)
-            request.argument[position++] = '.';
-        unsigned value = address[i];
-        if (value >= 100)
-            request.argument[position++] = (char)('0' + value / 100);
-        if (value >= 10)
-            request.argument[position++] = (char)('0' + (value / 10) % 10);
-        request.argument[position++] = (char)('0' + value % 10);
-    }
-    unsigned received = 0;
+    struct lume_stat input;
+    input_enabled = !call(LUME_SYS_STAT, 0, (uintptr_t)&input, 0) &&
+                    (input.kind == LUME_NODE_CHAR || input.kind == LUME_NODE_PIPE);
+    unsigned received = 0, transmitted = 0;
+    bool interrupted = false;
     uint64_t total = 0, minimum = UINT64_MAX, maximum = 0;
     for (unsigned i = 1; i <= count; ++i)
     {
+        if (cancelled())
+        {
+            interrupted = true;
+            break;
+        }
+        struct lume_stream_request request = {.version = LUME_IO_VERSION};
+        for (unsigned j = 0; j < 4; ++j)
+            request.address[j] = address[j];
         uint64_t start = tool_now();
-        bool ok = call(LUME_SYS_NET, LUME_NET_PING, (uintptr_t)&request, sizeof(request)) >= 0;
+        bool ok = false;
+        int64_t result =
+            call(LUME_SYS_STREAM, LUME_ICMP_ECHO_START, (uintptr_t)&request, sizeof(request));
+        ++transmitted;
+        if (!result)
+        {
+            for (;;)
+            {
+                if (cancelled())
+                {
+                    interrupted = true;
+                    break;
+                }
+                result = call(LUME_SYS_STREAM, LUME_ICMP_ECHO_POLL, (uintptr_t)&request,
+                              sizeof(request));
+                if (result < 0 || (result & (LUME_STREAM_READABLE | LUME_STREAM_ERROR)))
+                {
+                    ok = result >= 0 && (result & LUME_STREAM_READABLE);
+                    break;
+                }
+                tool_sleep(10);
+            }
+            (void)call(LUME_SYS_STREAM, LUME_ICMP_ECHO_CLOSE, (uintptr_t)&request, sizeof(request));
+        }
+        if (interrupted)
+            break;
         uint64_t elapsed = tool_now() - start;
         if (ok)
         {
@@ -86,17 +149,22 @@ int main(int argc, char **argv)
             tool_text(1, "\n");
         }
         uint64_t delay = (uint64_t)interval * 1000;
-        if (i != count && elapsed < delay)
-            tool_sleep((unsigned)(delay - elapsed));
+        if (i != count && elapsed < delay && !pause_ping((unsigned)(delay - elapsed)))
+        {
+            interrupted = true;
+            break;
+        }
     }
+    if (interrupted)
+        tool_text(1, "^C\n");
     tool_text(1, "--- ");
     tool_text(1, host);
     tool_text(1, " ping statistics ---\n");
-    tool_number(1, count);
+    tool_number(1, transmitted);
     tool_text(1, " packets transmitted, ");
     tool_number(1, received);
     tool_text(1, " received, ");
-    tool_number(1, (count - received) * 100 / count);
+    tool_number(1, transmitted ? (transmitted - received) * 100 / transmitted : 0);
     tool_text(1, "% packet loss\n");
     if (received)
     {
@@ -108,7 +176,7 @@ int main(int argc, char **argv)
         tool_number(1, maximum);
         tool_text(1, " ms\n");
     }
-    return received ? 0 : 1;
+    return interrupted ? 130 : received ? 0 : 1;
 usage:
     tool_text(2, "usage: ping [-n] [-c COUNT] [-i SECONDS] HOST\n");
     return 2;

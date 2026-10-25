@@ -90,8 +90,12 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 .PHONY: check-update check-network-tools
-check-network-tools: $(OUT)/tests/network-tool$(HOSTEXE)
+check-network-tools: $(OUT)/tests/network-tool$(HOSTEXE) $(OUT)/tests/ping$(HOSTEXE)
 	env "$(OUT)/tests/network-tool$(HOSTEXE)"
+	env "$(OUT)/tests/ping$(HOSTEXE)"
+$(OUT)/tests/ping$(HOSTEXE): tests/aarch64/ping_test.c apps/aarch64/ping.c apps/aarch64/network_tool.h apps/aarch64/lib.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/aarch64 -I"$(KERNEL)/include/uapi/common" -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"
 $(OUT)/tests/network-tool$(HOSTEXE): tests/aarch64/network_tool_test.c apps/aarch64/network_tool.h apps/aarch64/lib.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"

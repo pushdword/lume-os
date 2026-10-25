@@ -113,12 +113,6 @@ static int service_command(char **args, unsigned count)
         command = NETD_PAUSE;
     else if (eq(verb, "join"))
         return service_send(NETD_CONNECT, "current");
-    else if (eq(verb, "down"))
-    {
-        if (service_send(NETD_PAUSE, 0))
-            return 1;
-        return -1;
-    }
     else
         return -1;
     bool named = command == NETD_IMPORT || command == NETD_FORGET || command == NETD_PREFER ||

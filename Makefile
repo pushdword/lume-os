@@ -210,19 +210,23 @@ $(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/com
 $(OUT)/image-tool$(HOSTEXE): tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
-check: $(OUT)/tests/net-policy$(HOSTEXE) $(OUT)/tests/netd$(HOSTEXE) $(OUT)/tests/image$(HOSTEXE)
+check: $(OUT)/tests/net-client$(HOSTEXE) $(OUT)/tests/net-policy$(HOSTEXE) $(OUT)/tests/netd$(HOSTEXE) $(OUT)/tests/image$(HOSTEXE)
+	env "$(OUT)/tests/net-client$(HOSTEXE)"
 	env "$(OUT)/tests/net-policy$(HOSTEXE)"
 	env "$(OUT)/tests/netd$(HOSTEXE)"
 	env "$(OUT)/tests/image$(HOSTEXE)" "$(OUT)/tests/image-files"
 $(OUT)/tests/image$(HOSTEXE): tests/image.cpp tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
+$(OUT)/tests/net-client$(HOSTEXE): tests/aarch64/net_client_test.c apps/aarch64/net_client.h apps/aarch64/net_service_client.h apps/aarch64/lib.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/aarch64 -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"
 $(OUT)/tests/net-policy$(HOSTEXE): tests/aarch64/net_policy_test.c apps/aarch64/net_policy.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 $^ -o "$@"
-$(OUT)/tests/netd$(HOSTEXE): tests/aarch64/netd_test.c apps/aarch64/net_policy.c
+$(OUT)/tests/netd$(HOSTEXE): tests/aarch64/netd_test.c apps/aarch64/net_policy.c apps/aarch64/netd.c apps/aarch64/net_policy.h
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 -I"$(KERNEL)/include/uapi/aarch64" $^ -o "$@"
+	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 -I"$(KERNEL)/include/uapi/aarch64" $(filter %netd_test.c %net_policy.c,$^) -o "$@"
 clean:
 	rm -rf -- "$(OUT)"
 -include $(addsuffix .d,$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(APP_NAMES) sshshell)))

@@ -12,6 +12,9 @@ static unsigned checks, connections, dhcps, drops;
 static uint64_t milliseconds;
 static bool connection_fail, dhcp_fail, write_fail, admin = true, link, address;
 static bool connection_pending, dhcp_pending;
+static bool ethernet_present, ethernet_admin, ethernet_link, ethernet_address;
+static bool ethernet_pending, ethernet_fail;
+static unsigned ethernet_dhcps;
 
 static struct
 {
@@ -121,11 +124,36 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
     if (number == LUME_SYS_NETCTL)
     {
         struct lume_net_control *r = (void *)(uintptr_t)b;
+        struct lume_netif_info eth = {.ifindex = 2,
+                                      .kind = LUME_IF_ETHERNET,
+                                      .name = "eth0",
+                                      .flags = (ethernet_admin ? LUME_IF_UP : 0) |
+                                               (ethernet_link ? LUME_IF_LINK : 0) |
+                                               (ethernet_address ? LUME_IF_DHCP : 0)};
+        if (ethernet_address)
+            eth.address[0] = 10;
+        if (r->ifindex == 2)
+        {
+            if (a == LUME_NET_DHCP_BEGIN)
+            {
+                ++ethernet_dhcps;
+                ethernet_address = !ethernet_fail && !ethernet_pending;
+                return ethernet_fail ? -LUME_EAGAIN : 0;
+            }
+            if (a == LUME_NET_GET)
+            {
+                r->data.interfaces[0] = eth;
+                return 0;
+            }
+            return -LUME_EINVAL;
+        }
         switch (a)
         {
         case LUME_NET_ENUM:
             r->count = 1;
             r->data.interfaces[0] = (struct lume_netif_info){.ifindex = 1, .kind = LUME_IF_WIFI};
+            if (ethernet_present)
+                r->data.interfaces[r->count++] = eth;
             return 0;
         case LUME_NET_GET:
             r->data.interfaces[0] = (struct lume_netif_info){.ifindex = 1,
@@ -144,7 +172,8 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
             return connection_fail ? -LUME_EIO : 0;
         case LUME_NET_WIFI_STATE:
             r->data.wireless.state = connection_pending ? LUME_WIFI_CONNECTING
-                                                       : link ? LUME_WIFI_CONNECTED : LUME_WIFI_FAILED;
+                                     : link             ? LUME_WIFI_CONNECTED
+                                                        : LUME_WIFI_FAILED;
             return 0;
         case LUME_NET_DHCP_BEGIN:
             ++dhcps;
@@ -307,6 +336,46 @@ int main(void)
     for (unsigned i = 3; i < 8; ++i)
         T(!descriptors[i].used);
     T(drops >= 4);
+    /* Ethernet acquires a lease while Wi-Fi is paused and has no profiles. */
+    count = connections;
+    paused = true;
+    net_wipe(&profiles, sizeof(profiles));
+    ethernet_present = ethernet_admin = true;
+    ethernet_step(600000);
+    T(ethernet_dhcps == 0);
+    ethernet_link = true;
+    ethernet_pending = true;
+    ethernet_step(600001);
+    T(ethernet_dhcps == 1 && ethernet[0].pending && !ethernet_address);
+    for (unsigned i = 1; i < 100; ++i)
+        ethernet_step(600001 + i * 250);
+    T(ethernet_dhcps == 1 && connections == count);
+    ethernet_address = true;
+    ethernet_step(625001);
+    T(ethernet[0].online && !ethernet[0].pending && !ethernet[0].attempts);
+    ethernet_step(625251);
+    T(ethernet_dhcps == 1);
+    ethernet_admin = ethernet_address = false;
+    ethernet_step(626000);
+    T(!ethernet[0].online && !ethernet[0].pending && ethernet_dhcps == 1);
+    ethernet_admin = true;
+    ethernet_step(626001);
+    T(ethernet_dhcps == 2 && ethernet[0].pending);
+    ethernet_step(656001);
+    T(!ethernet[0].pending && ethernet[0].retry_at == 657001);
+    ethernet_step(657000);
+    T(ethernet_dhcps == 2);
+    ethernet_fail = true;
+    ethernet_step(657001);
+    T(ethernet_dhcps == 3 && ethernet[0].retry_at == 659001);
+    ethernet_link = false;
+    ethernet_step(657002);
+    T(!ethernet[0].attempts && !ethernet[0].retry_at);
+    ethernet_link = true;
+    ethernet_pending = ethernet_fail = false;
+    ethernet_step(657003);
+    ethernet_step(657253);
+    T(ethernet_dhcps == 4 && ethernet[0].online && ethernet_address);
     printf("PASS_NET_USERSPACE_MANAGER checks=%u\n", checks);
     return 0;
 }

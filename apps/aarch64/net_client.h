@@ -1,5 +1,6 @@
 /* Shell client of the typed ABI. Profile policy/formatting live in EL0. */
 #include "lume/net_abi.h"
+#include <stdbool.h>
 static struct lume_net_control net_request;
 static uint64_t net_cursor;
 static char net_output[4096];
@@ -121,10 +122,14 @@ static int network_run(char **args, unsigned count)
         net_text("net: interface query failed\n");
         return 1;
     }
-    uint32_t index = 0;
+    uint32_t index = 0, kind = 0;
+    unsigned best = 0;
+    bool all_status = op == 0 && count < 3;
     for (unsigned i = 0; i < net_request.count; ++i)
     {
         struct lume_netif_info *n = &net_request.data.interfaces[i];
+        if (all_status)
+            net_status(n);
         if (op == 8)
         {
             net_number(n->ifindex);
@@ -137,12 +142,27 @@ static int network_run(char **args, unsigned count)
         if (!diagnostic && count == 3)
         {
             if (eq(args[2], n->name))
+            {
                 index = n->ifindex;
+                kind = n->kind;
+            }
         }
-        else if (!index || n->kind == LUME_IF_WIFI)
-            index = n->ifindex;
+        else
+        {
+            if ((op == 1 || op == 9) && n->kind != LUME_IF_WIFI)
+                continue;
+            unsigned score = 1 + ((n->flags & LUME_IF_UP) ? 1 : 0) +
+                             ((n->flags & LUME_IF_LINK) ? 2 : 0) +
+                             ((n->flags & LUME_IF_DHCP) ? 4 : 0);
+            if (score > best)
+            {
+                best = score;
+                index = n->ifindex;
+                kind = n->kind;
+            }
+        }
     }
-    if (op == 8)
+    if (op == 8 || all_status)
         return 0;
     if (!index)
     {
@@ -167,6 +187,8 @@ static int network_run(char **args, unsigned count)
         }
         return 0;
     }
+    if (op == 12 && kind == LUME_IF_WIFI && service_send(NETD_PAUSE, 0))
+        return 1;
     net_init(index);
     int64_t result = 0;
     if (op == 0)
@@ -273,7 +295,7 @@ static int network_run(char **args, unsigned count)
         net_text("net: operation failed\n");
         return 1;
     }
-    if (op == 11)
+    if (op == 11 && kind == LUME_IF_WIFI)
         return service_send(NETD_RECONNECT, 0);
     return 0;
 }
