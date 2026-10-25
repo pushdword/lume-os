@@ -10,10 +10,16 @@
 #undef LUME_ARG_BYTES
 #include "api.h"
 #include "lume/process.h"
+#include "lume/credential.h"
+#include "lume/file_mode.h"
 #include "perf.h"
 #include "fd.h"
 #include <stddef.h>
 #include <string.h>
+
+int32_t lume_aarch64_open_mode(const char *, unsigned, unsigned, unsigned);
+int32_t lume_aarch64_mkdir_mode(const char *, unsigned);
+int32_t lume_aarch64_posix_wait(int, int *, int);
 
 static int64_t native(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
@@ -31,6 +37,54 @@ static int64_t native(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 static int valid(uint32_t p, size_t bytes, unsigned write)
 {
     return (int)native(LUME_SYS_PROBE, p, bytes, write);
+}
+
+int32_t lume_aarch64_posix_wait(int pid, int *status, int nohang)
+{
+    int64_t result = native(LUME_SYS_WAIT, pid == -1 ? 0 : (unsigned)pid, !nohang, 1);
+    if (result == -LUME_EAGAIN && nohang)
+        return 0;
+    if (result < 0)
+        return (int32_t)result;
+    if (status)
+        *status = (int)(uint32_t)result;
+    return (int32_t)((uint64_t)result >> 32);
+}
+
+int32_t lume_aarch64_open_mode(const char *path, unsigned flags, unsigned mode,
+                               unsigned descriptors)
+{
+    struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
+                                             .bytes = sizeof(request),
+                                             .path = (uintptr_t)path,
+                                             .mode = mode,
+                                             .descriptor_flags = descriptors};
+    request.flags = flags & 3u;
+    if (flags & LUME_CREAT)
+        request.flags |= LUME_O_CREAT;
+    if (flags & LUME_TRUNC)
+        request.flags |= LUME_O_TRUNC;
+    if (flags & LUME_APPEND)
+        request.flags |= LUME_O_APPEND;
+    if (flags & LUME_EXCL)
+        request.flags |= LUME_O_EXCL;
+    int64_t result =
+        native(LUME_SYS_FILE_MODE, LUME_FILE_MODE_OPEN, (uintptr_t)&request, sizeof(request));
+    if (result == -LUME_ENOSYS && !descriptors)
+        result = native(LUME_SYS_FS, LUME_FS_COMPAT_OPEN, (uintptr_t)path, flags);
+    return (int32_t)result;
+}
+
+int32_t lume_aarch64_mkdir_mode(const char *path, unsigned mode)
+{
+    struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
+                                             .bytes = sizeof(request),
+                                             .path = (uintptr_t)path,
+                                             .mode = mode};
+    int64_t result =
+        native(LUME_SYS_FILE_MODE, LUME_FILE_MODE_MKDIR, (uintptr_t)&request, sizeof(request));
+    return (int32_t)(result == -LUME_ENOSYS ? native(LUME_SYS_MKDIR, (uintptr_t)path, 0, 0)
+                                            : result);
 }
 
 int32_t lume_aarch64_posix_seek(int fd, int32_t offset, unsigned whence)
@@ -113,7 +167,22 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     case LUME_PID:
         return (int32_t)native(LUME_SYS_GETPID, 0, 0, 0);
     case LUME_UID:
-        return 0;
+    {
+        if (a > 3 || b || c)
+            return -LUME_EINVAL;
+        struct lume_credential_request request = {.version = LUME_CREDENTIAL_VERSION,
+                                                  .bytes = sizeof(request)};
+        int64_t result =
+            native(LUME_SYS_CREDENTIAL, LUME_CREDENTIAL_GET, (uintptr_t)&request, sizeof(request));
+        if (result == -LUME_ENOSYS)
+            return 0;
+        if (result < 0)
+            return (int32_t)result;
+        return (int32_t)(a == 0   ? request.uid
+                         : a == 1 ? request.euid
+                         : a == 2 ? request.gid
+                                  : request.egid);
+    }
     case LUME_INFO:
         if (a == LUME_UPTIME)
             return (int32_t)native(LUME_SYS_CLOCK, 0, 0, 0);
@@ -153,8 +222,8 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         int64_t value;
         do
         {
-            value = native(LUME_SYS_WAIT, number == LUME_WAIT || a == UINT32_MAX ? 0 : a,
-                           c ? 0 : 1, 0);
+            value =
+                native(LUME_SYS_WAIT, number == LUME_WAIT || a == UINT32_MAX ? 0 : a, c ? 0 : 1, 0);
             if (value == -11 && !c)
                 (void)native(LUME_SYS_SLEEP, 1, 0, 0);
         } while (value == -11 && !c);
@@ -288,7 +357,9 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
                 (timeout != UINT32_MAX &&
                  (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0) - started >= timeout))
                 return result;
-            (void)native(LUME_SYS_SLEEP, 1, 0, 0);
+            int64_t slept = native(LUME_SYS_SLEEP, 1, 0, 0);
+            if (slept < 0)
+                return (int32_t)slept;
         }
     }
     case LUME_BRK:

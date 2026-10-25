@@ -105,7 +105,8 @@ static int read_exact(int fd, void *data, size_t bytes)
     unsigned char *p = data;
     while (bytes)
     {
-        ssize_t n = read(fd, p, bytes);
+        size_t chunk = bytes < sizeof(buffer) ? bytes : sizeof(buffer);
+        ssize_t n = read(fd, p, chunk);
         if (n <= 0 || (size_t)n > bytes)
             return -1;
         p += n;
@@ -119,7 +120,8 @@ static int write_exact(int fd, const void *data, size_t bytes)
     const unsigned char *p = data;
     while (bytes)
     {
-        ssize_t n = write(fd, p, bytes);
+        size_t chunk = bytes < sizeof(buffer) ? bytes : sizeof(buffer);
+        ssize_t n = write(fd, p, chunk);
         if (n <= 0 || (size_t)n > bytes)
             return -1;
         p += n;
@@ -678,6 +680,14 @@ static int stage_files(const char *archive, const unsigned char expected[32])
             lume_sha256_update(&hash, buffer, n);
             left -= (uint32_t)n;
         }
+#ifdef LUME_ARCH_AARCH64
+        unsigned mode = !strncmp(incoming.file[i].path, "bin/", 4) ||
+                                !strncmp(incoming.file[i].path, "libexec/", 8)
+                            ? 0755u
+                            : 0644u;
+        if (pkg_payload_mode(output, mode))
+            failed = true;
+#endif
         if (fsync(output))
             failed = true;
         if (close(output))
@@ -862,23 +872,47 @@ static unsigned plan[PKG_COUNT_MAX], plan_used, visited[PKG_COUNT_MAX];
 
 static int resolve(unsigned i)
 {
-    if (visited[i] == 2)
-        return 0;
-    if (visited[i] == 1)
-        return fail("dependency cycle");
-    visited[i] = 1;
-    const struct pkg_identity *id = &catalog.entry[i].identity;
-    for (unsigned d = 0; d < id->dependencies; ++d)
+    static struct
     {
+        unsigned index, dependency;
+    } stack[PKG_COUNT_MAX];
+
+    unsigned depth = 0;
+    stack[depth++].index = i;
+    stack[0].dependency = 0;
+    while (depth)
+    {
+        unsigned index = stack[depth - 1].index;
+        if (visited[index] == 2)
+        {
+            --depth;
+            continue;
+        }
+        visited[index] = 1;
+        const struct pkg_identity *id = &catalog.entry[index].identity;
+        unsigned d = stack[depth - 1].dependency;
+        if (d == id->dependencies)
+        {
+            visited[index] = 2;
+            plan[plan_used++] = index;
+            --depth;
+            continue;
+        }
+        ++stack[depth - 1].dependency;
         int dependency = catalog_index(id->dependency[d].name);
         if (dependency < 0 ||
             catalog.entry[dependency].identity.revision < id->dependency[d].revision)
             return fail("dependency is absent or too old in this catalog");
-        if (resolve((unsigned)dependency))
-            return -1;
+        if (visited[dependency] == 1)
+            return fail("dependency cycle");
+        if (visited[dependency] != 2)
+        {
+            if (depth == PKG_COUNT_MAX)
+                return fail("dependency depth exceeds catalog capacity");
+            stack[depth].index = (unsigned)dependency;
+            stack[depth++].dependency = 0;
+        }
     }
-    visited[i] = 2;
-    plan[plan_used++] = i;
     return 0;
 }
 
@@ -936,21 +970,23 @@ static int update(const char *source, const char *digest_text)
     if (remove_if_exists(temporary))
         return -1;
 
-    struct
-    {
-        struct repository_header header;
-        struct pkg_catalog catalog;
-    } record;
-
-    memset(&record, 0, sizeof(record));
-    memcpy(record.header.magic, "LUMEST1\n", 8);
-    memcpy(record.header.source, origin, strlen(origin) + 1);
-    memcpy(record.header.digest, digest, 32);
-    memcpy(&record.catalog, &catalog, catalog_bytes());
+    struct repository_header header = {0};
+    memcpy(header.magic, "LUMEST1\n", 8);
+    memcpy(header.source, origin, strlen(origin) + 1);
+    memcpy(header.digest, digest, 32);
     if (state_path(temporary, "repository.new") || state_path(active, "repository") ||
-        state_path(saved, "repository.old") || remove_if_exists(temporary) ||
-        create(temporary, &record, sizeof(record.header) + catalog_bytes()) ||
-        remove_if_exists(saved) || (exists(active) == 1 && rename(active, saved)) ||
+        state_path(saved, "repository.old") || remove_if_exists(temporary))
+        goto failed;
+    int fd = open(temporary, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if (fd < 0)
+        goto failed;
+    int result =
+        write_exact(fd, &header, sizeof(header)) || write_exact(fd, &catalog, catalog_bytes());
+    if (fsync(fd))
+        result = -1;
+    if (close(fd))
+        result = -1;
+    if (result || remove_if_exists(saved) || (exists(active) == 1 && rename(active, saved)) ||
         rename(temporary, active))
         goto failed;
     puts("pkg: catalog SHA256 verified");
@@ -1081,7 +1117,7 @@ int main(int argc, char **argv)
 #endif
     if (argc == 2 && !strcmp(argv[1], "--version"))
     {
-        puts("pkg 0.1.1 (aarch64 ABI 1.0)");
+        puts("pkg 0.2.1 (aarch64 ABI 1.0)");
         return 0;
     }
     if (argc == 2 && !strcmp(argv[1], "recover"))

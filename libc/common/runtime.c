@@ -2,8 +2,12 @@
  * Picolibc services for a private Lume ring3 process. No bare-metal BSP. */
 #define _DEFAULT_SOURCE
 #include "api.h"
+#ifdef LUME_ARCH_AARCH64
+#include "errno_map.h"
+#endif
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +15,10 @@
 #include <unistd.h>
 
 extern char **environ;
+#ifdef LUME_ARCH_AARCH64
+extern int32_t lume_aarch64_open_mode(const char *, unsigned, unsigned, unsigned);
+extern int32_t lume_aarch64_mkdir_mode(const char *, unsigned);
+#endif
 static char *empty_env[] = {NULL};
 static int raw_input;
 /* Each process owns its stdio state. Keep short interactive lines visible,
@@ -167,6 +175,9 @@ ssize_t read(int fd, void *buffer, size_t bytes)
 int open(const char *path, int flags, ...)
 {
     unsigned known = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
+#ifdef LUME_ARCH_AARCH64
+    known |= O_CLOEXEC | O_NONBLOCK | O_NOCTTY;
+#endif
     if ((unsigned)flags & ~known)
     {
         errno = EINVAL;
@@ -187,7 +198,23 @@ int open(const char *path, int flags, ...)
         f |= LUME_APPEND;
     if (flags & O_EXCL)
         f |= LUME_EXCL;
-    int r = app_open(path, f);
+    int r;
+#ifdef LUME_ARCH_AARCH64
+    unsigned permissions = 0;
+    if (flags & O_CREAT)
+    {
+        va_list arguments;
+        va_start(arguments, flags);
+        permissions = va_arg(arguments, unsigned);
+        va_end(arguments);
+    }
+    r = lume_aarch64_open_mode(path, f, permissions,
+                               (flags & O_CLOEXEC ? 1u : 0u) | (flags & O_NONBLOCK ? 2u : 0u));
+    if (r < 0)
+        r = -lume_errno_from_syscall((unsigned)-r);
+#else
+    r = app_open(path, f);
+#endif
     if (r == 0)
         input_reset();
     return result(r);
@@ -325,8 +352,13 @@ int rename(const char *a, const char *b)
 
 int mkdir(const char *path, mode_t mode)
 {
+#ifdef LUME_ARCH_AARCH64
+    int r = lume_aarch64_mkdir_mode(path, mode);
+    return result(r < 0 ? -lume_errno_from_syscall((unsigned)-r) : r);
+#else
     (void)mode;
     return result(lume_syscall(LUME_MKDIR, (uint32_t)(uintptr_t)path, 0, 0));
+#endif
 }
 
 int rmdir(const char *path)

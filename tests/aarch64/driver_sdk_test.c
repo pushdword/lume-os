@@ -12,6 +12,11 @@
 #include "lume/service.h"
 #include "lume/io.h"
 #include "lume/net_commands.h"
+#include "lume/supervision.h"
+
+#define SDK_USER_CAPABILITIES                                                                      \
+    (LUME_CAP_NET_ADMIN | LUME_CAP_BOOT_UPDATE | LUME_CAP_DRIVER_ADMIN | LUME_CAP_HW_DIAGNOSTIC |  \
+     LUME_CAP_SERVICE_CONTROL)
 
 static int64_t invoke(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
 {
@@ -42,7 +47,9 @@ int main(int argc, char **argv)
     CHECK(!features(&info));
     CHECK(info.abi == LUME_ABI_VERSION && info.pointer_bits == 64 &&
           info.compat_pointer_bits == 32);
-    CHECK(info.ddk_version == 1 && (info.features & LUME_FEATURE_SPAWN_ACTIONS));
+    CHECK(info.ddk_version == 2 && (info.features & LUME_FEATURE_SPAWN_ACTIONS) &&
+          (info.features & LUME_FEATURE_HARDWARE) && (info.features & LUME_FEATURE_MODULES) &&
+          (info.features & LUME_FEATURE_SUPERVISION));
     if (argc == 2 && !strcmp(argv[1], "--child"))
     {
         CHECK(getenv("SDK_TEST_CHILD") && !strcmp(getenv("SDK_TEST_CHILD"), "1"));
@@ -59,12 +66,17 @@ int main(int argc, char **argv)
     }
     if (argc == 2 && !strcmp(argv[1], "--caps"))
     {
-        CHECK(!(info.capabilities & LUME_CAP_SERVICE));
-        CHECK(!invoke(LUME_SYS_CAP_DROP, LUME_CAP_NET_ADMIN | LUME_CAP_BOOT_UPDATE, 0, 0));
+        CHECK(!(info.capabilities & (LUME_CAP_SERVICE | LUME_CAP_SUPERVISOR)));
+        CHECK(!invoke(LUME_SYS_CAP_DROP, SDK_USER_CAPABILITIES, 0, 0));
         CHECK(!features(&info) && info.capabilities == 0);
         CHECK(invoke(LUME_SYS_CAP_DROP, UINT64_MAX, 0, 0) == -LUME_EINVAL);
         CHECK(invoke(LUME_SYS_NET, LUME_NET_SCAN, UINT64_MAX, 0) == -LUME_EPERM);
         CHECK(invoke(LUME_SYS_NETCTL, LUME_NET_ADMIN, UINT64_MAX, 0) == -LUME_EPERM);
+        struct lume_supervision_request supervision = {.version = LUME_SUPERVISION_VERSION};
+        CHECK(invoke(LUME_SYS_SUPERVISE, LUME_SV_REGISTER, (uintptr_t)&supervision,
+                     sizeof(supervision)) == -LUME_EPERM);
+        CHECK(invoke(LUME_SYS_SUPERVISE, LUME_SV_SUBMIT, (uintptr_t)&supervision,
+                     sizeof(supervision)) == -LUME_EPERM);
         CHECK(invoke(LUME_SYS_BOOT, LUME_BOOT_BEGIN, UINT64_MAX, 0) == -LUME_EPERM);
         struct lume_net_service_status status = {0};
         CHECK(invoke(LUME_SYS_SERVICE, LUME_SERVICE_PUBLISH, (uintptr_t)&status, sizeof(status)) ==
@@ -79,7 +91,7 @@ int main(int argc, char **argv)
         CHECK(waitpid(child, &code, 0) == child && WIFEXITED(code) && WEXITSTATUS(code) == 0);
         return 0;
     }
-    CHECK(info.capabilities == (LUME_CAP_NET_ADMIN | LUME_CAP_BOOT_UPDATE));
+    CHECK(info.capabilities == SDK_USER_CAPABILITIES);
     int descriptors[2];
     CHECK(!pipe(descriptors));
     int duplicated = dup(descriptors[0]);
@@ -142,7 +154,7 @@ int main(int argc, char **argv)
     arguments[1] = "--caps";
     CHECK(!posix_spawn(&child, argv[0], NULL, NULL, arguments, NULL));
     CHECK(waitpid(child, &code, 0) == child && WIFEXITED(code) && WEXITSTATUS(code) == 0);
-    CHECK(!features(&info) && info.capabilities == (LUME_CAP_NET_ADMIN | LUME_CAP_BOOT_UPDATE));
+    CHECK(!features(&info) && info.capabilities == SDK_USER_CAPABILITIES);
     puts("SDK_POSIX_SPAWN_CAPABILITIES_PASS");
     return 0;
 }

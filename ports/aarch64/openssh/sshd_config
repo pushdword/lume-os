@@ -1,0 +1,23 @@
+Port 22
+AddressFamily inet
+ListenAddress 0.0.0.0
+HostKey /data/etc/ssh/ssh_host_ed25519_key
+HostKeyAlgorithms ssh-ed25519
+PubkeyAcceptedAlgorithms ssh-ed25519
+AuthenticationMethods publickey
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+AllowUsers root
+AuthorizedKeysFile /data/etc/ssh/authorized_keys
+StrictModes yes
+UseDNS no
+DisableForwarding yes
+PermitTTY no
+PermitUserEnvironment no
+MaxSessions 1
+MaxStartups 2:30:2
+LoginGraceTime 30
+PidFile /data/var/run/sshd.pid
+Subsystem sftp /data/libexec/sftp-server

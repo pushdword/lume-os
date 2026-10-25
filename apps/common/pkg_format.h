@@ -2,7 +2,7 @@
 #define LUME_PKG_FORMAT_H
 #include <stdint.h>
 
-#define PKG_COUNT_MAX 32u
+#define PKG_COUNT_MAX 256u
 #define PKG_FILES_MAX 128u
 #define PKG_DEPS_MAX 8u
 #define PKG_BYTES_MAX (128u * 1024u * 1024u)
@@ -61,4 +61,7 @@ int pkg_owner_alive(unsigned);
 unsigned pkg_current_pid(void);
 unsigned pkg_current_abi(void);
 int pkg_download(const char *, const char *, uint32_t, const unsigned char[32]);
+#ifdef LUME_ARCH_AARCH64
+int pkg_payload_mode(int, unsigned);
+#endif
 #endif

@@ -1,5 +1,6 @@
 #include "network_tool.h"
 #include "lume/process.h"
+#include "lume/file_mode.h"
 #include "pkg_format.h"
 #include "sha256.h"
 #include <string.h>
@@ -7,6 +8,15 @@
 static struct lume_stream_request stream;
 static unsigned char network_buffer[4096];
 static unsigned received, consumed;
+
+int pkg_payload_mode(int fd, unsigned mode)
+{
+    struct lume_file_mode_request request = {
+        .version = LUME_FILE_MODE_VERSION, .bytes = sizeof(request), .fd = fd, .mode = mode};
+    int64_t result =
+        call(LUME_SYS_FILE_MODE, LUME_FILE_MODE_FD, (uintptr_t)&request, sizeof(request));
+    return result == -LUME_ENOSYS ? 0 : result < 0 ? -1 : 0;
+}
 
 unsigned pkg_current_pid(void)
 {

@@ -35,17 +35,29 @@ uid_t getuid(void)
 
 uid_t geteuid(void)
 {
+#ifdef LUME_ARCH_AARCH64
+    return (uid_t)lume_syscall(LUME_UID, 1, 0, 0);
+#else
     return getuid();
+#endif
 }
 
 gid_t getgid(void)
 {
+#ifdef LUME_ARCH_AARCH64
+    return (gid_t)lume_syscall(LUME_UID, 2, 0, 0);
+#else
     return 0;
+#endif
 }
 
 gid_t getegid(void)
 {
+#ifdef LUME_ARCH_AARCH64
+    return (gid_t)lume_syscall(LUME_UID, 3, 0, 0);
+#else
     return getgid();
+#endif
 }
 
 pid_t waitpid(pid_t pid, int *status, int options)
@@ -55,6 +67,16 @@ pid_t waitpid(pid_t pid, int *status, int options)
         errno = EINVAL;
         return -1;
     }
+#ifdef LUME_ARCH_AARCH64
+    extern int32_t lume_aarch64_posix_wait(int, int *, int);
+    int result = lume_aarch64_posix_wait(pid, status, !!(options & WNOHANG));
+    if (result < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-result);
+        return -1;
+    }
+    return result;
+#else
     struct lume_wait_status child;
     int result = lume_syscall(LUME_WAITPID, (uint32_t)pid, (uint32_t)(uintptr_t)&child,
                               !!(options & WNOHANG));
@@ -66,6 +88,7 @@ pid_t waitpid(pid_t pid, int *status, int options)
     if (result && status)
         *status = (int)((child.code & 255) << 8);
     return result;
+#endif
 }
 
 pid_t wait(int *status)

@@ -1,0 +1,7 @@
+exec=/data/bin/sshd
+arg=-D
+arg=-e
+arg=-f
+arg=/data/etc/ssh/sshd_config
+restart=on-failure
+restart-delay-ms=3000

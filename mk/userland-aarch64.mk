@@ -78,7 +78,15 @@ ifneq ($(strip $(NATIVE_SDK)),)
 PKG_OBJECTS := $(OUT)/obj/apps/common/pkg.c.o $(OUT)/obj/apps/aarch64/pkg_platform.c.o $(OUT)/obj/libc/common/sha256.c.o
 $(PKG_OBJECTS): CPPFLAGS += -Iapps/aarch64 -Iapps/common -Ilibc/common -Iinclude/common/posix
 $(PKG_OBJECTS): | headers
+SERVICE_OBJECTS := $(OUT)/obj/apps/common/service.c.o $(OUT)/obj/apps/aarch64/service_platform.c.o
+$(SERVICE_OBJECTS): CPPFLAGS += -Iapps/aarch64 -Iapps/common -Iinclude/common/posix
+$(SERVICE_OBJECTS): | headers
 all pkg: $(OUT)/pkg.elf
+all: $(OUT)/service.elf $(OUT)/svcd.elf
+$(OUT)/service.elf: $(SERVICE_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
+	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "$(NATIVE_SDK)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(SERVICE_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
+$(OUT)/svcd.elf: $(OUT)/service.elf
+	cp "$<" "$@"
 $(OUT)/pkg.elf: $(PKG_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
 	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "$(NATIVE_SDK)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(PKG_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
 else
@@ -99,13 +107,23 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
 	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
 	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg",true)
+	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/service.elf" "$(OUT)/root/bin/service"; cp "$(OUT)/svcd.elf" "$(OUT)/root/bin/svcd",true)
 	cp "$(OUT)/nc.elf" "$(OUT)/root/bin/netcat"
 	cp "$(OUT)/device.elf" "$(OUT)/root/bin/hwreg"
 	$(foreach app,less top vi htop video smpdemo iostat iobench,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/bin/$(app)";)
 	$(foreach app,worker probe fstest libctest,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/libexec/$(app)";)
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
-.PHONY: check-update check-network-tools
+.PHONY: check-update check-network-tools check-services
+check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE)
+	env "$(OUT)/tests/service$(HOSTEXE)"
+	env "$(OUT)/tests/supervision$(HOSTEXE)"
+$(OUT)/tests/service$(HOSTEXE): tests/aarch64/service_test.c apps/common/service_config.h apps/common/service_policy.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iapps/common -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"
+$(OUT)/tests/supervision$(HOSTEXE): $(KERNEL)/tests/aarch64/supervision_test.c $(KERNEL)/src/common/supervision_bus.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -I"$(KERNEL)/src/common" -I"$(KERNEL)/include/uapi/aarch64" -I"$(KERNEL)/include/uapi/common" "$<" -o "$@"
 check-network-tools: $(OUT)/tests/network-tool$(HOSTEXE) $(OUT)/tests/ping$(HOSTEXE)
 	env "$(OUT)/tests/network-tool$(HOSTEXE)"
 	env "$(OUT)/tests/ping$(HOSTEXE)"

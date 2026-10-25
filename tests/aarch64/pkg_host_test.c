@@ -1,8 +1,10 @@
 #define LUME_PKG_HOST_TEST 1
 #include <direct.h>
+#include <errno.h>
 #include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <windows.h>
 
 static int test_rename(const char *from, const char *to)
@@ -25,8 +27,34 @@ static int test_commit(int fd)
     return result;
 }
 
+static ssize_t test_read(int fd, void *data, size_t bytes)
+{
+    if (bytes > 65536)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (getenv("PKG_TEST_SHORT_IO") && bytes > 997)
+        bytes = 997;
+    return read(fd, data, (unsigned)bytes);
+}
+
+static ssize_t test_write(int fd, const void *data, size_t bytes)
+{
+    if (bytes > 65536)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (getenv("PKG_TEST_SHORT_IO") && bytes > 997)
+        bytes = 997;
+    return write(fd, data, (unsigned)bytes);
+}
+
 #define rename test_rename
 #define _commit test_commit
+#define read test_read
+#define write test_write
 #define lstat stat
 #define main pkg_main
 #include "../../apps/common/pkg.c"
