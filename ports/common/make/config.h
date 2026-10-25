@@ -145,7 +145,7 @@
 #define HAVE_ATEXIT 1
 
 /* Use case insensitive file names */
-/* #undef HAVE_CASE_INSENSITIVE_FS */
+#define HAVE_CASE_INSENSITIVE_FS 1
 
 /* Define to 1 if you have the Mac OS X function CFLocaleCopyCurrent in the
    CoreFoundation framework. */
@@ -207,7 +207,7 @@
 /* #undef HAVE_DUP */
 
 /* Define to 1 if you have the `dup2' function. */
-/* #undef HAVE_DUP2 */
+#define HAVE_DUP2 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1

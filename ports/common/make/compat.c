@@ -6,25 +6,19 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
-int fcntl(int fd, int operation, ...)
+int __real_fileno(FILE *stream);
+
+int __wrap_fileno(FILE *stream)
 {
-    struct stat metadata;
-    if (fstat(fd, &metadata))
-        return -1;
-    if (operation == F_GETFD)
+    if (stream == stdin)
         return 0;
-    if (operation == F_SETFD)
-    {
-        va_list arguments;
-        va_start(arguments, operation);
-        int flags = va_arg(arguments, int);
-        va_end(arguments);
-        if (!flags)
-            return 0;
-    }
-    errno = ENOTSUP;
-    return -1;
+    if (stream == stdout)
+        return 1;
+    if (stream == stderr)
+        return 2;
+    return __real_fileno(stream);
 }
 
 size_t confstr(int name, char *buffer, size_t capacity)
@@ -55,13 +49,6 @@ int kill(pid_t process, int signal_number)
 {
     (void)process;
     (void)signal_number;
-    errno = ENOSYS;
-    return -1;
-}
-
-int pipe(int descriptors[2])
-{
-    (void)descriptors;
     errno = ENOSYS;
     return -1;
 }

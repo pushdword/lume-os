@@ -1,4 +1,4 @@
-/* Native bounded Lume monitor, not an upstream htop port. */
+/* Native process and per-core CPU monitor. */
 #include "api.h"
 #include "perf.h"
 
@@ -124,11 +124,13 @@ static void metric(const char *label, uint32_t after, uint32_t before)
     number(delta(after, before), 0);
 }
 
+#if !defined(LUME_ARCH_AARCH64)
 static void cost(const char *label, uint32_t after, uint32_t before, uint32_t hz)
 {
     text(label);
     number(millis(delta(after, before), hz), 0);
 }
+#endif
 
 static int render(const struct lume_perf_snapshot *now, const struct lume_perf_snapshot *old,
                   int batch)
@@ -149,7 +151,7 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
     if (now->clock_hz != old->clock_hz || now->core_count != old->core_count || !elapsed ||
         (uint64_t)elapsed * now->clock_hz >= UINT64_C(4294967296) * 1000u)
     {
-        text("Sampling interval invalid; counters resampled.\n");
+        text("Sampling interval invalid. Counters resampled.\n");
         return write_screen();
     }
     for (unsigned c = 0; c < now->core_count; c++)
@@ -187,10 +189,16 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
         text(" ");
         number(a->cores, 4);
         text(" ");
-        if (b)
+        uint64_t cpu = b ? (uint64_t)delta(a->user_ticks, b->user_ticks) +
+                               delta(a->kernel_ticks, b->kernel_ticks)
+                         : 0;
+        uint32_t locked = b ? delta(a->lock_ticks, b->lock_ticks) : 0;
+        /* Reused task slots can reset counters between snapshots. Reject deltas that
+         * exceed one CPU, allowing for counter reads at different instants. */
+        uint64_t limit = (uint64_t)wall_ticks + wall_ticks / 20u + now->clock_hz / 1000u;
+        if (b && b->parent == a->parent && app_equal(a->name, b->name) &&
+            a->dispatches >= b->dispatches && cpu + locked <= limit)
         {
-            uint64_t cpu = (uint64_t)delta(a->user_ticks, b->user_ticks) +
-                           delta(a->kernel_ticks, b->kernel_ticks);
             if (wall_ticks)
             {
                 fixed(cpu * 1000u / wall_ticks, 3);
@@ -199,7 +207,7 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
             else
                 text("  n/a ");
             text(" ");
-            percent(delta(a->lock_ticks, b->lock_ticks), wall_ticks);
+            percent(locked, wall_ticks);
             text(" ");
             number(millis(delta(a->ready_ticks, b->ready_ticks), now->clock_hz), 7);
         }
@@ -218,6 +226,9 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
         }
         text("\n");
     }
+#if defined(LUME_ARCH_AARCH64)
+    text("Detailed I/O counters unavailable on this target.\n");
+#else
     const struct lume_perf_totals *a = &now->totals, *b = &old->totals;
     text("Delta:");
     metric(" SDread ", a->sd_reads, b->sd_reads);
@@ -238,9 +249,23 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
     cost(" console ", a->console_ticks, b->console_ticks, now->clock_hz);
     metric(" bytes ", a->console_bytes, b->console_bytes);
     text("\n");
-    text("CPU: one core=100%; READY delta, MAX session; top overhead included.\n");
+#endif
+    static struct lume_memory_info memory;
+    if (!lume_syscall(LUME_MEMORY, (uint32_t)(uintptr_t)&memory, sizeof memory,
+                      LUME_MEMORY_VERSION) &&
+        memory.version == LUME_MEMORY_VERSION && memory.bytes == sizeof memory &&
+        memory.page_bytes && memory.free_pages <= memory.total_pages)
+    {
+        text("Memory: free ");
+        number((uint64_t)memory.free_pages * memory.page_bytes / 1024u, 0);
+        text(" KiB / ");
+        number((uint64_t)memory.total_pages * memory.page_bytes / 1024u, 0);
+        text(" KiB\n");
+    }
+    text("CPU: one core=100%. READY is the interval delta. MAX covers the session.\n"
+         "Measurements include top overhead.\n");
     if (!batch)
-        text("q quits; sampling sleeps until timer wakeup.\n");
+        text("q quits. Sampling sleeps until timer wakeup.\n");
     return write_screen();
 }
 
@@ -266,14 +291,25 @@ static int positive(const char *s, unsigned max, unsigned *out)
 static void usage(void)
 {
     app_puts("usage: top [-b] [-n 1..1000] [-d 1..60]\n"
-             "  -b batch (default one sample); -n samples; -d seconds (default 1)\n"
-             "       top -r /absolute/program" LUME_APP_SUFFIX " [arguments...]\n"
+             "  -b batch (default one sample), -n samples, -d seconds (default 1)\n"
+             "       top -r [-d 1..60] /absolute/program" LUME_APP_SUFFIX " [arguments...]\n"
              "       top --status (query accounting without starting it)\n");
 }
 
 static int run_command(int argc, char **argv, char **envp)
 {
-    if (argc < 3 || argv[2][0] != '/' || argc - 2 > (int)LUME_ARGS)
+    unsigned delay = 1;
+    int first = 2;
+    if (argc > first && app_equal(argv[first], "-d"))
+    {
+        if (argc <= first + 1 || !positive(argv[first + 1], 60, &delay))
+        {
+            usage();
+            return 2;
+        }
+        first += 2;
+    }
+    if (argc <= first || argv[first][0] != '/' || argc - first > (int)LUME_ARGS)
     {
         usage();
         return 2;
@@ -289,19 +325,47 @@ static int run_command(int argc, char **argv, char **envp)
             }
             envc++;
         }
-    /* Print the report after the child completes. The measurement includes the child's output
-     * and load and excludes report rendering. */
     if (!snapshot(&samples[0]))
         return 1;
-    int pid = app_spawn_env(argv[2], (unsigned)argc - 2, (const char *const *)(argv + 2), envc,
-                            (const char *const *)envp);
+    uint32_t started = samples[0].uptime_ms;
+    int pid = app_spawn_env(argv[first], (unsigned)(argc - first),
+                            (const char *const *)(argv + first), envc, (const char *const *)envp);
     if (pid < 0)
     {
         app_error("top: spawn", pid);
         return 1;
     }
     struct lume_wait_status status;
-    int waited = app_wait(pid, &status);
+    unsigned previous = 0;
+    int waited, failed = 0;
+    for (;;)
+    {
+        waited = lume_syscall(LUME_WAITPID, (uint32_t)pid, (uint32_t)(uintptr_t)&status, 1);
+        if (waited == -4)
+            continue;
+        if (waited)
+            break;
+        uint32_t uptime = (uint32_t)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0);
+        if (delta(uptime, samples[previous].uptime_ms) >= delay * 1000u)
+        {
+            unsigned next = previous ^ 1u;
+            if (!snapshot(&samples[next]) || !render(&samples[next], &samples[previous], 1))
+            {
+                failed = 1;
+                break;
+            }
+            previous = next;
+        }
+        if (lume_syscall(LUME_SLEEP, 100, 0, 0) < 0)
+        {
+            app_puts("top: sampling sleep failed\n");
+            failed = 1;
+            break;
+        }
+    }
+    /* A monitoring error must not leave the child running without a waiter. */
+    if (failed)
+        waited = app_wait(pid, &status);
     if (waited < 0)
     {
         app_error("top: wait", waited);
@@ -312,7 +376,10 @@ static int run_command(int argc, char **argv, char **envp)
         app_puts("top: inconsistent child status\n");
         return 1;
     }
-    if (!snapshot(&samples[1]) || !render(&samples[1], &samples[0], 1))
+    if (failed)
+        return 1;
+    unsigned next = previous ^ 1u;
+    if (!snapshot(&samples[next]) || !render(&samples[next], &samples[previous], 1))
         return 1;
     used = 0;
     text("Child PID ");
@@ -320,8 +387,8 @@ static int run_command(int argc, char **argv, char **envp)
     text(" status ");
     number(status.code, 0);
     text(" elapsed ");
-    number(delta(samples[1].uptime_ms, samples[0].uptime_ms), 0);
-    text("ms; load, wait and child output included; report excluded.\n");
+    number(delta(samples[next].uptime_ms, started), 0);
+    text("ms. Load, wait, child output and periodic reports are included.\n");
     if (!write_screen())
         return 1;
     return (int)status.code;

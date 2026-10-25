@@ -38,7 +38,7 @@ $(BB_OBJECTS): CPPFLAGS += -Iports/common/busybox
 $(VI_OBJECTS): CPPFLAGS += -Iports/common/vi -Iports/common/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/common/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/common/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/common/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
-all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf kernel
+all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf $(OUT)/device.elf $(OUT)/module.elf kernel
 $(OUT)/tests/pthread-probe.elf: tests/aarch64/pthread_probe.c $(ARM_COMMON_OBJECTS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iinclude/common/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
@@ -72,6 +72,20 @@ $(OUT)/update.elf: apps/aarch64/start.S apps/common/update.c libc/common/sha256.
 $(OUT)/fetch.elf: apps/aarch64/start.S apps/common/fetch.c libc/common/sha256.c libc/common/sha256.h libc/aarch64/memory.c | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/aarch64 -Ilibc/common $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+NATIVE_SDK ?=
+.PHONY: pkg
+ifneq ($(strip $(NATIVE_SDK)),)
+PKG_OBJECTS := $(OUT)/obj/apps/common/pkg.c.o $(OUT)/obj/apps/aarch64/pkg_platform.c.o $(OUT)/obj/libc/common/sha256.c.o
+$(PKG_OBJECTS): CPPFLAGS += -Iapps/aarch64 -Iapps/common -Ilibc/common -Iinclude/common/posix
+$(PKG_OBJECTS): | headers
+all pkg: $(OUT)/pkg.elf
+$(OUT)/pkg.elf: $(PKG_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
+	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "$(NATIVE_SDK)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(PKG_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
+else
+pkg:
+	@echo 'NATIVE_SDK must name the native TLS runtime SDK'
+	@exit 1
+endif
 kernel: $(OUT)/shell.elf
 	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) BOARD=$(BOARD) SDK="$(SDK)" OUT="$(KERNEL_OUT)" SHELL_ELF="$(CURDIR)/$(OUT)/shell.elf" HOSTCXX='$(HOSTCXX)' HOSTCXXFLAGS='$(HOSTCXXFLAGS)'
 include mk/recovery-aarch64.mk
@@ -83,8 +97,10 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	cp assets/pi5/* "$(OUT)/root/lib/firmware/"
 	cp root/aarch64/etc/* "$(OUT)/root/etc/"
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
-	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg",true)
 	cp "$(OUT)/nc.elf" "$(OUT)/root/bin/netcat"
+	cp "$(OUT)/device.elf" "$(OUT)/root/bin/hwreg"
 	$(foreach app,less top vi htop video smpdemo iostat iobench,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/bin/$(app)";)
 	$(foreach app,worker probe fstest libctest,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/libexec/$(app)";)
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
@@ -113,3 +129,16 @@ $(OUT)/tests/update$(HOSTEXE): tests/aarch64/update_test.c apps/common/update.c 
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 -Ilibc/common -I"$(KERNEL)/include/uapi/aarch64" tests/aarch64/update_test.c libc/common/sha256.c -o "$@"
 -include $(addsuffix .d,$(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(ARM_APPS))))
+
+$(OUT)/device.elf: apps/aarch64/start.S apps/aarch64/device.c libc/aarch64/memory.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+$(OUT)/module.elf: apps/aarch64/start.S apps/aarch64/module.c libc/aarch64/memory.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+$(OUT)/tests/module-probe.elf: apps/aarch64/start.S tests/aarch64/module_probe.c libc/aarch64/memory.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+$(OUT)/tests/module-net-probe.elf: apps/aarch64/start.S tests/aarch64/module_net_probe.c libc/aarch64/memory.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iapps/aarch64 $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
