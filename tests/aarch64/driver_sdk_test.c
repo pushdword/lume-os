@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     CHECK(!features(&info));
     CHECK(info.abi == LUME_ABI_VERSION && info.pointer_bits == 64 &&
           info.compat_pointer_bits == 32);
-    CHECK(info.ddk_version == 2 && (info.features & LUME_FEATURE_SPAWN_ACTIONS) &&
+    CHECK(info.ddk_version == 3 && (info.features & LUME_FEATURE_SPAWN_ACTIONS) &&
           (info.features & LUME_FEATURE_HARDWARE) && (info.features & LUME_FEATURE_MODULES) &&
           (info.features & LUME_FEATURE_SUPERVISION));
     if (argc == 2 && !strcmp(argv[1], "--child"))

@@ -100,9 +100,10 @@ include mk/recovery-aarch64.mk
 $(RECOVERY_OBJECTS): CFLAGS += -mgeneral-regs-only
 image: all $(OUT)/image-tool$(HOSTEXE)
 	rm -rf -- "$(OUT)/root"
-	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/lib/firmware" "$(OUT)/root/boot" "$(OUT)/root/etc"
+	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/lib/firmware" "$(OUT)/root/lib/modules" "$(OUT)/root/boot" "$(OUT)/root/etc"
 	cp "$(KERNEL)/$(KERNEL_OUT)/lume-pi5.img" "$(OUT)/root/boot/kernel.img"
 	cp assets/pi5/* "$(OUT)/root/lib/firmware/"
+	$(foreach name,gic timer watchdog dma uart sd usb display entropy wifi gem,cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/aarch64/etc/* "$(OUT)/root/etc/"
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
 	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)

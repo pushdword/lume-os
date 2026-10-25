@@ -3,7 +3,7 @@
 #define _DEFAULT_SOURCE
 #include "api.h"
 #ifdef LUME_ARCH_AARCH64
-#include "errno_map.h"
+#include "posix/errno_map.h"
 #endif
 #include <errno.h>
 #include <fcntl.h>
