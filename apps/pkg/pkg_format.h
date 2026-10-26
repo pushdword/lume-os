@@ -7,7 +7,11 @@
 #define PKG_DEPS_MAX 8u
 #define PKG_BYTES_MAX (128u * 1024u * 1024u)
 #define PKG_ABI 65536u
+#if defined(LUME_ARCH_AMD64)
+#define PKG_ARCH "amd64"
+#else
 #define PKG_ARCH "aarch64"
+#endif
 #define PKG_REPO_MAGIC "LUMERP1\n"
 #define PKG_FILE_MAGIC "LUMEPK1\n"
 
@@ -61,7 +65,7 @@ int pkg_owner_alive(unsigned);
 unsigned pkg_current_pid(void);
 unsigned pkg_current_abi(void);
 int pkg_download(const char *, const char *, uint32_t, const unsigned char[32]);
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
 int pkg_payload_mode(int, unsigned);
 #endif
 #endif

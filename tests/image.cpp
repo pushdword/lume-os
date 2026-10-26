@@ -28,6 +28,18 @@ int main(int argc, char **argv)
               "Explicit default FAT generation failed");
         check(read(output / "default.fat") == read(output / "explicit.fat"),
               "Explicit size changes the default image");
+        check(invoke({"image-tool", "disk", root.string(), (output / "data64.img").string(),
+                      "64"}) == 0,
+              "64 MiB FAT generation failed");
+        {
+            Bytes image = read(output / "data64.img");
+            check(image.size() == 65u * 1024 * 1024, "64 MiB partition extent differs");
+            size_t bpb = 2048u * 512;
+            uint32_t fatsectors = uint32_t(image[bpb + 36]) | uint32_t(image[bpb + 37]) << 8;
+            check(fatsectors == 1009, "64 MiB FAT capacity differs");
+            uint32_t clusters = 64u * 2048 - 32 - 2 * fatsectors;
+            check(clusters + 2 <= fatsectors * 128, "FAT cannot describe every data cluster");
+        }
         {
             std::ofstream large(root / "large.bin", std::ios::binary);
             large.seekp(36u * 1024 * 1024 - 1);

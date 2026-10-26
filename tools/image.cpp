@@ -199,15 +199,10 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             }
         }
     const uint32_t sectors = mib * 1024 * 1024 / 512, reserved = 32;
-    uint32_t fatsectors = 1, clusters;
-    for (;;)
-    {
-        clusters = sectors - reserved - 2 * fatsectors;
-        uint32_t need = ((clusters + 2) * 4 + 511) / 512;
-        if (need == fatsectors)
-            break;
-        fatsectors = need;
-    }
+    /* A FAT sector holds 128 entries. The two FAT copies also consume sectors. */
+    const uint32_t divisor = 128 + 2;
+    const uint32_t fatsectors = (sectors - reserved + 2 + divisor - 1) / divisor;
+    const uint32_t clusters = sectors - reserved - 2 * fatsectors;
     check(clusters >= 65525, "FAT32 cluster count");
     uint32_t first = reserved + 2 * fatsectors, cursor = 2;
     Bytes volume(size_t(sectors) * 512), table(size_t(fatsectors) * 512);

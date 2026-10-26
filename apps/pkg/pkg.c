@@ -680,7 +680,7 @@ static int stage_files(const char *archive, const unsigned char expected[32])
             lume_sha256_update(&hash, buffer, n);
             left -= (uint32_t)n;
         }
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
         unsigned mode = !strncmp(incoming.file[i].path, "bin/", 4) ||
                                 !strncmp(incoming.file[i].path, "libexec/", 8)
                             ? 0755u
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv)
 #endif
     if (argc == 2 && !strcmp(argv[1], "--version"))
     {
-        puts("pkg 0.2.1 (aarch64 ABI 1.0)");
+        puts("pkg 0.2.1 (" PKG_ARCH " ABI 1.0)");
         return 0;
     }
     if (argc == 2 && !strcmp(argv[1], "recover"))

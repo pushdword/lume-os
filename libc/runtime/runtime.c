@@ -2,7 +2,7 @@
  * Picolibc services for a private Lume ring3 process. No bare-metal BSP. */
 #define _DEFAULT_SOURCE
 #include "api.h"
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
 #include "errno_map.h"
 #endif
 #include <errno.h>
@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 extern char **environ;
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
 extern int32_t lume_aarch64_open_mode(const char *, unsigned, unsigned, unsigned);
 extern int32_t lume_aarch64_mkdir_mode(const char *, unsigned);
 #endif
@@ -175,7 +175,7 @@ ssize_t read(int fd, void *buffer, size_t bytes)
 int open(const char *path, int flags, ...)
 {
     unsigned known = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     known |= O_CLOEXEC | O_NONBLOCK | O_NOCTTY;
 #endif
     if ((unsigned)flags & ~known)
@@ -199,7 +199,7 @@ int open(const char *path, int flags, ...)
     if (flags & O_EXCL)
         f |= LUME_EXCL;
     int r;
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     unsigned permissions = 0;
     if (flags & O_CREAT)
     {
@@ -265,7 +265,7 @@ int stat(const char *path, struct stat *out)
         return result(r);
     memset(out, 0, sizeof *out);
     out->st_size = s.size;
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     out->st_ino = s.inode;
 #endif
     out->st_mode = s.mode;
@@ -285,7 +285,7 @@ int fstat(int fd, struct stat *out)
         return result(r);
     memset(out, 0, sizeof *out);
     out->st_size = s.size;
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     out->st_ino = s.inode;
 #endif
     out->st_mode = s.mode;
@@ -352,7 +352,7 @@ int rename(const char *a, const char *b)
 
 int mkdir(const char *path, mode_t mode)
 {
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     int r = lume_aarch64_mkdir_mode(path, mode);
     return result(r < 0 ? -lume_errno_from_syscall((unsigned)-r) : r);
 #else

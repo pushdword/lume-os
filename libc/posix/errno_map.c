@@ -137,7 +137,7 @@ int lume_posix_write(int f, const void *p, unsigned n)
 
 int lume_posix_seek(int f, int32_t p, unsigned w)
 {
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     extern int32_t lume_aarch64_posix_seek(int, int32_t, unsigned);
     return mapped(lume_aarch64_posix_seek(f, p, w));
 #else

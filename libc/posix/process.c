@@ -35,7 +35,7 @@ uid_t getuid(void)
 
 uid_t geteuid(void)
 {
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     return (uid_t)lume_syscall(LUME_UID, 1, 0, 0);
 #else
     return getuid();
@@ -44,7 +44,7 @@ uid_t geteuid(void)
 
 gid_t getgid(void)
 {
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     return (gid_t)lume_syscall(LUME_UID, 2, 0, 0);
 #else
     return 0;
@@ -53,7 +53,7 @@ gid_t getgid(void)
 
 gid_t getegid(void)
 {
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     return (gid_t)lume_syscall(LUME_UID, 3, 0, 0);
 #else
     return getgid();
@@ -67,7 +67,7 @@ pid_t waitpid(pid_t pid, int *status, int options)
         errno = EINVAL;
         return -1;
     }
-#ifdef LUME_ARCH_AARCH64
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     extern int32_t lume_aarch64_posix_wait(int, int *, int);
     int result = lume_aarch64_posix_wait(pid, status, !!(options & WNOHANG));
     if (result < 0)

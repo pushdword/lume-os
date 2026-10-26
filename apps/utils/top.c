@@ -124,7 +124,7 @@ static void metric(const char *label, uint32_t after, uint32_t before)
     number(delta(after, before), 0);
 }
 
-#if !defined(LUME_ARCH_AARCH64)
+#if !defined(LUME_ARCH_AARCH64) && !defined(LUME_ARCH_AMD64)
 static void cost(const char *label, uint32_t after, uint32_t before, uint32_t hz)
 {
     text(label);
@@ -226,7 +226,7 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
         }
         text("\n");
     }
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
     text("Detailed I/O counters unavailable on this target.\n");
 #else
     const struct lume_perf_totals *a = &now->totals, *b = &old->totals;

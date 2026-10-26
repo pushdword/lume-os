@@ -1,7 +1,7 @@
 SHELL := sh
 .DEFAULT_GOAL := all
 ARCH ?= x32
-BOARD ?= $(if $(filter aarch64,$(ARCH)),raspberrypi5,tang25k)
+BOARD ?= $(if $(filter amd64,$(ARCH)),q35,$(if $(filter aarch64,$(ARCH)),raspberrypi5,tang25k))
 SDK ?=
 KERNEL ?= kernel
 KERNEL_OUT ?= build/$(ARCH)
@@ -22,6 +22,11 @@ TOOLBIN = $(if $(strip $(SDK)),$(SDK)/bin/,)
 .PHONY: all image check clean kernel headers
 include mk/applications.mk
 include arch/$(ARCH)/config.mk
+ifeq ($(ARCH),amd64)
+ifneq ($(BOARD),q35)
+$(error AMD64 requires BOARD=q35)
+endif
+endif
 ifeq ($(UAPI_ABI),native)
 include mk/userland-native.mk
 else

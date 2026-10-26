@@ -2,6 +2,7 @@ CC := "$(TOOLBIN)clang$(HOSTEXE)" --target=$(TARGET)
 LD := "$(TOOLBIN)ld.lld$(HOSTEXE)"
 OBJCOPY := "$(TOOLBIN)llvm-objcopy$(HOSTEXE)"
 SYSROOT ?= $(SDK)/sysroot
+NATIVE_KERNEL_IMAGE := $(if $(filter amd64,$(ARCH)),lume-amd64.bin,lume-pi5.img)
 CMAKE ?= cmake
 PICOLIBC ?=
 .PHONY: libc
@@ -39,6 +40,12 @@ $(VI_OBJECTS): CPPFLAGS += -Iports/vi -Iports/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/diagnostics/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
 all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf $(OUT)/device.elf $(OUT)/module.elf kernel
+ifeq ($(ARCH),amd64)
+all: $(OUT)/amd64-runtime.elf
+$(OUT)/amd64-runtime.elf: $(OUT)/obj/tests/integration/amd64_runtime.c.o $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/amd64_runtime.c.o: | headers
+endif
 $(OUT)/tests/pthread-probe.elf: tests/integration/pthread_probe.c $(ARM_COMMON_OBJECTS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iinclude/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
@@ -99,6 +106,9 @@ pkg:
 endif
 kernel: $(OUT)/shell.elf
 	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) BOARD=$(BOARD) SDK="$(SDK)" OUT="$(KERNEL_OUT)" SHELL_ELF="$(CURDIR)/$(OUT)/shell.elf" HOSTCXX='$(HOSTCXX)' HOSTCXXFLAGS='$(HOSTCXXFLAGS)'
+ifneq ($(wildcard platform/$(BOARD)/config.mk),)
+include platform/$(BOARD)/config.mk
+endif
 ifneq ($(wildcard platform/$(BOARD)/recovery.mk),)
 include platform/$(BOARD)/recovery.mk
 endif
@@ -106,10 +116,14 @@ $(RECOVERY_OBJECTS): CFLAGS += -mgeneral-regs-only
 image: all $(OUT)/image-tool$(HOSTEXE)
 	rm -rf -- "$(OUT)/root"
 	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/lib/firmware" "$(OUT)/root/lib/modules" "$(OUT)/root/boot" "$(OUT)/root/etc"
-	cp "$(KERNEL)/$(KERNEL_OUT)/lume-pi5.img" "$(OUT)/root/boot/kernel.img"
+	cp "$(KERNEL)/$(KERNEL_OUT)/$(NATIVE_KERNEL_IMAGE)" "$(OUT)/root/boot/kernel.img"
+ifneq ($(ARCH),amd64)
 	cp assets/firmware/cyw43455/* "$(OUT)/root/lib/firmware/"
 	$(foreach name,gic timer watchdog dma uart sd usb display entropy wifi gem,cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
+else
+	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
+endif
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
 	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
 	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg",true)
@@ -118,6 +132,9 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	cp "$(OUT)/device.elf" "$(OUT)/root/bin/hwreg"
 	$(foreach app,less top vi htop video smpdemo iostat iobench,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/bin/$(app)";)
 	$(foreach app,worker probe fstest libctest,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/libexec/$(app)";)
+ifeq ($(ARCH),amd64)
+	cp "$(OUT)/amd64-runtime.elf" "$(OUT)/root/usr/libexec/amdtest"
+endif
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 .PHONY: check-update check-network-tools check-services

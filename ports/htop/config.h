@@ -8,7 +8,9 @@
 #define PACKAGE "htop"
 #define PACKAGE_NAME "htop"
 #define PACKAGE_VERSION "3.5.3"
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AMD64)
+#define LUME_HTOP_MACHINE "AMD64"
+#elif defined(LUME_ARCH_AARCH64)
 #define LUME_HTOP_MACHINE "AArch64"
 #elif defined(LUME_ARCH_R32)
 #define LUME_HTOP_MACHINE "R32"
