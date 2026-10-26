@@ -1,0 +1,4 @@
+TARGET ?= r32-unknown-none-elf
+ARCH_CFLAGS :=
+ARCH_CPPFLAGS := -DLUME_ARCH_R32=1
+UAPI_ABI := r32

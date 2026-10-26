@@ -1,5 +1,5 @@
 #define lume_syscall spawn_trace_syscall
-#include "../../libc/common/posix/process.c"
+#include "../../libc/posix/process.c"
 #undef lume_syscall
 
 int32_t lume_syscall(uint32_t, uint32_t, uint32_t, uint32_t);

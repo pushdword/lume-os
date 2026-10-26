@@ -15,12 +15,15 @@ endif
 HOSTCC ?= cc
 HOSTCXX ?= c++
 HOSTCFLAGS ?= -O2 -std=c11
+HOSTCFLAGS += -Iinclude/internal
 HOSTCXXFLAGS ?= -O2 -std=c++17
 HOSTEXE := $(if $(filter Windows_NT,$(OS)),.exe,)
 TOOLBIN = $(if $(strip $(SDK)),$(SDK)/bin/,)
 .PHONY: all image check clean kernel headers
-ifeq ($(ARCH),aarch64)
-include mk/userland-aarch64.mk
+include mk/applications.mk
+include arch/$(ARCH)/config.mk
+ifeq ($(UAPI_ABI),native)
+include mk/userland-native.mk
 else
 ifeq ($(ARCH),r32)
 CC := "$(TOOLBIN)r32-clang$(HOSTEXE)"
@@ -39,11 +42,11 @@ else
 $(error Unsupported ARCH $(ARCH))
 endif
 CFLAGS := -Oz -std=gnu11 -ffreestanding -fno-builtin -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections
-CPPFLAGS += -Iinclude/common -I"$(KERNEL)/$(KERNEL_OUT)/include" --sysroot="$(SDK)/sysroot"
+CPPFLAGS += -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Ilibc/posix -Ilibc/crypto -I"$(KERNEL)/$(KERNEL_OUT)/include" --sysroot="$(SDK)/sysroot"
 LIBS := --start-group "$(SDK)/sysroot/lib/libc.a" "$(SDK)/sysroot/lib/libclang_rt.$(BUILTINS).a" --end-group
-COMMON_SOURCES := arch/$(ARCH)/start.s libc/common/api.c libc/common/runtime.c arch/$(ARCH)/memory.s
+COMMON_SOURCES := arch/$(ARCH)/start.s libc/lume/api.c libc/runtime/runtime.c arch/$(ARCH)/memory.s
 ifeq ($(ARCH),r32)
-COMMON_SOURCES += libc/r32/strings.c
+COMMON_SOURCES += libc/string/word32le.c
 endif
 COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(COMMON_SOURCES)))
 APP_NAMES := init shell worker probe ls dir less fstest libctest video smpdemo top net iostat iobench netd
@@ -51,47 +54,50 @@ APP_TARGETS := $(addprefix $(OUT)/bin/,$(addsuffix .$(ARCH),$(APP_NAMES) busybox
 include mk/htop.mk
 include mk/dropbear.mk
 include mk/busybox.mk
-VI_SOURCES := ports/common/busybox/compat.c ports/common/vi/compat.c ports/common/vi/upstream/vi.c
-HTOP_SOURCES += $(addprefix ports/common/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/common/posix/,sbrk.c time.c posix_runtime.c errno_map.c)
-DROPBEAR_SOURCES += $(wildcard ports/common/dropbear/*.c) libc/common/random.c libc/common/posix/errno_map.c libc/common/posix/sbrk.c
+VI_SOURCES := ports/busybox/compat.c ports/vi/compat.c vendor/vi/vi.c
+HTOP_SOURCES += $(addprefix ports/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/posix/,sbrk.c time.c posix_runtime.c errno_map.c)
+DROPBEAR_SOURCES += $(wildcard ports/dropbear/*.c) libc/crypto/random.c libc/posix/errno_map.c libc/posix/sbrk.c
 ifeq ($(ARCH),r32)
 SSH_CRYPTO ?= hardware
 ifeq ($(SSH_CRYPTO),software)
-DROPBEAR_SOURCES := $(filter-out vendor/dropbear/src/curve25519.c ports/common/dropbear/accelerator.c,$(DROPBEAR_SOURCES))
+DROPBEAR_SOURCES := $(filter-out vendor/dropbear/src/curve25519.c ports/dropbear/accelerator.c,$(DROPBEAR_SOURCES))
 else ifeq ($(SSH_CRYPTO),hardware)
-DROPBEAR_SOURCES := $(filter-out ports/common/dropbear/curve25519.c ports/common/dropbear/accelerator_soft.c,$(DROPBEAR_SOURCES))
+DROPBEAR_SOURCES := $(filter-out ports/dropbear/curve25519.c ports/dropbear/accelerator_soft.c,$(DROPBEAR_SOURCES))
 else
 $(error Unsupported SSH_CRYPTO $(SSH_CRYPTO))
 endif
 else
-DROPBEAR_SOURCES := $(filter-out ports/common/dropbear/curve25519.c ports/common/dropbear/accelerator_soft.c,$(DROPBEAR_SOURCES))
+DROPBEAR_SOURCES := $(filter-out ports/dropbear/curve25519.c ports/dropbear/accelerator_soft.c,$(DROPBEAR_SOURCES))
 endif
 BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
 VI_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(VI_SOURCES)))
 HTOP_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(HTOP_SOURCES)))
 SSH_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(DROPBEAR_SOURCES)))
-BASE_OBJECTS := $(filter-out $(OUT)/obj/libc/common/runtime.c.o,$(COMMON_OBJECTS))
-$(BB_OBJECTS): CPPFLAGS += -Iports/common/busybox
-$(VI_OBJECTS): CPPFLAGS += -Iports/common/vi -Iports/common/busybox
-$(HTOP_OBJECTS): CPPFLAGS += -Iports/common/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/common/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
-SSH_CPPFLAGS := -Ilibc/common -Iports/common/dropbear -Iports/common/dropbear/include -Ivendor/dropbear/src -Ivendor/dropbear/libtomcrypt/src/headers -Ivendor/dropbear/libtommath -Iinclude/common/posix -DDROPBEAR_SERVER=1 -DLOCALOPTIONS_H_EXISTS -DBUNDLED_LIBTOM -DLTC_NO_ASM -DMP_32BIT
+BASE_OBJECTS := $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o,$(COMMON_OBJECTS))
+$(BB_OBJECTS): CPPFLAGS += -Iports/busybox
+$(VI_OBJECTS): CPPFLAGS += -Iports/vi -Iports/busybox
+$(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
+SSH_CPPFLAGS := -Ilibc/lume -Ilibc/crypto -Ilibc/posix -Iports/dropbear -Iports/dropbear/include -Ivendor/dropbear/src -Ivendor/dropbear/libtomcrypt/src/headers -Ivendor/dropbear/libtommath -Iinclude/posix -DDROPBEAR_SERVER=1 -DLOCALOPTIONS_H_EXISTS -DBUNDLED_LIBTOM -DLTC_NO_ASM -DMP_32BIT
 $(SSH_OBJECTS): CPPFLAGS += $(SSH_CPPFLAGS)
 $(filter %/sha256.c.o %/sha512.c.o,$(SSH_OBJECTS)): CPPFLAGS += -DLTC_SMALL_CODE
 $(filter $(OUT)/obj/vendor/dropbear/libtomcrypt/%,$(SSH_OBJECTS)): CPPFLAGS += -DLTC_SOURCE
-$(OUT)/obj/libc/common/dhcp.c.o: CPPFLAGS += -Iinclude/common/platform
-$(OUT)/obj/apps/common/netd.c.o: CPPFLAGS += -Iinclude/common/platform
+$(OUT)/obj/libc/lume/dhcp.c.o: CPPFLAGS += -Iinclude/lume/platform
+$(OUT)/obj/services/netd/legacy32/netd.c.o: CPPFLAGS += -Iinclude/lume/platform
 all: headers $(APP_TARGETS) kernel
-$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(APP_NAMES) sshshell)) $(OUT)/obj/libc/common/dhcp.c.o: | headers
+$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(APP_OBJECTS) $(OUT)/obj/apps/shell/sshshell.c.o $(OUT)/obj/libc/lume/dhcp.c.o: | headers
 $(OUT)/obj/%.c.o: %.c $(OUT)/configuration Makefile
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 $(OUT)/obj/%.s.o: %.s $(OUT)/configuration Makefile
 	mkdir -p "$(@D)"
 	$(CC) -c "$<" -o "$@"
-$(OUT)/bin/%.$(ARCH): $(OUT)/obj/apps/common/%.c.o $(COMMON_OBJECTS) arch/$(ARCH)/user.ld
-	mkdir -p "$(@D)"
-	$(LD) $(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/user.ld $(COMMON_OBJECTS) "$<" $(LIBS) -o "$@"
-$(OUT)/bin/netd.$(ARCH): $(OUT)/obj/apps/common/netd.c.o $(OUT)/obj/libc/common/dhcp.c.o $(COMMON_OBJECTS)
+define application
+$(OUT)/bin/$(1).$(ARCH): $(OUT)/obj/$(APP_SOURCE_$(1)).o $(COMMON_OBJECTS) arch/$(ARCH)/user.ld
+	mkdir -p "$$(@D)"
+	$(LD) $(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/user.ld $(COMMON_OBJECTS) "$$<" $(LIBS) -o "$$@"
+endef
+$(foreach app,$(filter-out netd,$(APP_NAMES)),$(eval $(call application,$(app))))
+$(OUT)/bin/netd.$(ARCH): $(OUT)/obj/services/netd/legacy32/netd.c.o $(OUT)/obj/libc/lume/dhcp.c.o $(COMMON_OBJECTS)
 	mkdir -p "$(@D)"
 	$(LD) $(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/user.ld $^ $(LIBS) -o "$@"
 $(OUT)/bin/busybox.$(ARCH): $(BB_OBJECTS) $(COMMON_OBJECTS)
@@ -102,25 +108,25 @@ $(OUT)/bin/vi.$(ARCH): $(VI_OBJECTS) $(COMMON_OBJECTS)
 	$(LD) $(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/utility.ld $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(LIBS) -o "$@"
 $(OUT)/bin/htop.$(ARCH): $(HTOP_OBJECTS) $(BASE_OBJECTS)
 	mkdir -p "$(@D)"
-	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T libc/$(ARCH)/posix/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
+	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
 	$(LD) @"$@.rsp"
 $(OUT)/bin/dropbear.$(ARCH): $(SSH_OBJECTS) $(BASE_OBJECTS)
 	mkdir -p "$(@D)"
-	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T libc/$(ARCH)/posix/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
+	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
 	$(LD) @"$@.rsp"
-$(OUT)/obj/apps/common/sshshell.c.o: apps/common/shell.c $(OUT)/configuration Makefile | headers
+$(OUT)/obj/apps/shell/sshshell.c.o: apps/shell/shell.c $(OUT)/configuration Makefile | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DLUME_SHELL_FDS=1 -c "$<" -o "$@"
-$(OUT)/bin/sshshell.$(ARCH): $(OUT)/obj/apps/common/sshshell.c.o $(COMMON_OBJECTS)
+$(OUT)/bin/sshshell.$(ARCH): $(OUT)/obj/apps/shell/sshshell.c.o $(COMMON_OBJECTS)
 	mkdir -p "$(@D)"
-	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T libc/$(ARCH)/posix/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
+	$(file >$@.rsp,$(LINK_FLAGS) --gc-sections --build-id=none -T arch/$(ARCH)/native.ld $(foreach obj,$^,"$(obj)") $(LIBS) -o "$@")
 	$(LD) @"$@.rsp"
 $(OUT)/bin/htop.$(ARCH) $(OUT)/bin/dropbear.$(ARCH) $(OUT)/bin/sshshell.$(ARCH): | $(OUT)/bin
 $(OUT)/bin:
 	mkdir -p "$@"
 ifeq ($(ARCH),r32)
-R32_CRYPTO_TEST := $(OUT)/obj/tests/r32/ssh_crypto.c.o
-R32_CRYPTO_OBJECTS := $(filter $(OUT)/obj/vendor/dropbear/libtomcrypt/% %/libc/common/random.c.o %/ports/common/dropbear/accelerator.c.o %/ports/common/dropbear/accelerator_soft.c.o %/ports/common/dropbear/profile.c.o %/ports/common/dropbear/curve25519.c.o %/vendor/dropbear/src/curve25519.c.o %/dbhelpers.c.o,$(SSH_OBJECTS))
+R32_CRYPTO_TEST := $(OUT)/obj/tests/arch/r32/ssh_crypto.c.o
+R32_CRYPTO_OBJECTS := $(filter $(OUT)/obj/vendor/dropbear/libtomcrypt/% %/libc/crypto/random.c.o %/ports/dropbear/accelerator.c.o %/ports/dropbear/accelerator_soft.c.o %/ports/dropbear/profile.c.o %/ports/dropbear/curve25519.c.o %/vendor/dropbear/src/curve25519.c.o %/dbhelpers.c.o,$(SSH_OBJECTS))
 $(R32_CRYPTO_TEST): CPPFLAGS += $(SSH_CPPFLAGS)
 $(R32_CRYPTO_TEST): | headers
 .PHONY: r32-crypto-test
@@ -164,8 +170,8 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	cp "$(OUT)/bin/probe.$(ARCH)" "$(OUT)/root/usr/libexec/"
 	cp "$(OUT)/bin/fstest.$(ARCH)" "$(OUT)/root/usr/libexec/"
 	cp "$(OUT)/bin/libctest.$(ARCH)" "$(OUT)/root/usr/libexec/"
-	cp assets/$(ARCH)/lume8x16.fnt "$(OUT)/root/usr/share/fonts/"
-	cp root/$(ARCH)/etc/* "$(OUT)/root/etc/"
+	cp assets/fonts/$(ARCH)/lume8x16.fnt "$(OUT)/root/usr/share/fonts/"
+	cp root/profiles/$(ARCH)/etc/* "$(OUT)/root/etc/"
 ifeq ($(ARCH),r32)
 ifneq ($(strip $(R32_NATIVE_ROOT)),)
 	test -f "$(R32_NATIVE_ROOT)/usr/bin/clang.r32"
@@ -204,9 +210,9 @@ check-shell: $(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEX
 	env "$(OUT)/tests/shell-console$(HOSTEXE)"
 	env "$(OUT)/tests/shell-ssh$(HOSTEXE)"
 $(OUT)/tests/shell-ssh$(HOSTEXE): SHELL_TEST_FLAGS := -DLUME_SHELL_FDS=1
-$(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/common/shell.c apps/common/shell.c apps/common/shell_io.h include/common/api.h include/common/fd_client.h $(KERNEL)/include/uapi/common/lume/app.h | headers
+$(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/unit/shell.c apps/shell/shell.c apps/shell/shell_io.h include/lume/api.h include/lume/fd_client.h $(KERNEL)/include/uapi/lume/app.h | headers
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) $(SHELL_TEST_FLAGS) $(if $(filter aarch64,$(ARCH)),-DLUME_ARCH_AARCH64=1,$(if $(filter r32,$(ARCH)),-DLUME_ARCH_R32=1,)) -Iinclude/common -I"$(KERNEL)/$(KERNEL_OUT)/include" "$<" -o "$@"
+	$(HOSTCC) $(HOSTCFLAGS) $(SHELL_TEST_FLAGS) $(if $(filter aarch64,$(ARCH)),-DLUME_ARCH_AARCH64=1,$(if $(filter r32,$(ARCH)),-DLUME_ARCH_R32=1,)) -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Ilibc/posix -Ilibc/crypto -I"$(KERNEL)/$(KERNEL_OUT)/include" "$<" -o "$@"
 $(OUT)/image-tool$(HOSTEXE): tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
@@ -218,18 +224,18 @@ check: $(OUT)/tests/net-client$(HOSTEXE) $(OUT)/tests/net-policy$(HOSTEXE) $(OUT
 $(OUT)/tests/image$(HOSTEXE): tests/image.cpp tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
-$(OUT)/tests/net-client$(HOSTEXE): tests/aarch64/net_client_test.c apps/aarch64/net_client.h apps/aarch64/net_service_client.h apps/aarch64/lib.h
+$(OUT)/tests/net-client$(HOSTEXE): tests/unit/net_client_test.c apps/net/net_client.h apps/net/net_service_client.h include/internal/lume/app_support.h
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/aarch64 -I"$(KERNEL)/include/uapi/aarch64" "$<" -o "$@"
-$(OUT)/tests/net-policy$(HOSTEXE): tests/aarch64/net_policy_test.c apps/aarch64/net_policy.c
+	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
+$(OUT)/tests/net-policy$(HOSTEXE): tests/unit/net_policy_test.c services/netd/net_policy.c
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 $^ -o "$@"
-$(OUT)/tests/netd$(HOSTEXE): tests/aarch64/netd_test.c apps/aarch64/net_policy.c apps/aarch64/netd.c apps/aarch64/net_policy.h
+	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $^ -o "$@"
+$(OUT)/tests/netd$(HOSTEXE): tests/unit/netd_test.c services/netd/net_policy.c services/netd/netd.c services/netd/net_policy.h
 	mkdir -p "$(@D)"
-	$(HOSTCC) $(HOSTCFLAGS) -Iapps/aarch64 -I"$(KERNEL)/include/uapi/aarch64" $(filter %netd_test.c %net_policy.c,$^) -o "$@"
+	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/abi/native" $(filter %netd_test.c %net_policy.c,$^) -o "$@"
 clean:
 	rm -rf -- "$(OUT)"
--include $(addsuffix .d,$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(addprefix $(OUT)/obj/apps/common/,$(addsuffix .c.o,$(APP_NAMES) sshshell)))
+-include $(addsuffix .d,$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(APP_OBJECTS) $(OUT)/obj/apps/shell/sshshell.c.o)
 
 .PHONY: FORCE
 FORCE:
