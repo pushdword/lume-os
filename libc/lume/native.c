@@ -350,16 +350,21 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         struct lume_fd_request poll = *request;
         poll.timeout_ms = 0;
         uint64_t started = (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0);
+        unsigned pause = 1;
         for (;;)
         {
             int result = (int)native(LUME_SYS_FD, a, (uintptr_t)&poll, sizeof(poll));
-            if (result || !timeout ||
-                (timeout != UINT32_MAX &&
-                 (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0) - started >= timeout))
+            uint64_t elapsed = (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0) - started;
+            if (result || !timeout || (timeout != UINT32_MAX && elapsed >= timeout))
                 return result;
-            int64_t slept = native(LUME_SYS_SLEEP, 1, 0, 0);
+            unsigned wait = pause;
+            if (timeout != UINT32_MAX && timeout - elapsed < wait)
+                wait = (unsigned)(timeout - elapsed);
+            int64_t slept = native(LUME_SYS_SLEEP, wait, 0, 0);
             if (slept < 0)
                 return (int32_t)slept;
+            if (pause < 20)
+                pause = pause < 10 ? pause * 2 : 20;
         }
     }
     case LUME_BRK:

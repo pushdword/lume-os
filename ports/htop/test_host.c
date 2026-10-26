@@ -8,6 +8,7 @@
 #include <string.h>
 #include "curses.h"
 #include "api.h"
+#include "fd.h"
 #include "perf.h"
 #include "Platform.h"
 #include "unsupported/UnsupportedProcess.h"
@@ -24,11 +25,30 @@ static const char *filter_first, *help_dismiss;
 static unsigned filter_caret_checks, help_published_before_input;
 static struct lume_perf_snapshot injected;
 static int memory_bad;
+static int redirected_input, redirected_eof;
 static int geometry = (24 << 16) | 80, auto_sample;
 
 int32_t lume_syscall(uint32_t n, uint32_t a, uint32_t b, uint32_t c)
 {
     (void)c;
+    if (n == LUME_FSTAT && redirected_input)
+    {
+        assert(a == 0);
+        *(struct lume_stat *)(uintptr_t)b = (struct lume_stat){.mode = 0010000};
+        return 0;
+    }
+    if (n == LUME_FD && a == LUME_FD_POLL)
+    {
+        struct lume_fd_request *request = (void *)(uintptr_t)b;
+        assert(redirected_input && request->count == 1);
+        struct lume_pollfd *poll = (void *)(uintptr_t)request->buffer;
+        assert(poll->fd == 0 && poll->events == LUME_POLLIN);
+        poll->revents = *input ? LUME_POLLIN : redirected_eof ? LUME_POLLIN | LUME_POLLHUP : 0;
+        if (poll->revents)
+            return 1;
+        ticks_ms += request->timeout_ms;
+        return 0;
+    }
     if (n == LUME_INFO)
         return a == LUME_CORES ? 2 : a == LUME_UPTIME ? (int32_t)ticks_ms : 0;
     if (n == LUME_PERF)
@@ -65,6 +85,11 @@ int32_t lume_syscall(uint32_t n, uint32_t a, uint32_t b, uint32_t c)
             return 0;
         ticks_ms += b;
         return -11;
+    }
+    if (n == LUME_TERMINAL && redirected_input)
+    {
+        assert(0 && "Redirected input must not query the console");
+        return -38;
     }
     if (n == LUME_TERMINAL)
         return a == 0 ? geometry : *input != 0;
@@ -212,6 +237,21 @@ static void test_terminal(void)
     assert(endwin() == OK);
 }
 
+static void test_redirected_terminal(void)
+{
+    redirected_input = 1;
+    initscr();
+    timeout(500);
+    input = "q";
+    assert(getch() == 'q' && !*input);
+    unsigned before = ticks_ms;
+    assert(getch() == ERR && ticks_ms - before == 500);
+    redirected_eof = 1;
+    assert(getch() == 'q');
+    assert(endwin() == OK);
+    redirected_input = redirected_eof = 0;
+}
+
 static void test_backend(void)
 {
     memset(&injected, 0, sizeof injected);
@@ -321,6 +361,7 @@ int CommandLine_run(int, char **);
 int main(void)
 {
     test_terminal();
+    test_redirected_terminal();
     test_backend();
     memory_bad = 0;
     auto_sample = 1;

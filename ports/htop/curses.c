@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 #include "curses.h"
 #include "api.h"
+#include "fd_client.h"
 #include <stdio.h>
 #include <string.h>
 static WINDOW window;
@@ -9,6 +10,10 @@ int COLS = 80, LINES = 24, COLORS = 8, COLOR_PAIRS = 256;
 static chtype wanted[128 * 48], shown[128 * 48], attributes;
 static short foreground[256], background[256];
 static int delay_ms = 1000, force = 1, dirty = 1, cursor_visible = 1;
+static int console_input = 1, input_eof;
+static struct lume_stat input_metadata;
+static struct lume_pollfd input_poll;
+static struct lume_fd_request input_request;
 char *enter_ca_mode = "", *exit_ca_mode = "", *clear_screen = "\033[2J\033[H";
 
 static unsigned now(void)
@@ -34,7 +39,10 @@ static int out(const char *s, unsigned n)
 
 WINDOW *initscr(void)
 {
-    int g = lume_syscall(LUME_TERMINAL, 0, 0, 0);
+    int metadata = lume_syscall(LUME_FSTAT, 0, (uint32_t)(uintptr_t)&input_metadata, 0);
+    console_input = metadata < 0 || (input_metadata.mode & 0170000) == 0020000;
+    input_eof = 0;
+    int g = console_input ? lume_syscall(LUME_TERMINAL, 0, 0, 0) : (24 << 16) | 80;
     int c = g & 65535, l = (unsigned)g >> 16;
     if (c > 0 && c <= 128 && l > 0 && l <= 48)
     {
@@ -490,12 +498,22 @@ int tputs(const char *s, int affected, int (*put)(int))
     return OK;
 }
 
+static int poll_input(unsigned timeout)
+{
+    input_request = app_fd_request();
+    input_request.buffer = lume_fd_pointer(&input_poll);
+    input_request.count = 1;
+    input_request.timeout_ms = timeout;
+    return app_fd_call(LUME_FD_POLL, &input_request);
+}
+
 static int byte(int ms)
 {
     unsigned start = now();
     do
     {
-        int ready = lume_syscall(LUME_TERMINAL, 1, 0, 0);
+        input_poll = (struct lume_pollfd){.fd = 0, .events = LUME_POLLIN};
+        int ready = console_input ? lume_syscall(LUME_TERMINAL, 1, 0, 0) : poll_input(0);
         if (ready < 0)
             return ERR;
         if (ready > 0)
@@ -504,6 +522,8 @@ static int byte(int ms)
             int n = app_read(0, &c, 1);
             if (n == 1)
                 return c;
+            if (!n || n == -32 || n == -9)
+                input_eof = 1;
             if (n != -4)
                 return ERR;
         }
@@ -519,7 +539,7 @@ static int byte(int ms)
         }
         /* The existing ABI can park this process until input or timeout. Keep the
   * polling fallback for kernels/controllers without that optional service. */
-        int rc = lume_syscall(LUME_TERMINAL, 5, wait, 0);
+        int rc = console_input ? lume_syscall(LUME_TERMINAL, 5, wait, 0) : poll_input(wait);
         if (rc == -95 || rc == -38 || rc == -22)
         {
             if (wait > 50)
@@ -534,7 +554,8 @@ static int byte(int ms)
 
 int getch(void)
 {
-    int g = lume_syscall(LUME_TERMINAL, 0, 0, 0), cols = g & 65535, lines = (unsigned)g >> 16;
+    int g = console_input ? lume_syscall(LUME_TERMINAL, 0, 0, 0) : (LINES << 16) | COLS;
+    int cols = g & 65535, lines = (unsigned)g >> 16;
     if (cols > 0 && cols <= 128 && lines > 0 && lines <= 48 && (cols != COLS || lines != LINES))
     {
         COLS = cols;
@@ -547,6 +568,8 @@ int getch(void)
     if (cursor_visible && mvcur(-1, -1, window.row, window.column) == ERR)
         return ERR;
     int c = byte(delay_ms);
+    if (input_eof)
+        return 'q';
     if (c == 127 || c == 8)
         return KEY_BACKSPACE;
     if (c == '\r' || c == '\n')

@@ -19,7 +19,7 @@ CORE := $(addprefix $(OUT)/obj/,$(LIBSSH_OBJS))
 COMPAT_OBJS := $(addprefix $(OUT)/obj/compat/,$(OPENBSD) $(COMPAT) $(PORTS))
 RUNTIME := $(OUT)/libc_aarch64_api.c.obj $(OUT)/libc_common_posix_posix_runtime.c.obj $(OUT)/libc_common_posix_process.c.obj
 LIBRARIES := $(OUT)/libssh.a $(OUT)/libcompat.a $(OUT)/liblume.a $(SDK)/lib/libc.a
-LINK = $(LD) --wrap=main --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld $(SDK)/lib/crt0.o
+LINK = $(LD) --wrap=main --wrap=poll --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld $(SDK)/lib/crt0.o
 HEADERS := $(wildcard $(OS_ROOT)/arch/$(ARCH)/include/lume/*.h) $(wildcard $(PORT)/*.h $(PORT)/lume/*.h $(PORT)/lume/include/*.h $(PORT)/lume/include/sys/*.h $(PORT)/lume/include/netinet/*.h $(PORT)/lume/include/arpa/*.h $(SOURCE)/*.h $(SOURCE)/openbsd-compat/*.h)
 .PHONY: all
 all: $(addprefix $(OUT)/,sshd sshd-session sshd-auth ssh-keygen sftp-server sshd-setup)

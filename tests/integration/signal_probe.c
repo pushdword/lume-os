@@ -73,6 +73,13 @@ int main(int argc, char **argv)
     }
     REQUIRE(delivered == 21);
     REQUIRE(!sigprocmask(SIG_UNBLOCK, &mask, NULL));
+    struct timespec before_poll, after_poll;
+    REQUIRE(!clock_gettime(CLOCK_MONOTONIC, &before_poll));
+    REQUIRE(poll(NULL, 0, 63) == 0);
+    REQUIRE(!clock_gettime(CLOCK_MONOTONIC, &after_poll));
+    int64_t elapsed_poll = (after_poll.tv_sec - before_poll.tv_sec) * INT64_C(1000000000) +
+                           after_poll.tv_nsec - before_poll.tv_nsec;
+    REQUIRE(elapsed_poll >= 63000000 && elapsed_poll < 200000000);
     struct itimerval timer = {.it_value.tv_usec = 40000};
     REQUIRE(!setitimer(ITIMER_REAL, &timer, NULL));
     struct timespec delay = {.tv_sec = 1};

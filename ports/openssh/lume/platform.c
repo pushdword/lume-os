@@ -528,8 +528,9 @@ int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct ti
 
 int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, const sigset_t *mask)
 {
-    if (count > LUME_FD_LIMIT || (timeout && (timeout->tv_sec < 0 || timeout->tv_nsec < 0 ||
-                                              timeout->tv_nsec >= 1000000000)))
+    if (count > LUME_FD_LIMIT || (!fds && count) ||
+        (timeout &&
+         (timeout->tv_sec < 0 || timeout->tv_nsec < 0 || timeout->tv_nsec >= 1000000000)))
     {
         errno = EINVAL;
         return -1;
@@ -566,18 +567,27 @@ int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, cons
         result = -1;
     }
     else
+    {
+        unsigned pause = 1;
         for (;;)
         {
             result = native_result(
                 native_call(LUME_SYS_FD, LUME_FD_POLL, (uintptr_t)&request, sizeof(request)));
-            if (result || (uint64_t)native_call(LUME_SYS_CLOCK, 0, 0, 0) - start >= ms)
+            uint64_t elapsed = (uint64_t)native_call(LUME_SYS_CLOCK, 0, 0, 0) - start;
+            if (result || elapsed >= ms)
                 break;
-            if (native_result(native_call(LUME_SYS_SLEEP, 1, epoch, 1)) < 0)
+            unsigned wait = pause;
+            if (ms - elapsed < wait)
+                wait = (unsigned)(ms - elapsed);
+            if (native_result(native_call(LUME_SYS_SLEEP, wait, epoch, 1)) < 0)
             {
                 result = -1;
                 break;
             }
+            if (pause < 20)
+                pause = pause < 10 ? pause * 2 : 20;
         }
+    }
     int saved = errno;
     if (mask && sigprocmask(SIG_SETMASK, &old, NULL) < 0)
         return -1;
@@ -590,6 +600,18 @@ int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, cons
                              (records[i].revents & LUME_POLLHUP ? POLLHUP : 0) |
                              (records[i].revents & LUME_POLLNVAL ? POLLNVAL : 0);
     return result;
+}
+
+int __wrap_poll(struct pollfd *fds, nfds_t count, int timeout)
+{
+    if (timeout < -1)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    struct timespec delay = {.tv_sec = timeout > 0 ? timeout / 1000 : 0,
+                             .tv_nsec = timeout > 0 ? (timeout % 1000) * 1000000L : 0};
+    return ppoll(fds, count, timeout < 0 ? NULL : &delay, NULL);
 }
 
 static struct

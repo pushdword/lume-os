@@ -1,5 +1,6 @@
 #include "lume/abi.h"
 #include "lume/process.h"
+#include "perf.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -40,6 +41,50 @@ static void *thread(void *unused)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && !strcmp(argv[1], "telemetry"))
+    {
+        struct
+        {
+            struct lume_perf_snapshot sample;
+            unsigned char guard[1024];
+        } bounded;
+
+        unsigned pids[9];
+        unsigned count = 0;
+        for (; count < 9; ++count)
+        {
+            int64_t child = native(LUME_SYS_FORK, 0, 0, 0);
+            if (child < 0)
+                break;
+            if (!child)
+            {
+                (void)native(LUME_SYS_SLEEP, 5000, 0, 0);
+                _exit(0);
+            }
+            pids[count] = (unsigned)child;
+        }
+        memset(&bounded, 0xa5, sizeof(bounded));
+        int64_t result = native(LUME_SYS_TELEMETRY, (uintptr_t)&bounded.sample,
+                                sizeof(bounded.sample), LUME_PERF_VERSION);
+        unsigned intact = 1;
+        for (unsigned i = 0; i < sizeof(bounded.guard); ++i)
+            intact &= bounded.guard[i] == 0xa5;
+        for (unsigned i = 0; i < count; ++i)
+        {
+            int status;
+            int waited;
+            do
+            {
+                waited = waitpid((pid_t)pids[i], &status, 0);
+            } while (waited < 0 && errno == EINTR);
+            require(waited == (int)pids[i], "telemetry child cleanup");
+        }
+        require(count >= 8, "telemetry process population");
+        require(!result && bounded.sample.process_count <= LUME_PERF_PROCESSES && intact,
+                "telemetry snapshot capacity");
+        puts("PROCESS_TELEMETRY_BOUNDS_PASS");
+        return 0;
+    }
     if (argc == 5 && !strcmp(argv[1], "exec"))
     {
         require((unsigned)getpid() == (unsigned)atoi(argv[2]), "exec PID");
