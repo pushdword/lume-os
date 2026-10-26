@@ -1,0 +1,12 @@
+load /lib/modules/vblk.lkm
+probe q35-virtio-blk retain
+load /lib/modules/vga.lkm
+probe q35-vga
+load /lib/modules/ps2.lkm
+probe q35-ps2
+load /lib/modules/vrng.lkm
+probe q35-virtio-rng
+load /lib/modules/vnet.lkm
+probe q35-virtio-net
+load /lib/modules/xhci.lkm
+probe q35-xhci

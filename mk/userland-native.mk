@@ -122,7 +122,11 @@ ifneq ($(ARCH),amd64)
 	$(foreach name,gic timer watchdog dma uart sd usb display entropy wifi gem,cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
+	$(foreach name,vblk vrng vga ps2 xhci $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
+ifeq ($(PROFILE),recovery)
+	cp root/profiles/q35-recovery/etc/modules "$(OUT)/root/etc/modules"
+endif
 endif
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
 	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)

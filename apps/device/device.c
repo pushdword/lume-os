@@ -106,6 +106,11 @@ static void show(const struct lume_hardware_info *info, bool details)
 static int command(int argc, char **argv)
 {
     struct lume_hardware_request value = {.version = LUME_HARDWARE_VERSION};
+    if (argc == 2 && eq(argv[1], "rescan"))
+    {
+        value.operation = LUME_HARDWARE_RESCAN;
+        return request(&value);
+    }
     if (argc == 2 && (eq(argv[1], "list") || eq(argv[1], "drivers")))
     {
         value.operation = eq(argv[1], "list") ? LUME_HARDWARE_LIST : LUME_HARDWARE_DRIVER;
@@ -129,6 +134,11 @@ static int command(int argc, char **argv)
     if (argc < 3 || !parse(argv[2], &id) || !id || id > UINT32_MAX)
         return -LUME_EINVAL;
     value.id = (uint32_t)id;
+    if (argc == 3 && eq(argv[1], "eject"))
+    {
+        value.operation = LUME_HARDWARE_EJECT;
+        return request(&value);
+    }
     if (argc == 3 && eq(argv[1], "info"))
     {
         value.operation = LUME_HARDWARE_GET;
@@ -186,7 +196,7 @@ int main(int argc, char **argv)
         number(result < 0 ? -(int64_t)result : result, 10);
         puts("\n");
         if (result == -LUME_EINVAL)
-            puts("device list|drivers|info ID|bind ID DRIVER|unbind ID\n"
+            puts("device list|drivers|rescan|info ID|bind ID DRIVER|unbind ID|eject ID\n"
                  "hwreg read ID RESOURCE OFFSET [--width 8|16|32|64]\n");
     }
     return result ? 1 : 0;
