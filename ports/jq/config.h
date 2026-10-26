@@ -1,0 +1,31 @@
+#ifndef LUME_JQ_CONFIG_H
+#define LUME_JQ_CONFIG_H
+#define HAVE_LIBONIG 1
+#define HAVE___THREAD 1
+#define HAVE_ALLOCA_H 1
+#define HAVE_ALLOCA 1
+#define HAVE_ATEXIT 1
+#define HAVE_ISATTY 1
+#define HAVE_GMTIME_R 1
+#define HAVE_LOCALTIME_R 1
+#define HAVE_STRFTIME 1
+#define HAVE_SETLOCALE 1
+#define HAVE_STDINT_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_SYS_TIME_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_LIMITS_H 1
+#define HAVE_MEMCPY 1
+#define HAVE_MEMMOVE 1
+#define HAVE_STRDUP 1
+#define HAVE_STRNDUP 1
+#define HAVE_LONG_LONG 1
+#define SIZEOF_INT 4
+#define SIZEOF_LONG 8
+#define SIZEOF_LONG_LONG 8
+#define SIZEOF_VOIDP 8
+#define IEEE_8087 1
+#define USE_DECNUM 1
+#define USE_MEMORY_LOCK 1
+#endif

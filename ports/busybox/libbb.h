@@ -2,6 +2,7 @@
  * Selected BusyBox 1.38.0 libbb interface for LumeOS. */
 #ifndef LUME_LIBBB_H
 #define LUME_LIBBB_H
+#include "lume_features.h"
 #define _DEFAULT_SOURCE 1
 #include <stdbool.h>
 #include <stdint.h>
@@ -17,6 +18,94 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
+#if defined(LUME_BUSYBOX_EXTENDED)
+#include <dirent.h>
+#include <time.h>
+#include <sys/wait.h>
+#include <spawn.h>
+#define PUSH_AND_SET_FUNCTION_VISIBILITY_TO_HIDDEN
+#define POP_SAVED_FUNCTION_VISIBILITY
+#define TRUE 1
+#define FALSE 0
+#define SKIP 2
+#define CURRENT_TTY "/dev/tty"
+#define DOT_OR_DOTDOT(s) ((s)[0] == '.' && (!(s)[1] || ((s)[1] == '.' && !(s)[2])))
+#define exit_SUCCESS() exit(0)
+#define exit_FAILURE() exit(1)
+#define bb_putchar_stderr(c) fputc((c), stderr)
+#define BUILD_BUG_ON(condition) _Static_assert(!(condition), "invalid buffer size")
+#define LONE_DASH(s) LONE_CHAR((s), '-')
+#define ALIGN_SUFFIX
+#define FIX_ALIASING __attribute__((may_alias))
+#define SET_PTR_TO_GLOBALS(p) (ptr_to_globals = (p))
+#define FREE_PTR_TO_GLOBALS() free(ptr_to_globals)
+#define barrier() __asm__ volatile("" ::: "memory")
+typedef unsigned char smalluint;
+struct llist_t;
+extern void *ptr_to_globals;
+
+enum
+{
+    ACTION_RECURSE = 1 << 0,
+    ACTION_FOLLOWLINKS = 1 << 1,
+    ACTION_FOLLOWLINKS_L0 = 1 << 2,
+    ACTION_DEPTHFIRST = 1 << 3,
+    ACTION_QUIET = 1 << 4,
+    ACTION_DANGLING_OK = 1 << 5
+};
+
+typedef uint8_t recurse_flags_t;
+
+typedef struct recursive_state
+{
+    unsigned flags, depth;
+    void *userData;
+    int (*fileAction)(struct recursive_state *, const char *, struct stat *);
+    int (*dirAction)(struct recursive_state *, const char *, struct stat *);
+} recursive_state_t;
+
+int recursive_action(const char *, unsigned,
+                     int (*)(struct recursive_state *, const char *, struct stat *),
+                     int (*)(struct recursive_state *, const char *, struct stat *), void *);
+char *xstrdup(const char *);
+char *xstrndup(const char *, size_t);
+char *skip_whitespace(const char *);
+char *skip_non_whitespace(const char *);
+char *is_prefixed_with(const char *, const char *);
+char *concat_path_file(const char *, const char *);
+char *concat_subpath_file(const char *, const char *);
+FILE *xfopen_for_write(const char *);
+FILE *fopen_for_read(const char *);
+void llist_free(struct llist_t *, void (*)(void *));
+void llist_add_to(struct llist_t **, void *);
+void *llist_pop(struct llist_t **);
+int xopen(const char *, int, ...);
+int xdup2(int, int);
+void close_on_exec_on(int);
+int spawn_and_wait(char **);
+unsigned bb_arg_max(void);
+unsigned count_strstr(const char *, const char *);
+char *xmalloc_substitute_string(const char *, unsigned, const char *, const char *);
+void overlapping_strcpy(char *, const char *);
+char *safe_strncpy(char *, const char *, size_t);
+const char *bb_basename(const char *);
+char *xasprintf(const char *, ...);
+char *xasprintf_and_free(char *, ...);
+#define xasprintf_inplace(allocated, ...)                                                          \
+    ((allocated) = xasprintf_and_free((allocated), __VA_ARGS__))
+void llist_add_to_end(struct llist_t **, void *);
+FILE *fopen_or_warn(const char *, const char *);
+char *bb_get_chunk_from_file(FILE *, size_t *);
+int index_in_strings(const char *, const char *);
+unsigned long xatoul(const char *);
+void xstat(const char *, struct stat *);
+int xmkstemp(char *);
+void xrename(const char *, const char *);
+extern const char bb_msg_invalid_arg_to[], bb_msg_requires_arg[];
+extern void (*die_func)(void);
+FILE *xfdopen_for_write(int);
+_Noreturn void bb_die_memory_exhausted(void);
+#endif
 #define FAST_FUNC
 #define MAIN_EXTERNALLY_VISIBLE
 #define UNUSED_PARAM __attribute__((unused))

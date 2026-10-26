@@ -3,7 +3,6 @@ ARCH ?= aarch64
 PORT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 OS_ROOT := $(abspath $(PORT)/../..)
 include $(OS_ROOT)/mk/port.mk
-KERNEL ?= $(OS_ROOT)/../lume-kernel
 SOURCE := $(OS_ROOT)/vendor/openssh
 SDK ?= /data/sdk
 SYSROOT ?= $(SDK)

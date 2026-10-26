@@ -59,9 +59,7 @@ char *last_char_is(const char *s, int c)
     return n && s[n - 1] == c ? (char *)s + n - 1 : NULL;
 }
 
-/* The option parser accepts only the supported short-option grammar. It rejects unsupported
- * sort and mkdir options before the applet can ignore them. The upstream applet code uses this
- * parser without modification. */
+/* Parse short options and the count, numeric and list modifiers used by the selected applets. */
 unsigned getopt32(char **argv, const char *spec, ...)
 {
     int argc = 0;
@@ -72,6 +70,7 @@ unsigned getopt32(char **argv, const char *spec, ...)
         spec++;
     char option[64], letters[32], numeric[32] = {0}, list[32] = {0};
     char **argument[32] = {0};
+    unsigned *counter[32] = {0};
     unsigned bits = 0, n = 0;
     va_list v;
     va_start(v, spec);
@@ -88,6 +87,8 @@ unsigned getopt32(char **argv, const char *spec, ...)
         {
             option[n++] = *q++;
             argument[bits] = va_arg(v, char **);
+            if (*q == ':')
+                option[n++] = *q++;
             if (*q == '+')
             {
                 numeric[bits] = 1;
@@ -101,6 +102,12 @@ unsigned getopt32(char **argv, const char *spec, ...)
         }
         bits++;
     }
+    const char *extra = complement ? spec + strlen(spec) + 1 : "";
+    for (const char *p = extra; *p; ++p)
+        if (p[0] == p[1] && (!p[2] || p[2] == ':'))
+            for (unsigned bit = 0; bit < bits; ++bit)
+                if (letters[bit] == *p)
+                    counter[bit] = va_arg(v, unsigned *);
     va_end(v);
     option[n] = 0;
     unsigned mask = 0;
@@ -117,7 +124,25 @@ unsigned getopt32(char **argv, const char *spec, ...)
         if ((!strcmp(applet_name, "sort") && !strchr("rus", c)) ||
             (!strcmp(applet_name, "mkdir") && !strchr("pv", c)))
             bb_show_usage();
+        unsigned previous = mask;
         mask |= 1u << bit;
+        if (counter[bit])
+            ++*counter[bit];
+        for (const char *p = extra; *p; ++p)
+            if ((p == extra || p[-1] == ':') && p[0] == c && p[1] == '-')
+                for (const char *remove = p + (p[2] == '-' ? 3 : 2); *remove && *remove != ':';
+                     ++remove)
+                    for (unsigned other = 0; other < bits; ++other)
+                        if (letters[other] == *remove)
+                        {
+                            if (p[2] == '-')
+                            {
+                                if (previous & (1u << other))
+                                    bb_show_usage();
+                            }
+                            else
+                                mask &= ~(1u << other);
+                        }
         if (argument[bit])
         {
             if (list[bit])
@@ -138,7 +163,6 @@ unsigned getopt32(char **argv, const char *spec, ...)
     unsigned operands = (unsigned)(argc - optind);
     if (complement)
     {
-        const char *extra = spec + strlen(spec) + 1;
         if (strstr(extra, "-1") && !operands)
             bb_show_usage();
         if (strstr(extra, "?2") && operands > 2)
@@ -298,12 +322,20 @@ _Noreturn void bb_error_msg_and_die(const char *fmt, ...)
         va_end(v);
         fputc('\n', stderr);
     }
+#if defined(LUME_BUSYBOX_EXTENDED)
+    if (die_func)
+        die_func();
+#endif
     exit(xfunc_error_retval);
 }
 
 _Noreturn void bb_simple_perror_msg_and_die(const char *s)
 {
     bb_simple_perror_msg(s);
+#if defined(LUME_BUSYBOX_EXTENDED)
+    if (die_func)
+        die_func();
+#endif
     exit(xfunc_error_retval);
 }
 

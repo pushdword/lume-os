@@ -1,0 +1,1 @@
+BB_EXTRA_SOURCES := vendor/busybox/findutils/grep.c vendor/busybox/findutils/find.c vendor/busybox/findutils/xargs.c vendor/busybox/editors/sed.c vendor/busybox/libbb/xregcomp.c vendor/busybox/libbb/recursive_action.c vendor/busybox/libbb/concat_path_file.c vendor/busybox/libbb/concat_subpath_file.c vendor/busybox/libbb/skip_whitespace.c vendor/busybox/libbb/safe_strncpy.c

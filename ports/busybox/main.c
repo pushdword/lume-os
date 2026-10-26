@@ -26,16 +26,41 @@ DECLARE(cksum);
 DECLARE(expand);
 DECLARE(mkdir);
 DECLARE(rmdir);
-static const struct applet applets[] = {{"basename", basename_main}, {"cat", cat_main},
-                                        {"dirname", dirname_main},   {"echo", echo_main},
-                                        {"false", false_main},       {"head", head_main},
-                                        {"printenv", printenv_main}, {"pwd", pwd_main},
-                                        {"true", true_main},         {"wc", wc_main},
-                                        {"sort", sort_main},         {"cut", cut_main},
-                                        {"cmp", cmp_main},           {"cksum", cksum_main},
-                                        {"crc32", cksum_main},       {"expand", expand_main},
-                                        {"unexpand", expand_main},   {"mkdir", mkdir_main},
-                                        {"rmdir", rmdir_main}};
+#if defined(LUME_BUSYBOX_EXTENDED)
+DECLARE(grep);
+DECLARE(sed);
+DECLARE(find);
+DECLARE(xargs);
+#endif
+static const struct applet applets[] = {{"basename", basename_main},
+                                        {"cat", cat_main},
+                                        {"dirname", dirname_main},
+                                        {"echo", echo_main},
+                                        {"false", false_main},
+                                        {"head", head_main},
+                                        {"printenv", printenv_main},
+                                        {"pwd", pwd_main},
+                                        {"true", true_main},
+                                        {"wc", wc_main},
+                                        {"sort", sort_main},
+                                        {"cut", cut_main},
+                                        {"cmp", cmp_main},
+                                        {"cksum", cksum_main},
+                                        {"crc32", cksum_main},
+                                        {"expand", expand_main},
+                                        {"unexpand", expand_main},
+                                        {"mkdir", mkdir_main},
+                                        {"rmdir", rmdir_main}
+#if defined(LUME_BUSYBOX_EXTENDED)
+                                        ,
+                                        {"grep", grep_main},
+                                        {"egrep", grep_main},
+                                        {"fgrep", grep_main},
+                                        {"sed", sed_main},
+                                        {"find", find_main},
+                                        {"xargs", xargs_main}
+#endif
+};
 
 int app_main(int argc, char **argv)
 {
@@ -61,13 +86,28 @@ int app_main(int argc, char **argv)
         if (argc < 2 || !strcmp(argv[1], "--help"))
         {
             puts("BusyBox 1.38.0 / LumeOS selected-applet port (GPLv2)");
-            puts("basename [-a|-s SUFFIX] FILE [SUFFIX]; dirname FILE");
-            puts("cat [-u] [FILE...]; echo [-neE] [ARG...]; head [-n N] [FILE...]");
-            puts("printenv [NAME...]; pwd; true; false; wc [-lwmcL] [FILE...]");
-            puts("sort [-rus] [FILE...]; cut -b/-c/-f LIST [-d CHAR] [FILE...]");
-            puts("cmp [-s|-l] [-n N] FILE1 [FILE2]; cksum/crc32 [FILE...]");
-            puts("expand [-i] [-t N] [FILE...]; unexpand [-fa] [-t N] [FILE...]");
-            puts("mkdir [-pv] DIR...; rmdir [-pv] DIR... (FAT synthetic modes)");
+            puts("basename [-a|-s SUFFIX] FILE [SUFFIX]");
+            puts("dirname FILE");
+            puts("cat [-u] [FILE...]");
+            puts("echo [-neE] [ARG...]");
+            puts("head [-n N] [FILE...]");
+            puts("printenv [NAME...]");
+            puts("pwd, true, false");
+            puts("wc [-lwmcL] [FILE...]");
+            puts("sort [-rus] [FILE...]");
+            puts("cut -b/-c/-f LIST [-d CHAR] [FILE...]");
+            puts("cmp [-s|-l] [-n N] FILE1 [FILE2]");
+            puts("cksum/crc32 [FILE...]");
+            puts("expand [-i] [-t N] [FILE...]");
+            puts("unexpand [-fa] [-t N] [FILE...]");
+            puts("mkdir [-pv] DIR...");
+            puts("rmdir [-pv] DIR...");
+#if defined(LUME_BUSYBOX_EXTENDED)
+            puts("grep [-EFHhilnqsvwxc] [-e PATTERN] [-f FILE] [PATTERN] [FILE...]");
+            puts("sed [-nEr] [-e SCRIPT] [-f FILE] [SCRIPT] [FILE...]");
+            puts("find [PATH...] [EXPRESSION]");
+            puts("xargs [-0rtx] [-n N] [-s N] [-I STR] [COMMAND [ARG...]]");
+#endif
             return 0;
         }
         p = argv[1];
