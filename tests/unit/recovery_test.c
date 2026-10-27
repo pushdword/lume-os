@@ -1,5 +1,6 @@
 #include "recovery.h"
 #include "lume/abi.h"
+#include "lume/smp.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,10 @@ static struct lrec monitor;
 static char response[256];
 static bool server, can_boot = true;
 static unsigned prepared, requests;
+
+void lume_smp_wake(void)
+{
+}
 
 int lume_console_getc(void)
 {
