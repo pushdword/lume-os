@@ -47,8 +47,27 @@ static int64_t write(int fd, const void *p, size_t n)
     return call(LUME_SYS_WRITE, (uint64_t)fd, (uintptr_t)p, n);
 }
 
+static int64_t write_all(int fd, const void *data, size_t bytes)
+{
+    if (bytes > (uint64_t)INT64_MAX)
+        return -75;
+    size_t done = 0;
+    while (done < bytes)
+    {
+        int64_t written = write(fd, (const char *)data + done, bytes - done);
+        if (written == -4)
+            continue;
+        if (written <= 0)
+            return done ? (int64_t)done : written;
+        if ((uint64_t)written > bytes - done)
+            return done ? (int64_t)done : -5;
+        done += (size_t)written;
+    }
+    return (int64_t)done;
+}
+
 static void puts(const char *s)
 {
-    (void)write(1, s, len(s));
+    (void)write_all(1, s, len(s));
 }
 #endif

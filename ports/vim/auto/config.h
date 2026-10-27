@@ -1,0 +1,70 @@
+#ifndef LUME_VIM_CONFIG_H
+#define LUME_VIM_CONFIG_H
+
+#define UNIX 1
+#define FEAT_NORMAL 1
+#define VIM_SIZEOF_INT 4
+#define VIM_SIZEOF_LONG 8
+#define SIZEOF_OFF_T 8
+#define SIZEOF_TIME_T 8
+#define HAVE_ATTRIBUTE_UNUSED 1
+#define USEMEMMOVE 1
+#define USE_CRNL 1
+#define RETSIGTYPE void
+#define SIGRETURN return
+#define TGETSTR_CHAR_P 1
+#define SELECT_TYPE_ARG234
+
+#define HAVE_DIRENT_H 1
+#define HAVE_ERRNO_H 1
+#define HAVE_FCNTL_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_LOCALE_H 1
+#define HAVE_MATH_H 1
+#define HAVE_WCTYPE_H 1
+#define HAVE_POLL_H 1
+#define HAVE_PWD_H 1
+#define HAVE_SETJMP_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_SYS_IOCTL_H 1
+#define HAVE_SYS_SELECT_H 1
+#define HAVE_SYS_TIME_H 1
+#define HAVE_SYS_WAIT_H 1
+#define HAVE_TERMIOS_H 1
+#define HAVE_UNISTD_H 1
+
+#define HAVE_FCHMOD 1
+#define HAVE_FSEEKO 1
+#define HAVE_FSYNC 1
+#define HAVE_FTRUNCATE 1
+#define HAVE_GETCWD 1
+#define HAVE_LOCALTIME_R 1
+#define HAVE_LSTAT 1
+#define HAVE_MEMSET 1
+#define HAVE_OPENDIR 1
+#define HAVE_PUTENV 1
+#define HAVE_QSORT 1
+#define HAVE_RENAME 1
+#define HAVE_SELECT 1
+#define HAVE_SETENV 1
+#define HAVE_SIGACTION 1
+#define HAVE_SIGPROCMASK 1
+#define HAVE_STRCASECMP 1
+#define HAVE_STRERROR 1
+#define HAVE_STRFTIME 1
+#define HAVE_STRNCASECMP 1
+#define HAVE_STRPBRK 1
+#define HAVE_STRTOL 1
+#define HAVE_UNSETENV 1
+#define HAVE_CLOCK_GETTIME 1
+#define HAVE_TOWLOWER 1
+#define HAVE_TOWUPPER 1
+#define HAVE_ISWUPPER 1
+#define HAVE_ISNAN 1
+#define HAVE_ISINF 1
+#define TIME_WITH_SYS_TIME 1
+
+#endif

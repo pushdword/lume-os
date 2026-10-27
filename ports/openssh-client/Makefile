@@ -10,9 +10,9 @@ CLIENT_NATIVE := $(OUT)/obj/client/compat.o
 $(OUT)/obj/client/%.o: $(CLIENT_PORT)/%.c
 	mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
-$(OUT)/ssh: $(addprefix $(OUT)/obj/,$(SSHOBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES)
+$(OUT)/ssh: $(addprefix $(OUT)/obj/,$(SSHOBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES) $(LINK_INPUTS)
 	$(LINK) $(addprefix $(OUT)/obj/,$(SSHOBJS)) $(NATIVE) $(CLIENT_NATIVE) --start-group $(LIBRARIES) --end-group -o $@
-$(OUT)/sftp: $(addprefix $(OUT)/obj/,$(SFTP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES)
+$(OUT)/sftp: $(addprefix $(OUT)/obj/,$(SFTP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES) $(LINK_INPUTS)
 	$(LINK) $(addprefix $(OUT)/obj/,$(SFTP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) --start-group $(LIBRARIES) --end-group -o $@
-$(OUT)/scp: $(addprefix $(OUT)/obj/,$(SCP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES)
+$(OUT)/scp: $(addprefix $(OUT)/obj/,$(SCP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) $(LIBRARIES) $(LINK_INPUTS)
 	$(LINK) $(addprefix $(OUT)/obj/,$(SCP_OBJS)) $(NATIVE) $(CLIENT_NATIVE) --start-group $(LIBRARIES) --end-group -o $@

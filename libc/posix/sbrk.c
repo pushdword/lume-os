@@ -14,6 +14,8 @@ void *sbrk(ptrdiff_t increment)
         return (void *)-1;
     }
     uintptr_t old = (uint32_t)value, requested;
+    if (!increment)
+        return (void *)old;
     if (increment >= 0)
     {
         if ((uintptr_t)increment > UINTPTR_MAX - old)

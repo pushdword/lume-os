@@ -26,31 +26,49 @@ static int stat_error;
 static int64_t wait_result = -11;
 static unsigned wait_calls;
 static unsigned wait_block;
-static uint64_t poll_clock;
-static unsigned poll_sleeps, poll_max_sleep, poll_ready_at;
-static int poll_error, sleep_error;
+static unsigned poll_calls, clock_calls, sleep_calls;
+static uint64_t poll_timeout, poll_buffer;
+static unsigned poll_count;
+static int poll_result;
+static unsigned native_calls, io_calls, io_number;
+static uint64_t io_fd, io_buffer, io_bytes;
+static int64_t io_result;
 
 int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
+    ++native_calls;
+    if (number == LUME_SYS_READ || number == LUME_SYS_WRITE)
+    {
+        ++io_calls;
+        io_number = number;
+        io_fd = a;
+        io_buffer = b;
+        io_bytes = c;
+        return io_result;
+    }
     if (number == LUME_SYS_PROBE)
         return 0;
     if (number == LUME_SYS_CLOCK)
-        return (int64_t)poll_clock;
+    {
+        ++clock_calls;
+        return 0;
+    }
     if (number == LUME_SYS_SLEEP)
     {
-        assert(a > 0 && a <= 20 && !b && !c);
-        ++poll_sleeps;
-        if (a > poll_max_sleep)
-            poll_max_sleep = (unsigned)a;
-        poll_clock += a;
-        return sleep_error;
+        ++sleep_calls;
+        return 0;
     }
     if (number == LUME_SYS_FD)
     {
-        assert(a == LUME_FD_POLL && c == sizeof(struct lume_fd_request));
-        const struct lume_fd_request *request = (const void *)(uintptr_t)b;
-        assert(!request->timeout_ms);
-        return poll_error ? poll_error : poll_ready_at && poll_clock >= poll_ready_at;
+        assert(a == LUME_FD_WAIT && c == sizeof(struct lume_poll_request));
+        const struct lume_poll_request *request = (const void *)(uintptr_t)b;
+        assert(request->version == LUME_POLL_VERSION && request->bytes == sizeof(*request));
+        assert(!request->flags && !request->signal_epoch);
+        ++poll_calls;
+        poll_timeout = request->timeout_ms;
+        poll_buffer = request->buffer;
+        poll_count = request->count;
+        return poll_result;
     }
     if (number == LUME_SYS_CPU)
     {
@@ -79,8 +97,45 @@ int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
     return position;
 }
 
+static void io_forwarding(void)
+{
+    static const struct
+    {
+        uint32_t number, fd, buffer, bytes;
+        int32_t result;
+    } cases[] = {{LUME_READ, 3, 0x10000000, 16, 16},
+                 {LUME_READ, 3, 0x10000000, 16, 7},
+                 {LUME_FDWRITE, 3, 0x10000000, 16, 16},
+                 {LUME_FDWRITE, 3, 0x10000000, 16, 5},
+                 {LUME_READ, 3, 0x10000000, 16, 0},
+                 {LUME_READ, 3, UINT32_MAX, 0, 0},
+                 {LUME_FDWRITE, 3, UINT32_MAX, 0, 0},
+                 {LUME_READ, UINT32_MAX, 0x10000000, 16, -LUME_EBADF},
+                 {LUME_FDWRITE, UINT32_MAX, 0x10000000, 16, -LUME_EBADF},
+                 {LUME_READ, 3, UINT32_MAX, 16, -LUME_EFAULT},
+                 {LUME_FDWRITE, 3, UINT32_MAX, 16, -LUME_EFAULT},
+                 {LUME_READ, UINT32_MAX, UINT32_MAX, 16, -LUME_EFAULT},
+                 {LUME_READ, 3, 0x10000000, 16, -LUME_EAGAIN},
+                 {LUME_FDWRITE, 3, 0x10000000, 16, -LUME_EPIPE},
+                 {LUME_READ, 3, 0x10000000, 16, -4},
+                 {LUME_FDWRITE, 3, 0, LUME_FILE_IO_MAX + 1, -LUME_EINVAL}};
+
+    /* Native I/O determines errors for invalid buffers and descriptors. */
+    for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    {
+        native_calls = io_calls = 0;
+        io_result = cases[i].result;
+        assert(lume_syscall(cases[i].number, cases[i].fd, cases[i].buffer, cases[i].bytes) ==
+               cases[i].result);
+        assert(native_calls == 1 && io_calls == 1);
+        assert(io_number == (cases[i].number == LUME_READ ? LUME_SYS_READ : LUME_SYS_WRITE));
+        assert(io_fd == cases[i].fd && io_buffer == cases[i].buffer && io_bytes == cases[i].bytes);
+    }
+}
+
 int main(void)
 {
+    io_forwarding();
     assert(lume_syscall(LUME_INFO, LUME_QUANTUM_MS, 0, 0) == 17);
     assert(lume_syscall(LUME_INFO, LUME_CORES, 0, 0) == 4);
     assert(lume_syscall(LUME_INFO, LUME_CORE, 0, 0) == 3);
@@ -116,30 +171,38 @@ int main(void)
 #endif
     *idle = (struct lume_fd_request){
         .version = LUME_FD_VERSION, .bytes = sizeof(*idle), .fd = -1, .timeout_ms = 63};
+    idle->buffer = 0x12345670;
+    idle->count = 3;
     assert(!lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)));
-    assert(poll_clock == 63 && poll_sleeps <= 10 && poll_max_sleep <= 20);
-    poll_clock = poll_sleeps = poll_max_sleep = 0;
-    idle->timeout_ms = 3;
-    assert(!lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)));
-    assert(poll_clock == 3 && poll_max_sleep <= 3);
-    poll_clock = poll_sleeps = 0;
+    assert(poll_calls == 1 && poll_timeout == 63 && poll_count == 3 && poll_buffer == idle->buffer);
+    idle->timeout_ms = 0;
+    poll_result = 2;
+    assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == 2);
+    assert(poll_calls == 2 && !poll_timeout);
     idle->timeout_ms = UINT32_MAX;
-    poll_ready_at = 100;
+    poll_result = 1;
     assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == 1);
-    assert(poll_clock >= 100 && poll_clock < 120);
-    poll_clock = poll_sleeps = poll_ready_at = 0;
-    poll_error = -9;
+    assert(poll_calls == 3 && poll_timeout == UINT64_MAX);
+    poll_result = -9;
     assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == -9);
-    assert(!poll_sleeps);
-    poll_error = 0;
-    sleep_error = -4;
+    poll_result = -4;
     assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == -4);
+    assert(poll_calls == 5 && !clock_calls && !sleep_calls);
+    idle->timeout_ms = 60001;
+    assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == -22);
+    idle->timeout_ms = 0;
+    idle->flags = 1;
+    assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == -22);
+    idle->flags = 0;
+    idle->count = LUME_FD_LIMIT + 1;
+    assert(lume_syscall(LUME_FD, LUME_FD_POLL, (uint32_t)(uintptr_t)idle, sizeof(*idle)) == -22);
+    assert(poll_calls == 5);
 #ifdef _WIN32
     assert(VirtualFree(idle, 0, MEM_RELEASE));
 #else
     assert(!munmap(idle, sizeof(*idle)));
 #endif
     puts(
-        "PASS_COMMON_ABI seek bounds, signed offsets, overflow, access, streams and bounded FD waits");
+        "PASS_COMMON_ABI direct I/O, seek bounds, signed offsets, overflow, access and event FD waits");
     return 0;
 }

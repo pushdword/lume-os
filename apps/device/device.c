@@ -19,7 +19,7 @@ static void number(uint64_t value, unsigned base)
         value /= base;
     } while (value);
     while (count)
-        (void)write(1, buffer + --count, 1);
+        (void)write_all(1, buffer + --count, 1);
 }
 
 static bool parse(const char *text, uint64_t *out)

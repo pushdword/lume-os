@@ -7,7 +7,7 @@
 
 static void tool_text(unsigned fd, const char *text)
 {
-    (void)write((int)fd, text, len(text));
+    (void)write_all((int)fd, text, len(text));
 }
 
 static void tool_number(unsigned fd, uint64_t value)
@@ -19,7 +19,7 @@ static void tool_number(unsigned fd, uint64_t value)
         digits[20 - n++] = (char)('0' + value % 10);
         value /= 10;
     } while (value);
-    (void)write((int)fd, digits + 21 - n, n);
+    (void)write_all((int)fd, digits + 21 - n, n);
 }
 
 static bool tool_unsigned(const char *s, unsigned limit, unsigned *result)

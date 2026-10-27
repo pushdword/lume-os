@@ -10,6 +10,8 @@
 static unsigned checks, dhcp_index, admin_index, service_calls, service_command_id;
 static struct lume_netif_info interfaces[2];
 static uint64_t sequence;
+static char actual_output[4096];
+static unsigned output_bytes, write_calls;
 
 #define T(x)                                                                                       \
     do                                                                                             \
@@ -67,7 +69,17 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
         }
     }
     if (number == LUME_SYS_WRITE)
+    {
+        if (++write_calls % 7 == 1)
+            return -4;
+        if (c > 3)
+            c = 3;
+        T(a == 1 && c < sizeof(actual_output) - output_bytes);
+        memcpy(actual_output + output_bytes, (void *)(uintptr_t)b, c);
+        output_bytes += (unsigned)c;
+        actual_output[output_bytes] = 0;
         return (int64_t)c;
+    }
     if (number == LUME_SYS_SLEEP)
         return 0;
     return -LUME_ENOSYS;
@@ -78,7 +90,11 @@ static int run(const char *verb, const char *name)
     char *args[] = {"net", (char *)verb, (char *)name};
     net_used = 0;
     net_output[0] = 0;
-    return network(args, !verb ? 1 : name ? 3 : 2);
+    output_bytes = write_calls = 0;
+    actual_output[0] = 0;
+    int result = network(args, !verb ? 1 : name ? 3 : 2);
+    T(output_bytes == net_used && !memcmp(actual_output, net_output, net_used));
+    return result;
 }
 
 int main(void)

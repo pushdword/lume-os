@@ -350,7 +350,7 @@ static void shell_error(const char *name, int error)
     char text[192];
     int n = snprintf(text, sizeof(text), "%s: error %d\n", name, error);
     if (n > 0 && (unsigned)n < sizeof(text))
-        (void)app_write(2, text, (unsigned)n);
+        (void)app_write_all(2, text, (unsigned)n);
 }
 
 static int executable(const char *path)
@@ -409,8 +409,8 @@ static int launch(int argc, char **argv)
         } while (1);
         if (!found)
         {
-            (void)app_write(2, command, (unsigned)strlen(command));
-            (void)app_write(2, ": command not found\n", 20);
+            (void)app_write_all(2, command, (unsigned)strlen(command));
+            (void)app_write_all(2, ": command not found\n", 20);
             last_status = 127;
             return -1;
         }
@@ -479,7 +479,7 @@ static void echo(int argc, char **argv)
     if (!error)
     {
         text[used++] = '\n';
-        int r = app_write(fd, text, used);
+        int r = app_write_all(fd, text, used);
         if (r != (int)used)
             error = r < 0 ? r : -28;
     }

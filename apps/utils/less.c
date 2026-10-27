@@ -58,7 +58,7 @@ static int page(int fd, unsigned lines, uint32_t *position, int *end)
             if (c != '\n' && c != '\r' && c != '\t' && (c < 32 || c > 126))
                 buffer[i] = '.';
         }
-        if (app_write(1, buffer, used) != (int)used)
+        if (app_write_all(1, buffer, used) != (int)used)
             return -5;
         *position += used;
         if (used < (unsigned)n && app_seek(fd, (int32_t)*position, LUME_SEEK_SET) < 0)

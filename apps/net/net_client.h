@@ -305,6 +305,6 @@ static int network(char **args, unsigned count)
     net_used = 0;
     int result = network_run(args, count);
     if (net_used)
-        (void)write(1, net_output, net_used);
+        (void)write_all(1, net_output, net_used);
     return result;
 }

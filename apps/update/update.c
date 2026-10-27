@@ -85,7 +85,7 @@ static void number(unsigned n)
         n /= 10;
     } while (n);
     while (count)
-        (void)write(1, &b[--count], 1);
+        (void)write_all(1, &b[--count], 1);
 }
 
 static bool block(unsigned count)

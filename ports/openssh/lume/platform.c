@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include "poll_wait.h"
 
 int getentropy(void *data, size_t bytes)
 {
@@ -528,90 +529,12 @@ int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct ti
 
 int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, const sigset_t *mask)
 {
-    if (count > LUME_FD_LIMIT || (!fds && count) ||
-        (timeout &&
-         (timeout->tv_sec < 0 || timeout->tv_nsec < 0 || timeout->tv_nsec >= 1000000000)))
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    struct lume_signal_request signal = {.version = LUME_SIGNAL_VERSION,
-                                         .bytes = sizeof(signal),
-                                         .operation = 0,
-                                         .flags = mask != NULL,
-                                         .mask = mask ? *mask : 0};
-    if (native_result(
-            native_call(LUME_SYS_SIGNAL, LUME_SIGNAL_MASK, (uintptr_t)&signal, sizeof(signal))) < 0)
-        return -1;
-    sigset_t old = signal.mask;
-    uint64_t epoch = signal.delay_ms;
-    struct lume_pollfd records[LUME_FD_LIMIT];
-    for (unsigned i = 0; i < count; ++i)
-    {
-        records[i] = (struct lume_pollfd){.fd = fds[i].fd,
-                                          .events = (fds[i].events & POLLIN ? LUME_POLLIN : 0) |
-                                                    (fds[i].events & POLLOUT ? LUME_POLLOUT : 0)};
-        fds[i].revents = 0;
-    }
-    uint64_t start = native_call(LUME_SYS_CLOCK, 0, 0, 0);
-    uint64_t ms = timeout ? (uint64_t)timeout->tv_sec * 1000 + (timeout->tv_nsec + 999999) / 1000000
-                          : UINT64_MAX;
-    struct lume_fd_request request = {.version = LUME_FD_VERSION,
-                                      .bytes = sizeof(request),
-                                      .buffer = (uint32_t)(uintptr_t)records,
-                                      .count = count};
-    int result = 0;
-    if (signal.interval_ms)
-    {
-        errno = EINTR;
-        result = -1;
-    }
-    else
-    {
-        unsigned pause = 1;
-        for (;;)
-        {
-            result = native_result(
-                native_call(LUME_SYS_FD, LUME_FD_POLL, (uintptr_t)&request, sizeof(request)));
-            uint64_t elapsed = (uint64_t)native_call(LUME_SYS_CLOCK, 0, 0, 0) - start;
-            if (result || elapsed >= ms)
-                break;
-            unsigned wait = pause;
-            if (ms - elapsed < wait)
-                wait = (unsigned)(ms - elapsed);
-            if (native_result(native_call(LUME_SYS_SLEEP, wait, epoch, 1)) < 0)
-            {
-                result = -1;
-                break;
-            }
-            if (pause < 20)
-                pause = pause < 10 ? pause * 2 : 20;
-        }
-    }
-    int saved = errno;
-    if (mask && sigprocmask(SIG_SETMASK, &old, NULL) < 0)
-        return -1;
-    errno = saved;
-    if (result >= 0)
-        for (unsigned i = 0; i < count; ++i)
-            fds[i].revents = (records[i].revents & LUME_POLLIN ? POLLIN : 0) |
-                             (records[i].revents & LUME_POLLOUT ? POLLOUT : 0) |
-                             (records[i].revents & LUME_POLLERR ? POLLERR : 0) |
-                             (records[i].revents & LUME_POLLHUP ? POLLHUP : 0) |
-                             (records[i].revents & LUME_POLLNVAL ? POLLNVAL : 0);
-    return result;
+    return lume_ssh_ppoll(fds, count, timeout, mask);
 }
 
 int __wrap_poll(struct pollfd *fds, nfds_t count, int timeout)
 {
-    if (timeout < -1)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    struct timespec delay = {.tv_sec = timeout > 0 ? timeout / 1000 : 0,
-                             .tv_nsec = timeout > 0 ? (timeout % 1000) * 1000000L : 0};
-    return ppoll(fds, count, timeout < 0 ? NULL : &delay, NULL);
+    return lume_ssh_poll(fds, count, timeout);
 }
 
 static struct

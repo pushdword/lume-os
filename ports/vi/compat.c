@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "libbb.h"
 #include "api.h"
+#include "fd_client.h"
 struct globals *ptr_to_globals;
 int vi_main(int, char **);
+static int console_input = 1;
+static struct lume_pollfd input_poll;
+static struct lume_fd_request input_request;
 
 void *memrchr(const void *p, int c, size_t n)
 {
@@ -73,7 +77,7 @@ int get_terminal_width_height(int fd, unsigned *width, unsigned *height)
         errno = ENOTTY;
         return -1;
     }
-    int geometry = lume_syscall(LUME_TERMINAL, 0, 0, 0);
+    int geometry = isatty(fd) ? lume_syscall(LUME_TERMINAL, 0, 0, 0) : 80 | (24 << 16);
     if (geometry < 0)
     {
         errno = -geometry;
@@ -90,6 +94,23 @@ int safe_poll(struct pollfd *fds, nfds_t count, int timeout)
     {
         errno = EINVAL;
         return -1;
+    }
+    if (!console_input)
+    {
+        input_poll = (struct lume_pollfd){.fd = 0, .events = LUME_POLLIN};
+        input_request = app_fd_request();
+        input_request.buffer = lume_fd_pointer(&input_poll);
+        input_request.count = 1;
+        input_request.timeout_ms = timeout < 0 ? UINT32_MAX : (uint32_t)timeout;
+        int ready = app_fd_call(LUME_FD_POLL, &input_request);
+        if (ready < 0)
+        {
+            errno = -ready;
+            return -1;
+        }
+        /* A closed writer must reach read() so that the editor can leave on EOF. */
+        fds[0].revents = input_poll.revents ? POLLIN : 0;
+        return ready;
     }
     uint32_t start = (uint32_t)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0);
     do
@@ -121,6 +142,7 @@ void set_termios_to_raw(int fd, struct termios *saved, int flags)
         exit(2);
     memset(saved, 0, sizeof *saved);
     saved->c_cc[VERASE] = 127;
+    console_input = isatty(fd);
     lume_stdio_raw(1);
 }
 
@@ -139,12 +161,16 @@ int64_t safe_read_key(int fd, char *buffer, int timeout)
         return (unsigned char)buffer[1];
     }
     struct pollfd p = {fd, POLLIN, 0};
-    if (safe_poll(&p, 1, timeout) <= 0)
+    int ready = safe_poll(&p, 1, timeout);
+    if (ready < 0)
+        return -1;
+    if (!ready)
     {
         errno = EAGAIN;
         return -1;
     }
     unsigned char c;
+    errno = 0;
     if (read(fd, &c, 1) != 1)
         return -1;
     if (c != 27)
@@ -152,7 +178,10 @@ int64_t safe_read_key(int fd, char *buffer, int timeout)
         errno = 0;
         return c;
     }
-    if (safe_poll(&p, 1, 100) <= 0)
+    ready = safe_poll(&p, 1, 100);
+    if (ready < 0)
+        return -1;
+    if (!ready)
     {
         errno = 0;
         return 27;
@@ -169,7 +198,10 @@ int64_t safe_read_key(int fd, char *buffer, int timeout)
     unsigned n = 0;
     for (unsigned i = 0; i < 12; i++)
     {
-        if (safe_poll(&p, 1, 100) <= 0)
+        ready = safe_poll(&p, 1, 100);
+        if (ready < 0)
+            return -1;
+        if (!ready)
         {
             errno = 0;
             return 27;

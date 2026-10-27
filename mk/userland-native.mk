@@ -154,6 +154,12 @@ $(OUT)/tests/supervision$(HOSTEXE): $(KERNEL)/tests/unit/supervision_test.c $(KE
 check-network-tools: $(OUT)/tests/network-tool$(HOSTEXE) $(OUT)/tests/ping$(HOSTEXE)
 	env "$(OUT)/tests/network-tool$(HOSTEXE)"
 	env "$(OUT)/tests/ping$(HOSTEXE)"
+.PHONY: check-pkg-http
+check-pkg-http: $(OUT)/tests/pkg-http$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/pkg-http$(HOSTEXE): tests/unit/pkg_http_test.c apps/pkg/platform.c apps/net/network_tool.h apps/pkg/pkg_format.h libc/crypto/sha256.c
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iinclude/internal -Iarch/$(ARCH)/include -Ilibc/crypto -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" tests/unit/pkg_http_test.c libc/crypto/sha256.c -o "$@"
 $(OUT)/tests/ping$(HOSTEXE): tests/unit/ping_test.c apps/net/ping.c apps/net/network_tool.h include/internal/lume/app_support.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
@@ -167,6 +173,28 @@ check-update: $(OUT)/tests/sha256$(HOSTEXE) $(OUT)/tests/update$(HOSTEXE) $(OUT)
 $(OUT)/tests/abi$(HOSTEXE): tests/unit/abi_test.c libc/lume/native.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -DLUME_USER_HOST_TEST=1 $(ARCH_CPPFLAGS) -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Ilibc/posix -Ilibc/crypto -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $^ -o "$@"
+.PHONY: check-heap
+check: check-heap
+check-heap: $(OUT)/tests/sbrk$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/sbrk$(HOSTEXE): tests/unit/sbrk_test.c libc/posix/sbrk.c
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iinclude/lume -Iinclude/posix -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $^ -o "$@"
+.PHONY: check-console-output
+check: check-console-output
+check-console-output: $(OUT)/tests/console-support$(HOSTEXE) $(OUT)/tests/console-api$(HOSTEXE) $(OUT)/tests/less-output$(HOSTEXE)
+	env "$(OUT)/tests/console-support$(HOSTEXE)"
+	env "$(OUT)/tests/console-api$(HOSTEXE)"
+	env "$(OUT)/tests/less-output$(HOSTEXE)"
+$(OUT)/tests/console-support$(HOSTEXE): tests/unit/console_output_test.c include/internal/lume/app_support.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -fno-builtin -Iinclude/lume -Iinclude/internal -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $(filter %.c,$^) -o "$@"
+$(OUT)/tests/console-api$(HOSTEXE): tests/unit/console_output_test.c libc/lume/api.c
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -fno-builtin -DLUME_CONSOLE_API_TEST=1 -Iinclude/lume -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $^ -o "$@"
+$(OUT)/tests/less-output$(HOSTEXE): tests/unit/less_output_test.c apps/utils/less.c libc/lume/api.c include/lume/api.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iinclude/lume -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $(filter %less_output_test.c %api.c,$^) -o "$@"
 $(OUT)/tests/sha256$(HOSTEXE): tests/unit/sha256_test.c libc/crypto/sha256.c libc/crypto/sha256.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(filter %.c,$^) -o "$@"
@@ -187,3 +215,11 @@ $(OUT)/tests/module-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/modul
 $(OUT)/tests/module-net-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_net_probe.c libc/string/memory.c | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+
+.PHONY: check-directory
+check: check-directory
+check-directory: $(OUT)/tests/directory$(HOSTEXE)
+	env "$(OUT)/tests/directory$(HOSTEXE)"
+$(OUT)/tests/directory$(HOSTEXE): tests/unit/directory_test.c libc/posix/directory.c include/posix/sys/dirent.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -DLUME_USER_HOST_TEST=1 $(ARCH_CPPFLAGS) -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" tests/unit/directory_test.c -o "$@"

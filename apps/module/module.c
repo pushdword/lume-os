@@ -14,7 +14,7 @@ static void number(uint64_t value)
         value /= 10;
     } while (value);
     while (count)
-        (void)write(1, buffer + --count, 1);
+        (void)write_all(1, buffer + --count, 1);
 }
 
 static void identity(const unsigned char build[20])
@@ -22,7 +22,7 @@ static void identity(const unsigned char build[20])
     for (unsigned i = 0; i < 20; ++i)
     {
         char digits[2] = {"0123456789abcdef"[build[i] >> 4], "0123456789abcdef"[build[i] & 15]};
-        (void)write(1, digits, 2);
+        (void)write_all(1, digits, 2);
     }
 }
 

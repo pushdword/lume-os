@@ -15,6 +15,9 @@ extern "C"
     int app_close(int);
     int app_read(int, void *, unsigned);
     int app_write(int, const void *, unsigned);
+    /* Retry interrupted writes and preserve progress before other incomplete results.
+     * Requests larger than INT32_MAX fail without writing. */
+    int app_write_all(int, const void *, unsigned);
     int app_seek(int, int32_t, unsigned);
     int app_sync(int);
     int app_stat(const char *, struct lume_stat *);

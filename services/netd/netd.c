@@ -160,7 +160,7 @@ static void online(void)
         out[used++] = (char)('0' + n % 10);
     }
     out[used++] = '\n';
-    (void)write(1, out, used);
+    (void)write_all(1, out, used);
 }
 
 /* Ethernet leases do not depend on wireless profiles or association state. */

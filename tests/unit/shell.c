@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef environ
+#undef environ
+#endif
 #define environ shell_environment
 #define app_main shell_main
 char **shell_environment;
@@ -15,6 +18,7 @@ static char errors[16384];
 static unsigned error_bytes;
 static unsigned output_bytes, input_bytes, input_at, read_calls, read_limit, failures;
 static unsigned read_error, wait_calls, checks;
+static unsigned write_all_calls;
 static const char *input;
 
 #define CHECK(condition)                                                                           \
@@ -90,7 +94,7 @@ int app_read(int fd, void *buffer, unsigned bytes)
     return (int)count;
 }
 
-int app_write(int fd, const void *data, unsigned bytes)
+static int capture_write(int fd, const void *data, unsigned bytes)
 {
     CHECK(fd == 1 || fd == 2);
     if (fd == 2)
@@ -107,6 +111,17 @@ int app_write(int fd, const void *data, unsigned bytes)
     output_bytes += bytes;
     output[output_bytes] = 0;
     return (int)bytes;
+}
+
+int app_write(int fd, const void *data, unsigned bytes)
+{
+    return capture_write(fd, data, bytes > 64 ? 64 : bytes);
+}
+
+int app_write_all(int fd, const void *data, unsigned bytes)
+{
+    ++write_all_calls;
+    return capture_write(fd, data, bytes);
 }
 
 int app_seek(int fd, int32_t offset, unsigned mode)
@@ -197,6 +212,7 @@ static void prepare(const char *text, unsigned short_read, unsigned error)
     error_bytes = 0;
     read_limit = short_read;
     read_error = error;
+    write_all_calls = 0;
 }
 
 static int script(const char *text, unsigned short_read, unsigned error)
@@ -213,6 +229,20 @@ int main(void)
     CHECK(read_calls == 1 && !output_bytes);
     CHECK(script("echo done", 0, 0) == 0);
     CHECK(!strcmp(output, "done\n") && read_calls == 2);
+    char long_echo[208] = "echo ", long_expected[202];
+    memset(long_echo + 5, 'x', 200);
+    strcpy(long_echo + 205, "\n");
+    memset(long_expected, 'x', 200);
+    strcpy(long_expected + 200, "\n");
+    CHECK(script(long_echo, 0, 0) == 0);
+    CHECK(!strcmp(output, long_expected) && write_all_calls == 1);
+    char missing[92], missing_error[112];
+    memset(missing, 'm', 90);
+    strcpy(missing + 90, "\n");
+    memcpy(missing_error, missing, 90);
+    strcpy(missing_error + 90, ": command not found\n");
+    CHECK(script(missing, 0, 0) == 127);
+    CHECK(!strcmp(errors, missing_error) && write_all_calls == 2);
     CHECK(script("echo first\necho second\n", 0, 0) == 0);
     CHECK(!strcmp(output, "first\nsecond\n") && read_calls == 2);
     CHECK(script("echo 'short reads'\nexit 17\n", 3, 0) == 17);

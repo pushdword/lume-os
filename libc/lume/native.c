@@ -243,13 +243,7 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         return (int32_t)native(LUME_SYS_CLOSE, a, 0, 0);
     case LUME_READ:
     case LUME_FDWRITE:
-    {
-        struct lume_native_stat stat;
-        int64_t r = native(LUME_SYS_STAT, a, (uintptr_t)&stat, 0);
-        return r < 0
-                   ? (int32_t)r
-                   : (int32_t)native(number == LUME_READ ? LUME_SYS_READ : LUME_SYS_WRITE, a, b, c);
-    }
+        return (int32_t)native(number == LUME_READ ? LUME_SYS_READ : LUME_SYS_WRITE, a, b, c);
     case LUME_SEEK:
     {
         struct lume_native_stat stat;
@@ -345,27 +339,15 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         if (a != LUME_FD_POLL)
             return (int32_t)native(LUME_SYS_FD, a, b, c);
         uint32_t timeout = request->timeout_ms;
-        if (timeout > 60000 && timeout != UINT32_MAX)
+        if (request->count > LUME_FD_LIMIT || request->flags || request->other ||
+            (timeout > 60000 && timeout != UINT32_MAX))
             return -22;
-        struct lume_fd_request poll = *request;
-        poll.timeout_ms = 0;
-        uint64_t started = (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0);
-        unsigned pause = 1;
-        for (;;)
-        {
-            int result = (int)native(LUME_SYS_FD, a, (uintptr_t)&poll, sizeof(poll));
-            uint64_t elapsed = (uint64_t)native(LUME_SYS_CLOCK, 0, 0, 0) - started;
-            if (result || !timeout || (timeout != UINT32_MAX && elapsed >= timeout))
-                return result;
-            unsigned wait = pause;
-            if (timeout != UINT32_MAX && timeout - elapsed < wait)
-                wait = (unsigned)(timeout - elapsed);
-            int64_t slept = native(LUME_SYS_SLEEP, wait, 0, 0);
-            if (slept < 0)
-                return (int32_t)slept;
-            if (pause < 20)
-                pause = pause < 10 ? pause * 2 : 20;
-        }
+        struct lume_poll_request poll = {.version = LUME_POLL_VERSION,
+                                         .bytes = sizeof(poll),
+                                         .buffer = request->buffer,
+                                         .timeout_ms = timeout == UINT32_MAX ? UINT64_MAX : timeout,
+                                         .count = request->count};
+        return (int32_t)native(LUME_SYS_FD, LUME_FD_WAIT, (uintptr_t)&poll, sizeof(poll));
     }
     case LUME_BRK:
         return (int32_t)native(LUME_SYS_BRK, a, 0, 0);

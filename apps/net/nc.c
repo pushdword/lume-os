@@ -9,15 +9,7 @@ static int transfer(unsigned op)
 
 static bool output(int fd, const unsigned char *data, unsigned count)
 {
-    while (count)
-    {
-        int64_t n = write(fd, data, count);
-        if (n <= 0 || (uint64_t)n > count)
-            return false;
-        data += n;
-        count -= (unsigned)n;
-    }
-    return true;
+    return write_all(fd, data, count) == count;
 }
 
 int main(int argc, char **argv)

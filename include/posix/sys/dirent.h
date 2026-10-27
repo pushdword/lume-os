@@ -10,6 +10,7 @@
 #define DT_BLK 6
 #define DT_REG 8
 #define DT_LNK 10
+#define DT_SOCK 12
 
 struct dirent
 {
@@ -19,10 +20,21 @@ struct dirent
     char d_name[48];
 };
 
+#if defined(LUME_NATIVE_ABI) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+typedef struct
+{
+    int fd;
+    unsigned count, next, eof;
+    uint64_t position;
+    unsigned char buffer[1024];
+    struct dirent entry;
+} DIR;
+#else
 typedef struct
 {
     char path[128];
     unsigned index;
     struct dirent entry;
 } DIR;
+#endif
 #endif

@@ -20,7 +20,7 @@ int app_equal(const char *a, const char *b)
 
 void app_puts(const char *s)
 {
-    (void)lume_syscall(LUME_WRITE, (uint32_t)(uintptr_t)s, app_length(s), 0);
+    (void)app_write_all(1, s, app_length(s));
 }
 
 void app_number(uint32_t n)
@@ -67,6 +67,25 @@ int app_read(int f, void *p, unsigned n)
 int app_write(int f, const void *p, unsigned n)
 {
     return lume_syscall(LUME_FDWRITE, (uint32_t)f, pointer(p), n);
+}
+
+int app_write_all(int fd, const void *data, unsigned bytes)
+{
+    if (bytes > (unsigned)INT32_MAX)
+        return -75;
+    unsigned done = 0;
+    while (done < bytes)
+    {
+        int written = app_write(fd, (const char *)data + done, bytes - done);
+        if (written == -4)
+            continue;
+        if (written <= 0)
+            return done ? (int)done : written;
+        if ((unsigned)written > bytes - done)
+            return done ? (int)done : -5;
+        done += (unsigned)written;
+    }
+    return (int)done;
 }
 
 int app_seek(int f, int32_t off, unsigned whence)

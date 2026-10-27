@@ -43,12 +43,26 @@ static int network(unsigned operation)
     return (int)call(LUME_SYS_STREAM, operation, (uintptr_t)&stream, sizeof(stream));
 }
 
+static int network_wait(unsigned operation)
+{
+    uint64_t start = tool_now();
+    unsigned count = stream.count;
+    for (;;)
+    {
+        stream.count = count;
+        int result = network(operation);
+        if (result != -LUME_EAGAIN || tool_now() - start >= 30000)
+            return result;
+        tool_sleep(10);
+    }
+}
+
 static int fill_buffer(void)
 {
     if (consumed == received)
     {
         stream.count = sizeof(network_buffer);
-        int count = network(LUME_STREAM_RECEIVE);
+        int count = network_wait(LUME_STREAM_RECEIVE);
         if (count <= 0 || (unsigned)count > stream.count ||
             (unsigned)count > sizeof(network_buffer))
             return -1;
@@ -172,7 +186,7 @@ int pkg_download(const char *source, const char *target, uint32_t expected_bytes
     {
         stream.count = used - offset;
         memcpy(stream.data, request + offset, stream.count);
-        int sent = network(LUME_STREAM_SEND);
+        int sent = network_wait(LUME_STREAM_SEND);
         if (sent <= 0 || (unsigned)sent > stream.count)
             goto done;
         offset += (unsigned)sent;
@@ -240,7 +254,7 @@ done:
         result = -1;
     if (network(LUME_STREAM_CLOSE) < 0)
         result = -1;
-    if (result)
+    if (result && fd >= 0)
         (void)call(LUME_SYS_UNLINK, (uintptr_t)target, 0, 0);
     return result;
 }

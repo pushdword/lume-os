@@ -13,6 +13,7 @@ static unsigned starts, closes;
 static bool pending, active;
 static char output[4096];
 static size_t output_used;
+static unsigned write_calls;
 
 int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
 {
@@ -42,6 +43,10 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
     }
     if (number == LUME_SYS_WRITE)
     {
+        if (++write_calls % 7 == 1)
+            return -4;
+        if (c > 3)
+            c = 3;
         assert(output_used + c < sizeof(output));
         memcpy(output + output_used, (void *)(uintptr_t)b, c);
         output_used += c;
@@ -75,6 +80,7 @@ static void reset(void)
     milliseconds = starts = closes = output_used = 0;
     output[0] = 0;
     active = false;
+    write_calls = 0;
     cancel_at = UINT64_MAX;
 }
 
