@@ -2,7 +2,7 @@ CC := "$(TOOLBIN)clang$(HOSTEXE)" --target=$(TARGET)
 LD := "$(TOOLBIN)ld.lld$(HOSTEXE)"
 OBJCOPY := "$(TOOLBIN)llvm-objcopy$(HOSTEXE)"
 SYSROOT ?= $(SDK)/sysroot
-NATIVE_KERNEL_IMAGE := $(if $(filter amd64,$(ARCH)),lume-amd64.bin,lume-pi5.img)
+NATIVE_KERNEL_IMAGE := $(if $(filter i686,$(ARCH)),lume-i686.bin,$(if $(filter amd64,$(ARCH)),lume-amd64.bin,lume-pi5.img))
 CMAKE ?= cmake
 PICOLIBC ?=
 .PHONY: libc
@@ -23,6 +23,10 @@ ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
 endif
 ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c
 ARM_COMMON_SOURCES += libc/posix/time.c
+ifeq ($(ARCH),i686)
+ARM_COMMON_SOURCES += arch/i686/builtins.c
+I686_BUILTINS := $(OUT)/obj/arch/i686/builtins.c.o
+endif
 $(OUT)/obj/libc/posix/pthread.c.o $(OUT)/obj/libc/lume/thread.c.o $(OUT)/obj/arch/$(ARCH)/tls.c.o $(OUT)/obj/libc/runtime/locks.c.o: CPPFLAGS += -Iinclude/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
 include mk/busybox.mk
@@ -39,7 +43,15 @@ $(BB_OBJECTS): CPPFLAGS += -Iports/busybox
 $(VI_OBJECTS): CPPFLAGS += -Iports/vi -Iports/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/diagnostics/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
+ifeq ($(ARCH),i686)
+all: headers $(addprefix $(OUT)/,$(addsuffix .elf,shell ls dir worker libctest cp touch video)) $(OUT)/busybox.elf $(OUT)/device.elf kernel
+all: $(OUT)/i686-video-test.elf
+$(OUT)/obj/tests/integration/i686_video.c.o: | headers
+$(OUT)/i686-video-test.elf: $(OUT)/obj/tests/integration/i686_video.c.o $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+else
 all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf $(OUT)/net.elf $(OUT)/netd.elf $(OUT)/update.elf $(OUT)/fetch.elf $(OUT)/ping.elf $(OUT)/nc.elf $(OUT)/device.elf $(OUT)/module.elf kernel
+endif
 ifeq ($(ARCH),amd64)
 all: $(OUT)/amd64-runtime.elf
 $(OUT)/amd64-runtime.elf: $(OUT)/obj/tests/integration/amd64_runtime.c.o $(ARM_COMMON_OBJECTS)
@@ -67,21 +79,21 @@ $(OUT)/vi.elf: $(VI_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
 $(OUT)/htop.elf: $(HTOP_OBJECTS) $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(ARM_COMMON_OBJECTS))
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
-$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c | headers
+$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/net/%.c apps/net/network_tool.h include/internal/lume/app_support.h arch/$(ARCH)/start_bare.S libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/net/%.c apps/net/network_tool.h include/internal/lume/app_support.h arch/$(ARCH)/start_bare.S libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/update.elf: arch/$(ARCH)/start_bare.S apps/update/update.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/update.elf: arch/$(ARCH)/start_bare.S apps/update/update.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/fetch.elf: arch/$(ARCH)/start_bare.S apps/update/fetch.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/fetch.elf: arch/$(ARCH)/start_bare.S apps/update/fetch.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 NATIVE_SDK ?=
 .PHONY: pkg
 ifneq ($(strip $(NATIVE_SDK)),)
@@ -113,6 +125,9 @@ ifneq ($(wildcard platform/$(BOARD)/recovery.mk),)
 include platform/$(BOARD)/recovery.mk
 endif
 $(RECOVERY_OBJECTS): CFLAGS += -mgeneral-regs-only
+ifeq ($(ARCH),i686)
+include mk/i686-image.mk
+else
 image: all $(OUT)/image-tool$(HOSTEXE)
 	rm -rf -- "$(OUT)/root"
 	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/lib/firmware" "$(OUT)/root/lib/modules" "$(OUT)/root/boot" "$(OUT)/root/etc"
@@ -141,6 +156,7 @@ ifeq ($(ARCH),amd64)
 endif
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
+endif
 .PHONY: check-update check-network-tools check-services
 check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE)
 	env "$(OUT)/tests/service$(HOSTEXE)"
@@ -203,18 +219,18 @@ $(OUT)/tests/update$(HOSTEXE): tests/unit/update_test.c apps/update/update.c lib
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix -I"$(KERNEL)/include/abi/native" tests/unit/update_test.c libc/crypto/sha256.c -o "$@"
 -include $(addsuffix .d,$(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(ARM_APP_OBJECTS))
 
-$(OUT)/device.elf: arch/$(ARCH)/start_bare.S apps/device/device.c libc/string/memory.c | headers
+$(OUT)/device.elf: arch/$(ARCH)/start_bare.S apps/device/device.c libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/module.elf: arch/$(ARCH)/start_bare.S apps/module/module.c libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/module.elf: arch/$(ARCH)/start_bare.S apps/module/module.c libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/tests/module-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_probe.c libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/tests/module-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_probe.c libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
-$(OUT)/tests/module-net-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_net_probe.c libc/string/memory.c | headers
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
+$(OUT)/tests/module-net-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_net_probe.c libc/string/memory.c $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S,$^) -o "$@"
+	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 
 .PHONY: check-directory
 check: check-directory

@@ -318,6 +318,8 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     }
     case LUME_TERMINAL:
         return (int32_t)native(LUME_SYS_TERMINAL, a, b, c);
+    case LUME_VIDEO:
+        return (int32_t)native(LUME_SYS_VIDEO, a, b, c);
     case LUME_FD:
     {
         if (c != sizeof(struct lume_fd_request))

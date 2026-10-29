@@ -5,7 +5,7 @@
 #include <stdio.h>
 extern char **environ;
 
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #define SHELL_VALUE_BYTES LUME_ENV_BYTES
 #else
 #define SHELL_VALUE_BYTES 129u
@@ -17,7 +17,7 @@ struct variable
 };
 static struct variable variables[LUME_ENVS];
 static unsigned last_status;
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #define SHELL_LINE_BYTES LUME_ARG_BYTES
 #else
 #define SHELL_LINE_BYTES 256u
@@ -586,10 +586,12 @@ static int dispatch(int argc, char **argv)
     }
     else if (app_equal(cmd, "help"))
         app_puts(
-            "Builtins: help uname id ps uptime cd echo run export unset set sched protecttest rm mv exit\nPATH programs: busybox ls dir less cat head wc printenv basename dirname pwd true false\nMore programs: sort cut cmp cksum crc32 expand unexpand mkdir rmdir\nEditor: vi FILE; video [800x600|1024x768|font FILE]\n$NAME ${NAME} $?; quotes; FAT32/8.3; < file; > file; >> file; 2> file; 2>&1; command | command.\nDiagnostics: run /usr/libexec/fstest" LUME_APP_SUFFIX
+            "Builtins: help uname id ps uptime cd echo run export unset set sched protecttest rm mv exit\nPATH programs: busybox ls dir less cat head wc printenv basename dirname pwd true false\nMore programs: sort cut cmp cksum crc32 expand unexpand mkdir rmdir\nEditor: vi FILE\nVideo: video modes | video fonts | video font FACE [WIDTHxHEIGHT] | video size WIDTHxHEIGHT\n$NAME ${NAME} $?; quotes; FAT32/8.3; < file; > file; >> file; 2> file; 2>&1; command | command.\nDiagnostics: run /usr/libexec/fstest" LUME_APP_SUFFIX
             "\n");
     else if (app_equal(cmd, "uname"))
-#if defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_I686)
+        app_puts("LumeOS / Lume Kernel / i686 / PCI PC\n");
+#elif defined(LUME_ARCH_AMD64)
         app_puts("LumeOS / Lume Kernel / AMD64 / QEMU q35\n");
 #elif defined(LUME_ARCH_AARCH64)
         app_puts("LumeOS / Lume Kernel / AArch64 / Raspberry Pi 5\n");
@@ -670,7 +672,7 @@ static int dispatch(int argc, char **argv)
         app_number((uint32_t)lume_syscall(LUME_INFO, LUME_CORES, 0, 0));
         app_puts("\n");
     }
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     else if (app_equal(cmd, "reboot"))
     {
         last_status = 0;
@@ -720,7 +722,9 @@ int app_main(unsigned initial_argc, char **initial_argv)
         (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
     }
     if (!command_mode && script < 0)
-#ifdef LUME_SHELL_FDS
+#if defined(LUME_ARCH_I686)
+        app_puts("LumeOS i686 shell / root / native ABI 1.0\nType help for commands.\n");
+#elif defined(LUME_SHELL_FDS)
         app_puts("LumeOS SSH shell / root / syscall ABI0\n");
 #else
         app_puts("LumeOS shell / root / syscall ABI0\nType help for commands.\n");

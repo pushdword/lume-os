@@ -15,7 +15,7 @@ typedef struct
 typedef struct
 {
     uint32_t word, type, depth, reserved;
-    pthread_t owner;
+    pthread_t owner __attribute__((aligned(8)));
 } pthread_mutex_t;
 
 typedef struct

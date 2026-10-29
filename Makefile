@@ -1,7 +1,7 @@
 SHELL := sh
 .DEFAULT_GOAL := all
 ARCH ?= x32
-BOARD ?= $(if $(filter amd64,$(ARCH)),q35,$(if $(filter aarch64,$(ARCH)),raspberrypi5,tang25k))
+BOARD ?= $(if $(filter i686,$(ARCH)),pc,$(if $(filter amd64,$(ARCH)),q35,$(if $(filter aarch64,$(ARCH)),raspberrypi5,tang25k)))
 SDK ?=
 KERNEL ?= kernel
 KERNEL_OUT ?= build/$(ARCH)

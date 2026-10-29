@@ -49,8 +49,10 @@ static int64_t write(int fd, const void *p, size_t n)
 
 static int64_t write_all(int fd, const void *data, size_t bytes)
 {
+#if SIZE_MAX > INT64_MAX
     if (bytes > (uint64_t)INT64_MAX)
         return -75;
+#endif
     size_t done = 0;
     while (done < bytes)
     {
