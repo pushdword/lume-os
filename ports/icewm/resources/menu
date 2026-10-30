@@ -1,0 +1,1 @@
+prog "Terminal" xterm /usr/bin/xterm -fn 9x15 -e /bin/sh

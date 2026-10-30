@@ -4,6 +4,9 @@
 #include "fd_client.h"
 #include <stdio.h>
 #include <string.h>
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#include <termios.h>
+#endif
 static WINDOW window;
 WINDOW *stdscr = &window;
 int COLS = 80, LINES = 24, COLORS = 8, COLOR_PAIRS = 256;
@@ -41,8 +44,17 @@ WINDOW *initscr(void)
 {
     int metadata = lume_syscall(LUME_FSTAT, 0, (uint32_t)(uintptr_t)&input_metadata, 0);
     console_input = metadata < 0 || (input_metadata.mode & 0170000) == 0020000;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct termios mode;
+    if (!tcgetattr(0, &mode))
+        console_input = 0;
+#endif
     input_eof = 0;
     int g = console_input ? lume_syscall(LUME_TERMINAL, 0, 0, 0) : (24 << 16) | 80;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (!tcgetattr(0, &mode))
+        g = lume_syscall(LUME_TERMINAL, 0, 0, 0);
+#endif
     int c = g & 65535, l = (unsigned)g >> 16;
     if (c > 0 && c <= 128 && l > 0 && l <= 48)
     {
@@ -555,6 +567,11 @@ static int byte(int ms)
 int getch(void)
 {
     int g = console_input ? lume_syscall(LUME_TERMINAL, 0, 0, 0) : (LINES << 16) | COLS;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct termios mode;
+    if (!tcgetattr(0, &mode))
+        g = lume_syscall(LUME_TERMINAL, 0, 0, 0);
+#endif
     int cols = g & 65535, lines = (unsigned)g >> 16;
     if (cols > 0 && cols <= 128 && lines > 0 && lines <= 48 && (cols != COLS || lines != LINES))
     {

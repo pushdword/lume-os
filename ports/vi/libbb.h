@@ -13,12 +13,16 @@ struct pollfd
 
 #define POLLIN 1
 
+#if defined(LUME_ARCH_AMD64)
+#include <termios.h>
+#else
 struct termios
 {
     unsigned char c_cc[32];
 };
 
 #define VERASE 2
+#endif
 #define CONFIG_FEATURE_VI_MAX_LEN 256
 #define ENABLE_FEATURE_VI_8BIT 0
 #define ENABLE_FEATURE_VI_COLON 1

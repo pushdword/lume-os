@@ -23,3 +23,5 @@ probe brcm-l2
 load /lib/modules/hdmi.lkm
 probe bcm2712-hdmi
 probe pi5-hdmi-framebuffer
+load /lib/modules/display.lkm
+probe pi5-display

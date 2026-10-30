@@ -121,6 +121,10 @@ static int shell_restore(const int saved[3], unsigned close_saved)
 
 static int shell_builtin(const char *name)
 {
+#ifdef LUME_SHELL_JOB_CONTROL
+    if (!strcmp(name, "jobs") || !strcmp(name, "fg") || !strcmp(name, "bg"))
+        return 1;
+#endif
     static const char *const names[] = {"export",      "unset",  "set",    "help", "uname", "id",
                                         "ps",          "uptime", "echo",   "cd",   "rm",    "mv",
                                         "protecttest", "sched",  "reboot", "exit", "run"};
@@ -212,14 +216,36 @@ static int shell_line(const char *line)
     }
     if (!count)
         return 0;
-    if (count == 1 && !commands[0].redirects)
-        return commands[0].argc ? dispatch((int)commands[0].argc, commands[0].argv) : 0;
+    int background = 0;
+#ifdef LUME_SHELL_JOB_CONTROL
+    background = background_command;
+    int job_error = shell_jobs_begin(line, background);
+    if (job_error < 0)
+    {
+        shell_error("shell: jobs", job_error);
+        last_status = 1;
+        return 0;
+    }
+#endif
+    if (count == 1 && !commands[0].redirects && !background)
+    {
+        int stop = commands[0].argc ? dispatch((int)commands[0].argc, commands[0].argv) : 0;
+#ifdef LUME_SHELL_JOB_CONTROL
+        int status = shell_jobs_complete();
+        if (status >= 0)
+            last_status = (unsigned)status;
+#endif
+        return stop;
+    }
     int saved[3], pids[SHELL_STAGES], launched = 0, input = -1, stop = 0;
     int error = shell_save(saved);
     if (error < 0)
     {
         shell_error("shell: save descriptors", error);
         last_status = 1;
+#ifdef LUME_SHELL_JOB_CONTROL
+        (void)shell_jobs_complete();
+#endif
         return 0;
     }
     unsigned failed = 0, final_status = last_status;
@@ -239,7 +265,7 @@ static int shell_line(const char *line)
         for (unsigned i = 0; i < c->redirects; ++i)
             if ((error = shell_redirect(&redirects[c->first + i])) < 0)
                 goto stage_done;
-        if (count == 1)
+        if (count == 1 && !background)
         {
             if (c->argc)
                 stop = dispatch((int)c->argc, c->argv);
@@ -285,6 +311,11 @@ static int shell_line(const char *line)
     shell_restore(saved, 1);
     for (int i = 0; i < launched; ++i)
         wait_for(pids[i]);
+#ifdef LUME_SHELL_JOB_CONTROL
+    int status = shell_jobs_complete();
+    if (status >= 0)
+        last_status = (unsigned)status;
+#endif
     if (count > 1 && final_pid < 0)
         last_status = final_status;
     if (failed)

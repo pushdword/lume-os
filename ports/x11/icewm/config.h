@@ -1,0 +1,61 @@
+#define STDC_HEADERS 1
+#define HAVE_STDINT_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_FCNTL_H 1
+#define HAVE_DIRENT_H 1
+#define HAVE_POLL 1
+#define HAVE_SNPRINTF 1
+#define HAVE_VSNPRINTF 1
+#define HAVE_STRCASECMP 1
+#define HAVE_STRNCASECMP 1
+#define HAVE_STRNDUP 1
+#define HAVE_STRDUP 1
+#define HAVE_MEMMOVE 1
+#define HAVE_CLOCK_GETTIME 1
+#define HAVE_GETTIMEOFDAY 1
+#define PACKAGE_VERSION "4.1.0"
+#define PACKAGE_STRING "Lume X11 libraries"
+#define CONFIG_COREFONTS 1
+#define CONFIG_SHAPE 1
+#define CONFIG_XPM 1
+#define CONFIG_LIBPNG 1
+#define HAVE_SETPGID 1
+#define HAVE_SETSID 1
+#define HAVE_GETSID 1
+#define HAVE_STRLCPY 1
+#define HAVE_STRLCAT 1
+#define HAVE_UNSETENV 1
+#define HAVE_ARC4RANDOM_UNIFORM 1
+#define HAVE_DECL_ENVIRON 1
+#define PACKAGE "icewm"
+#define VERSION "4.1.0"
+#define CFGDIR "/etc/icewm"
+#define LIBDIR "/usr/share/icewm"
+#define BINDIR "/usr/bin"
+#define LOCDIR "/usr/share/locale"
+#define DOCDIR ""
+#define CONFIG_DEFAULT_THEME "default"
+#define CONFIG_DEFAULT_BACKGROUND ""
+#define CONFIG_UNICODE_SET "ISO10646-1"
+#define EXEEXT ""
+#define NDEBUG 1
+#define HOSTOS "Lume"
+#if defined(__aarch64__)
+#define HOSTCPU "aarch64"
+#elif defined(__i386__)
+#define HOSTCPU "i686"
+#else
+#define HOSTCPU "amd64"
+#endif
+#define PACKAGE_BUGREPORT "https://github.com/ice-wm/icewm/issues"
+#define PACKAGE_URL "https://ice-wm.org/"
+#define ICEHELPIDX ""
+#define NEED_TIME_H 1
+#define NEED_SYS_SELECT_H 1
+#define SELECT_TYPE_ARG234 (fd_set*)

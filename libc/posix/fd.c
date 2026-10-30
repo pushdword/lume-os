@@ -106,7 +106,7 @@ int fcntl(int fd, int operation, ...)
 
 int poll(struct pollfd *fds, nfds_t count, int timeout)
 {
-    if (count > LUME_FD_LIMIT || timeout < -1 || timeout > 60000 || (!fds && count))
+    if (count > LUME_FD_LIMIT || (!fds && count))
     {
         errno = EINVAL;
         return -1;
@@ -119,8 +119,15 @@ int poll(struct pollfd *fds, nfds_t count, int timeout)
                                                     (fds[i].events & POLLOUT ? LUME_POLLOUT : 0)};
         fds[i].revents = 0;
     }
-    int ready =
-        result(app_poll(records, (unsigned)count, timeout < 0 ? UINT32_MAX : (uint32_t)timeout));
+    int ready;
+    do
+    {
+        unsigned step = timeout < 0 ? UINT32_MAX : timeout > 60000 ? 60000u : (unsigned)timeout;
+        ready = result(app_poll(records, (unsigned)count, step));
+        if (ready || timeout <= 60000)
+            break;
+        timeout -= 60000;
+    } while (1);
     if (ready < 0)
         return -1;
     for (unsigned i = 0; i < count; ++i)

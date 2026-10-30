@@ -7,5 +7,13 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	cp "$(OUT)/worker.elf" "$(OUT)/root/usr/libexec/worker"
 	rm -f -- "$(OUT)/root/usr/libexec/videotest"
 	cp "$(OUT)/i686-video-test.elf" "$(OUT)/root/usr/libexec/vidtest"
+	cp "$(OUT)/vi.elf" "$(OUT)/root/usr/bin/vi"
+	cp "$(OUT)/vim.elf" "$(OUT)/root/usr/bin/vim"
+	cp "$(OUT)/htop.elf" "$(OUT)/root/usr/bin/htop"
+	mkdir -p "$(OUT)/root/usr/share/licenses/vim"
+	cp vendor/vim/LICENSE "$(OUT)/root/usr/share/licenses/vim/LICENSE"
+ifeq ($(DESKTOP),1)
+	$(MAKE) desktop-install
+endif
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"

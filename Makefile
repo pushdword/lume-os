@@ -216,6 +216,23 @@ $(OUT)/tests/memory$(HOSTEXE): tests/unit/memory_test.c libc/string/memory.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -D_DEFAULT_SOURCE -fno-builtin -UNDEBUG "$<" -o "$@"
 check: check-memory
+.PHONY: check-termcap
+check: check-termcap
+check-termcap: $(OUT)/tests/termcap-bounds$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/termcap-bounds$(HOSTEXE): tests/termcap_bounds.c vendor/termcap/termlib.c ports/xterm/lume_termcap.h ports/xterm/termcap.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -Iports/xterm $(filter %.c,$^) -o "$@"
+.PHONY: check-x11-time
+check: check-x11-time
+check-x11-time: $(OUT)/tests/x11-time-aarch64$(HOSTEXE) $(OUT)/tests/x11-time-native$(HOSTEXE)
+	env "$(OUT)/tests/x11-time-aarch64$(HOSTEXE)"
+	env "$(OUT)/tests/x11-time-native$(HOSTEXE)"
+$(OUT)/tests/x11-time-aarch64$(HOSTEXE): X11_TIME_FLAGS := -DLUME_ARCH_AARCH64=1
+$(OUT)/tests/x11-time-native$(HOSTEXE): X11_TIME_FLAGS := -DLUME_NATIVE_ABI=1
+$(OUT)/tests/x11-time-aarch64$(HOSTEXE) $(OUT)/tests/x11-time-native$(HOSTEXE): tests/x11_time.c ports/x11/include/X11/Xos.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) $(X11_TIME_FLAGS) -Iports/x11/include "$<" -o "$@"
 .PHONY: check-shell
 check: check-shell
 check-shell: $(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE)

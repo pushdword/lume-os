@@ -2,6 +2,13 @@
  * Picolibc services for a private Lume ring3 process. No bare-metal BSP. */
 #define _DEFAULT_SOURCE
 #include "api.h"
+#include "fd_client.h"
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#include <stdbool.h>
+#include <termios.h>
+static struct termios saved_termios;
+static bool termios_saved;
+#endif
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "errno_map.h"
 #endif
@@ -55,6 +62,19 @@ static int input_is_terminal(void)
 
 void lume_stdio_raw(int raw)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (raw && !raw_input && !tcgetattr(0, &saved_termios))
+    {
+        struct termios termios = saved_termios;
+        cfmakeraw(&termios);
+        termios_saved = !tcsetattr(0, TCSANOW, &termios);
+    }
+    if (!raw && termios_saved)
+    {
+        (void)tcsetattr(0, TCSANOW, &saved_termios);
+        termios_saved = false;
+    }
+#endif
     raw_input = !!raw;
 }
 
@@ -98,6 +118,15 @@ static ssize_t write_raw(int fd, const void *buffer, size_t bytes)
         int n = app_write(fd, (const char *)buffer + done, take);
         if (n == -EINTR)
             continue;
+        int flags = n == -EAGAIN ? app_fd_flags(fd, LUME_FD_GETFL, 0) : -1;
+        if (n == -EAGAIN && flags >= 0 && !(flags & LUME_FD_NONBLOCK))
+        {
+            struct lume_pollfd ready = {.fd = fd, .events = LUME_POLLOUT};
+            int wait = app_poll(&ready, 1, UINT32_MAX);
+            if (wait >= 0)
+                continue;
+            n = wait;
+        }
         if (n < 0)
         {
             errno = -n;
@@ -143,10 +172,26 @@ ssize_t read(int fd, void *buffer, size_t bytes)
         input_used -= take;
         return (ssize_t)take;
     }
+#if defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_I686)
+    extern ssize_t lume_posix_terminal_read(int, void *, size_t, int *);
+    int handled;
+    ssize_t terminal = lume_posix_terminal_read(fd, buffer, take, &handled);
+    if (handled)
+        return terminal;
+#endif
     for (;;)
     {
         int r = app_read(fd, buffer, take);
-        if (r == -EAGAIN && fd == 0 && input_is_terminal())
+        int flags = r == -EAGAIN ? app_fd_flags(fd, LUME_FD_GETFL, 0) : -1;
+        if (r == -EAGAIN && flags >= 0 && !(flags & LUME_FD_NONBLOCK))
+        {
+            struct lume_pollfd ready = {.fd = fd, .events = LUME_POLLIN};
+            int wait = app_poll(&ready, 1, UINT32_MAX);
+            if (wait >= 0)
+                continue;
+            r = wait;
+        }
+        if (r == -EAGAIN && flags < 0 && fd == 0 && input_is_terminal())
         {
             int wait = lume_syscall(LUME_TERMINAL, 5, 1000, 0);
             if (wait == -EINVAL || wait == -ENOSYS || wait == -ENOTSUP)
@@ -174,9 +219,15 @@ ssize_t read(int fd, void *buffer, size_t bytes)
 
 int open(const char *path, int flags, ...)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    extern int lume_posix_open_controlling(int);
+    extern void lume_posix_acquire_terminal(int);
+    if (path && !strcmp(path, "/dev/tty"))
+        return lume_posix_open_controlling(flags);
+#endif
     unsigned known = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-    known |= O_CLOEXEC | O_NONBLOCK | O_NOCTTY;
+    known |= O_CLOEXEC | O_NONBLOCK | O_NOCTTY | O_NOFOLLOW | O_DIRECTORY;
 #endif
     if ((unsigned)flags & ~known)
     {
@@ -214,6 +265,22 @@ int open(const char *path, int flags, ...)
         r = -lume_errno_from_syscall((unsigned)-r);
 #else
     r = app_open(path, f);
+#endif
+    if (r >= 0 && (flags & O_DIRECTORY))
+    {
+        struct stat metadata;
+        int status = fstat(r, &metadata);
+        if (status || !S_ISDIR(metadata.st_mode))
+        {
+            int saved = status ? errno : ENOTDIR;
+            close(r);
+            errno = saved;
+            return -1;
+        }
+    }
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (r >= 0 && !(flags & O_NOCTTY) && !strncmp(path, "/dev/pts/", 9))
+        lume_posix_acquire_terminal(r);
 #endif
     if (r == 0)
         input_reset();

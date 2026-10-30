@@ -23,6 +23,8 @@ static void test_exit(unsigned status)
 #endif
 }
 
+static bool boot_staging;
+
 static int test_rename(const char *from, const char *to)
 {
     int result = rename(from, to);

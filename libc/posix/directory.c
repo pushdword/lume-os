@@ -74,6 +74,16 @@ DIR *opendir(const char *path)
     return directory;
 }
 
+int dirfd(DIR *directory)
+{
+    if (!directory)
+    {
+        errno = EBADF;
+        return -1;
+    }
+    return directory->fd;
+}
+
 struct dirent *readdir(DIR *directory)
 {
     if (!directory)

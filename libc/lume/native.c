@@ -14,6 +14,7 @@
 #include "api.h"
 #include "lume/process.h"
 #include "lume/credential.h"
+#include "lume/signal.h"
 #include "lume/file_mode.h"
 #include "lume/io.h"
 #include "perf.h"
@@ -45,10 +46,43 @@ static int valid(uint32_t p, size_t bytes, unsigned write)
     return (int)native(LUME_SYS_PROBE, p, bytes, write);
 }
 
+void lume_native_reap_orphans(void)
+{
+    if (native(LUME_SYS_GETPID, 0, 0, 0) == 1)
+        while (native(LUME_SYS_WAIT, 0, LUME_WAIT_ORPHANED, 1) >= 0)
+        {
+        }
+}
+
 int32_t lume_aarch64_posix_wait(int pid, int *status, int nohang)
 {
     int64_t result = native(LUME_SYS_WAIT, pid == -1 ? 0 : (unsigned)pid, !nohang, 1);
     if (result == -LUME_EAGAIN && nohang)
+        return 0;
+    if (result < 0)
+        return (int32_t)result;
+    if (status)
+        *status = (int)(uint32_t)result;
+    return (int32_t)((uint64_t)result >> 32);
+}
+
+int32_t lume_native_wait_options(int pid, int *status, unsigned options)
+{
+    int64_t target = pid == -1 ? 0 : pid;
+    if (!pid)
+    {
+        struct lume_signal_request request = {.version = LUME_SIGNAL_VERSION,
+                                              .bytes = sizeof(request)};
+        int64_t group =
+            native(LUME_SYS_SIGNAL, LUME_SIGNAL_GROUP, (uintptr_t)&request, sizeof(request));
+        if (group < 0)
+            return (int32_t)group;
+        target = -group;
+    }
+    unsigned flags = (options & 1 ? 0 : LUME_WAIT_BLOCK) | (options & 2 ? LUME_WAIT_STOPPED : 0) |
+                     (options & 8 ? LUME_WAIT_CONTINUED : 0);
+    int64_t result = native(LUME_SYS_WAIT, (uint64_t)target, flags, 1);
+    if (result == -LUME_EAGAIN && (options & 1))
         return 0;
     if (result < 0)
         return (int32_t)result;
@@ -323,6 +357,17 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         return (int32_t)entry.inode;
     }
     case LUME_TERMINAL:
+        if (a == 5 && b <= 60000 && !c)
+        {
+            struct lume_pollfd input = {.fd = 0, .events = LUME_POLLIN};
+            struct lume_poll_request poll = {.version = LUME_POLL_VERSION,
+                                             .bytes = sizeof(poll),
+                                             .buffer = (uintptr_t)&input,
+                                             .timeout_ms = b,
+                                             .count = 1};
+            int64_t result = native(LUME_SYS_FD, LUME_FD_WAIT, (uintptr_t)&poll, sizeof(poll));
+            return result < 0 ? (int32_t)result : result ? 0 : -LUME_EAGAIN;
+        }
         return (int32_t)native(LUME_SYS_TERMINAL, a, b, c);
     case LUME_VIDEO:
         return (int32_t)native(LUME_SYS_VIDEO, a, b, c);

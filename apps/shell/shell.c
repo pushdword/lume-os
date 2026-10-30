@@ -6,7 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifdef LUME_SHELL_JOB_CONTROL
+#include "jobs.h"
+static int background_command;
+#endif
 extern char **environ;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+extern void lume_native_reap_orphans(void);
+#endif
 
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #define SHELL_VALUE_BYTES LUME_ENV_BYTES
@@ -49,6 +56,10 @@ static int list_segment(char *line, char **next)
             continue;
         }
         unsigned width = *p == ';' ? 1 : ((*p == '&' || *p == '|') && p[1] == *p ? 2 : 0);
+#ifdef LUME_SHELL_JOB_CONTROL
+        if (*p == '&' && p[1] != '&' && (p == line || (p[-1] != '>' && p[-1] != '<')))
+            width = 1;
+#endif
         if (!width)
             continue;
         char *start = line;
@@ -57,6 +68,10 @@ static int list_segment(char *line, char **next)
         if (start == p)
             return -22;
         int condition = width == 1 ? 1 : *p == '&' ? 2 : 3;
+#ifdef LUME_SHELL_JOB_CONTROL
+        if (*p == '&' && width == 1)
+            condition = 4;
+#endif
         *next = p + width;
         while (**next == ' ' || **next == '\t')
             ++*next;
@@ -427,7 +442,14 @@ static int launch(int argc, char **argv)
         last_status = 2;
         return -1;
     }
-    int pid = app_spawn_fds(path, (unsigned)argc, (const char *const *)argv, (unsigned)count, env);
+    int pid;
+#ifdef LUME_SHELL_JOB_CONTROL
+    if (shell_jobs_active())
+        pid =
+            shell_jobs_spawn(path, (unsigned)argc, (const char *const *)argv, (unsigned)count, env);
+    else
+#endif
+        pid = app_spawn_fds(path, (unsigned)argc, (const char *const *)argv, (unsigned)count, env);
     if (pid < 0)
     {
         shell_error(command, pid);
@@ -439,6 +461,10 @@ static int launch(int argc, char **argv)
 
 static void wait_for(int pid)
 {
+#ifdef LUME_SHELL_JOB_CONTROL
+    if (shell_jobs_active())
+        return;
+#endif
     struct lume_wait_status status;
     int r = app_wait(pid, &status);
     if (r < 0)
@@ -533,6 +559,10 @@ static int dispatch(int argc, char **argv)
 {
     char *cmd = argv[0];
     const char *arg = argc > 1 ? argv[1] : "";
+#ifdef LUME_SHELL_JOB_CONTROL
+    if (shell_jobs_builtin(argc, argv, &last_status))
+        return 0;
+#endif
     if (argc == 1 && strchr(cmd, '='))
     {
         int r = assignment(cmd, -1);
@@ -718,8 +748,13 @@ int app_main(unsigned initial_argc, char **initial_argv)
             last_status = 1;
         return (int)last_status;
     }
+#ifdef LUME_SHELL_JOB_CONTROL
+    shell_jobs_initialize(!command_mode && script < 0);
+#endif
     if (!command_mode && script < 0)
     {
+        char terminal_type[128];
+        snprintf(terminal_type, sizeof terminal_type, "%s", value("TERM"));
         profile();
 #if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
         if (lume_syscall(LUME_PID, 0, 0, 0) == 0)
@@ -735,6 +770,8 @@ int app_main(unsigned initial_argc, char **initial_argv)
             }
         }
 #endif
+        if (terminal_type[0])
+            (void)assign("TERM", terminal_type, 1);
         (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
         (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
     }
@@ -753,6 +790,12 @@ int app_main(unsigned initial_argc, char **initial_argv)
         if (command_mode && executed && !pending[0])
             return (int)last_status;
         char line[SHELL_LINE_BYTES];
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+        lume_native_reap_orphans();
+#endif
+#ifdef LUME_SHELL_JOB_CONTROL
+        shell_jobs_poll();
+#endif
         if (pending[0])
         {
             strcpy(line, pending);
@@ -781,6 +824,7 @@ int app_main(unsigned initial_argc, char **initial_argv)
         }
         if (!command_mode && script < 0)
         {
+            lume_stdio_raw(1);
             app_puts("root@lume:");
             app_puts(cwd);
             app_puts("# ");
@@ -821,7 +865,12 @@ int app_main(unsigned initial_argc, char **initial_argv)
                 unsigned char byte;
                 int n = app_read(0, &byte, 1);
                 if (!n)
+                {
+#ifdef LUME_SHELL_JOB_CONTROL
+                    shell_jobs_shutdown();
+#endif
                     return 0;
+                }
                 ch = n < 0 ? n : byte;
 #else
                 ch = lume_syscall(LUME_GETCHAR, 0, 0, 0);
@@ -829,6 +878,9 @@ int app_main(unsigned initial_argc, char **initial_argv)
             }
             if (ch < 0)
             {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+                lume_native_reap_orphans();
+#endif
                 int wait = lume_syscall(LUME_TERMINAL, 5, 1000, 0);
                 if (wait == -22 || wait == -38 || wait == -95)
                     lume_syscall(LUME_YIELD, 0, 0, 0);
@@ -853,7 +905,7 @@ int app_main(unsigned initial_argc, char **initial_argv)
             if (ch == '\r' || ch == '\n')
             {
                 if (script < 0)
-                    app_puts("\n");
+                    app_puts("\r\n");
                 break;
             }
             if (ch == 8 || ch == 127)
@@ -870,8 +922,15 @@ int app_main(unsigned initial_argc, char **initial_argv)
             if (ch == 3)
             {
                 used = 0;
-                app_puts("^C\n");
+                app_puts("^C\r\n");
                 break;
+            }
+            if (ch == 4 && !used && script < 0)
+            {
+#ifdef LUME_SHELL_JOB_CONTROL
+                shell_jobs_shutdown();
+#endif
+                return 0;
             }
             if (ch >= 32 && ch != 127 && ch < 256 && used + 1 < sizeof line)
             {
@@ -891,6 +950,7 @@ int app_main(unsigned initial_argc, char **initial_argv)
         }
         line[used] = 0;
     line_ready:;
+        lume_stdio_raw(0);
         unsigned gate = condition;
         char *next;
         int separator = list_segment(line, &next);
@@ -902,11 +962,19 @@ int app_main(unsigned initial_argc, char **initial_argv)
             continue;
         }
         condition = (unsigned)separator;
+#ifdef LUME_SHELL_JOB_CONTROL
+        background_command = separator == 4;
+#endif
         if (next)
             strcpy(pending, next);
         if ((gate == 2 && last_status) || (gate == 3 && !last_status))
             continue;
         if (shell_line(line))
+        {
+#ifdef LUME_SHELL_JOB_CONTROL
+            shell_jobs_shutdown();
+#endif
             return (int)last_status;
+        }
     }
 }

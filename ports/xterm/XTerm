@@ -1,0 +1,15 @@
+XTerm*termName: xterm
+XTerm*font: 9x15
+XTerm*font1: 6x13
+XTerm*font2: 7x13
+XTerm*font3: 8x13
+XTerm*font4: 9x15
+XTerm*font5: 9x18
+XTerm*font6: 10x20
+XTerm*utf8: 1
+XTerm*locale: false
+XTerm*backarrowKey: false
+XTerm*background: #15202b
+XTerm*foreground: #e2e8ef
+XTerm*saveLines: 500
+XTerm*scrollBar: true

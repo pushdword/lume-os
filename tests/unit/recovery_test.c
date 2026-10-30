@@ -201,6 +201,20 @@ int main(int argc, char **argv)
     can_boot = true;
     request("G", " OK GO ");
     assert(monitor.run && prepared == 2);
+    struct lrec automatic = monitor;
+    assert(!lrec_start(&automatic) && prepared == 2);
+    automatic.run = false;
+    automatic.pending = true;
+    assert(!lrec_start(&automatic) && prepared == 2);
+    automatic.pending = false;
+    automatic.root[automatic.selected_root].valid = false;
+    assert(!lrec_start(&automatic) && prepared == 2);
+    automatic.root[automatic.selected_root].valid = true;
+    can_boot = false;
+    assert(!lrec_start(&automatic) && !automatic.run && prepared == 3);
+    can_boot = true;
+    assert(lrec_start(&automatic) && automatic.run && prepared == 4);
+    assert(!lrec_start(&automatic) && prepared == 4);
     for (unsigned slot = 0; slot < 2; ++slot)
         for (unsigned i = 0; i < 16; ++i)
             assert(k[slot][LREC_KERNEL_LIMIT + i] == 0xa5 && r[slot][LREC_ROOT_LIMIT + i] == 0xa5);

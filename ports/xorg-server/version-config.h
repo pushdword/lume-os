@@ -1,0 +1,17 @@
+/* version-config.h.in: not generated */
+
+#ifndef VERSION_CONFIG_H
+#define VERSION_CONFIG_H
+
+
+/* Vendor man version */
+#define VENDOR_MAN_VERSION "21.1.25"
+
+/* Vendor name */
+#define VENDOR_NAME "The X.Org Foundation"
+
+/* Vendor release */
+#define VENDOR_RELEASE 12101025
+
+#endif /* VERSION_CONFIG_H */
+

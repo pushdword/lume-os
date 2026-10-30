@@ -23,29 +23,37 @@ ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
 endif
 ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c
 ARM_COMMON_SOURCES += libc/posix/time.c
+ARM_COMMON_SOURCES += libc/posix/tty.c
 ifeq ($(ARCH),i686)
 ARM_COMMON_SOURCES += arch/i686/builtins.c
 I686_BUILTINS := $(OUT)/obj/arch/i686/builtins.c.o
 endif
 $(OUT)/obj/libc/posix/pthread.c.o $(OUT)/obj/libc/lume/thread.c.o $(OUT)/obj/arch/$(ARCH)/tls.c.o $(OUT)/obj/libc/runtime/locks.c.o: CPPFLAGS += -Iinclude/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
+ifeq ($(ARCH),amd64)
+DESKTOP ?= 1
+endif
+DESKTOP ?= 0
+include mk/desktop.mk
+ifeq ($(DESKTOP),1)
+all: desktop
+endif
 include mk/busybox.mk
 include mk/htop.mk
 ARM_APPS := shell ls dir less top worker probe fstest libctest video smpdemo iostat iobench cp touch tar base64
 ARM_APPLETS := basename cat dirname echo false head printenv pwd true wc sort cut cmp cksum crc32 expand unexpand mkdir rmdir
 ARM_APP_TARGETS := $(addprefix $(OUT)/,$(addsuffix .elf,$(ARM_APPS)))
-VI_SOURCES := ports/busybox/compat.c ports/vi/compat.c vendor/vi/vi.c
+include mk/vim-native.mk
 HTOP_SOURCES += $(addprefix ports/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/posix/,sbrk.c posix_runtime.c errno_map.c)
 BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
-VI_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(VI_SOURCES)))
 HTOP_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(HTOP_SOURCES)))
 $(BB_OBJECTS): CPPFLAGS += -Iports/busybox
-$(VI_OBJECTS): CPPFLAGS += -Iports/vi -Iports/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/diagnostics/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
 ifeq ($(ARCH),i686)
 all: headers $(addprefix $(OUT)/,$(addsuffix .elf,shell ls dir worker libctest cp touch video)) $(OUT)/busybox.elf $(OUT)/device.elf kernel
 all: $(OUT)/i686-video-test.elf
+all: $(OUT)/vi.elf $(OUT)/htop.elf
 $(OUT)/obj/tests/integration/i686_video.c.o: | headers
 $(OUT)/i686-video-test.elf: $(OUT)/obj/tests/integration/i686_video.c.o $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
@@ -54,6 +62,10 @@ all: headers $(ARM_APP_TARGETS) $(OUT)/busybox.elf $(OUT)/vi.elf $(OUT)/htop.elf
 endif
 ifeq ($(ARCH),amd64)
 all: $(OUT)/amd64-runtime.elf
+all: $(OUT)/amd64-graphics.elf
+$(OUT)/amd64-graphics.elf: $(OUT)/obj/tests/integration/amd64_graphics.c.o $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/amd64_graphics.c.o: | headers
 $(OUT)/amd64-runtime.elf: $(OUT)/obj/tests/integration/amd64_runtime.c.o $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
 $(OUT)/obj/tests/integration/amd64_runtime.c.o: | headers
@@ -73,9 +85,10 @@ $(OUT)/$(1).elf: $(OUT)/obj/$(APP_SOURCE_$(1)).o $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $$^ $(ARM_LD_LIBS) -o "$$@"
 endef
 $(foreach app,$(ARM_APPS),$(eval $(call native_application,$(app))))
+$(OUT)/obj/apps/shell/shell.c.o: CPPFLAGS += -DLUME_SHELL_JOB_CONTROL=1
+$(OUT)/obj/apps/shell/jobs_native.c.o: | headers
+$(OUT)/shell.elf: $(OUT)/obj/apps/shell/jobs_native.c.o
 $(OUT)/busybox.elf: $(BB_OBJECTS) $(ARM_COMMON_OBJECTS)
-	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
-$(OUT)/vi.elf: $(VI_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
 $(OUT)/htop.elf: $(HTOP_OBJECTS) $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(ARM_COMMON_OBJECTS))
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
@@ -147,16 +160,26 @@ endif
 endif
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
 	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
-	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg",true)
-	$(if $(strip $(NATIVE_SDK)),cp "$(OUT)/service.elf" "$(OUT)/root/bin/service"; cp "$(OUT)/svcd.elf" "$(OUT)/root/bin/svcd",true)
+ifneq ($(strip $(NATIVE_SDK)),)
+	cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg"
+	cp "$(OUT)/service.elf" "$(OUT)/root/bin/service"
+	cp "$(OUT)/svcd.elf" "$(OUT)/root/bin/svcd"
+endif
 	cp "$(OUT)/nc.elf" "$(OUT)/root/bin/netcat"
 	cp "$(OUT)/device.elf" "$(OUT)/root/bin/hwreg"
 	$(foreach app,less top vi htop video smpdemo iostat iobench,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/bin/$(app)";)
+	cp "$(OUT)/vim.elf" "$(OUT)/root/usr/bin/vim"
+	mkdir -p "$(OUT)/root/usr/share/licenses/vim"
+	cp vendor/vim/LICENSE "$(OUT)/root/usr/share/licenses/vim/LICENSE"
 	$(foreach app,worker probe fstest libctest,cp "$(OUT)/$(app).elf" "$(OUT)/root/usr/libexec/$(app)";)
 ifeq ($(ARCH),amd64)
 	cp "$(OUT)/amd64-runtime.elf" "$(OUT)/root/usr/libexec/amdtest"
+	cp "$(OUT)/amd64-graphics.elf" "$(OUT)/root/usr/libexec/gfxprobe"
 endif
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
+ifeq ($(DESKTOP),1)
+	$(MAKE) desktop-install
+endif
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 endif
 .PHONY: check-update check-network-tools check-services

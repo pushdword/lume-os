@@ -1,0 +1,1 @@
+key "Ctrl+Alt+t" /usr/bin/xterm -fn 9x15 -e /bin/sh

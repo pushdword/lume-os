@@ -13,12 +13,19 @@ _start:
     pushl %ecx
     pushl %ebx
     call lume_runtime_init
+#ifdef LUME_NATIVE_CXX
+    call native_cxx_initialize
+#endif
     call app_main
     addl $16, %esp
     movl %eax, %ebx
     call fflush_all_streams
     subl $12, %esp
     pushl %ebx
+#ifdef LUME_NATIVE_CXX
+    call exit
+#else
     call app_exit
+#endif
     ud2
 .section .note.GNU-stack,"",@progbits

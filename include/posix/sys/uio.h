@@ -1,0 +1,22 @@
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+#ifndef LUME_POSIX_UIO_H
+#define LUME_POSIX_UIO_H
+#include <sys/types.h>
+
+    struct iovec
+    {
+        void *iov_base;
+        size_t iov_len;
+    };
+
+    ssize_t writev(int, const struct iovec *, int);
+#endif
+
+    ssize_t readv(int, const struct iovec *, int);
+    ssize_t writev(int, const struct iovec *, int);
+#ifdef __cplusplus
+}
+#endif

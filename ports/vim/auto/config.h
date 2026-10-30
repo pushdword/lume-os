@@ -4,8 +4,8 @@
 #define UNIX 1
 #define FEAT_NORMAL 1
 #define VIM_SIZEOF_INT 4
-#define VIM_SIZEOF_LONG 8
-#define SIZEOF_OFF_T 8
+#define VIM_SIZEOF_LONG __SIZEOF_LONG__
+#define SIZEOF_OFF_T __SIZEOF_LONG__
 #define SIZEOF_TIME_T 8
 #define HAVE_ATTRIBUTE_UNUSED 1
 #define USEMEMMOVE 1

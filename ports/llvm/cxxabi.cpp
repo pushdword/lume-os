@@ -24,7 +24,7 @@ extern "C"
     {
     }
 
-    [[noreturn]] void __cxa_pure_virtual()
+    [[noreturn]] __attribute__((weak)) void __cxa_pure_virtual()
     {
         fputs("pure virtual call\n", stderr);
         abort();

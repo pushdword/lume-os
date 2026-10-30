@@ -62,14 +62,18 @@ gid_t getegid(void)
 
 pid_t waitpid(pid_t pid, int *status, int options)
 {
-    if (options & ~WNOHANG || pid == 0 || pid < -1)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (options & ~(WNOHANG | WUNTRACED | WCONTINUED))
+#else
+    if ((options & ~WNOHANG) || (pid != -1 && pid <= 0))
+#endif
     {
         errno = EINVAL;
         return -1;
     }
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
-    extern int32_t lume_aarch64_posix_wait(int, int *, int);
-    int result = lume_aarch64_posix_wait(pid, status, !!(options & WNOHANG));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    extern int32_t lume_native_wait_options(int, int *, unsigned);
+    int result = lume_native_wait_options(pid, status, (unsigned)options);
     if (result < 0)
     {
         errno = lume_errno_from_syscall((unsigned)-result);

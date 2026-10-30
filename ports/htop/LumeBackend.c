@@ -212,8 +212,7 @@ void Machine_scan(Machine *m)
     int n = lume_syscall(LUME_PERF, (uint32_t)(uintptr_t)&sample, sizeof sample, LUME_PERF_VERSION);
     valid = n == 0 && sample.version == LUME_PERF_VERSION && sample.bytes == sizeof sample &&
             sample.core_count > 0 && sample.core_count <= LUME_PERF_CORES &&
-            sample.process_count <= LUME_PERF_PROCESSES &&
-            sample.clock_hz;
+            sample.process_count <= LUME_PERF_PROCESSES && sample.clock_hz;
     if (!valid)
     {
         have_previous = false;
@@ -276,10 +275,11 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
         p->super.show = true;
         p->isKernelThread = false;
         p->isUserlandThread = thread;
-        p->state = state == LUME_RUNNING  ? RUNNING
-                   : state == LUME_READY  ? RUNNABLE
-                   : state == LUME_ZOMBIE ? ZOMBIE
-                                             : SLEEPING;
+        p->state = state == LUME_RUNNING   ? RUNNING
+                   : state == LUME_READY   ? RUNNABLE
+                   : state == LUME_ZOMBIE  ? ZOMBIE
+                   : state == LUME_STOPPED ? STOPPED
+                                           : SLEEPING;
         p->st_uid = 0;
         p->user = "root";
         p->nice = PROCESS_NICE_UNKNOWN;

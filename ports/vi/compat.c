@@ -2,6 +2,9 @@
 #include "libbb.h"
 #include "api.h"
 #include "fd_client.h"
+#if defined(LUME_ARCH_AMD64)
+#include <sys/ioctl.h>
+#endif
 struct globals *ptr_to_globals;
 int vi_main(int, char **);
 static int console_input = 1;
@@ -72,6 +75,15 @@ int app_main(int argc, char **argv)
 
 int get_terminal_width_height(int fd, unsigned *width, unsigned *height)
 {
+#if defined(LUME_ARCH_AMD64)
+    struct winsize size;
+    if (!ioctl(fd, TIOCGWINSZ, &size))
+    {
+        *width = size.ws_col;
+        *height = size.ws_row;
+        return 0;
+    }
+#endif
     if (fd != 0)
     {
         errno = ENOTTY;
@@ -143,6 +155,11 @@ void set_termios_to_raw(int fd, struct termios *saved, int flags)
     memset(saved, 0, sizeof *saved);
     saved->c_cc[VERASE] = 127;
     console_input = isatty(fd);
+#if defined(LUME_ARCH_AMD64)
+    struct termios mode;
+    if (!tcgetattr(fd, &mode))
+        console_input = 0;
+#endif
     lume_stdio_raw(1);
 }
 
