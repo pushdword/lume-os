@@ -1,0 +1,214 @@
+--- a/lib/fpurge.c
++++ b/lib/fpurge.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include <stdio.h>
+@@ -31,6 +37,10 @@
+ int
+ fpurge (FILE *fp)
+ {
++#if defined(__lume__)
++  if (fp->flags & __SBUF) { struct __file_bufio *buffer = (struct __file_bufio *)fp; buffer->len = buffer->off = 0; } else if (fp->flags & __SRD) { errno = ENOTSUP; return -1; } fp->unget = 0; return 0;
++#else
++
+ #if HAVE___FPURGE                   /* glibc >= 2.2, Haiku, Solaris >= 7, UnixWare >= 7.1.4.MP4, Cygwin >= 1.7.10, Android API >= 23, musl libc */
+ 
+   __fpurge (fp);
+@@ -147,4 +157,6 @@
+ # endif
+ 
+ #endif
++
++#endif
+ }
+--- a/lib/freading.c
++++ b/lib/freading.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include "freading.h"
+@@ -28,6 +34,10 @@
+ bool
+ freading (FILE *fp)
+ {
++#if defined(__lume__)
++  return (fp->flags & __SRD) && (!(fp->flags & __SWR) || ((fp->flags & __SBUF) && ((struct __file_bufio *)fp)->dir == __SRD));
++#else
++
+   /* Most systems provide FILE as a struct and the necessary bitmask in
+      <stdio.h>, because they need it for implementing getc() and putc() as
+      fast macros.  */
+@@ -71,6 +81,8 @@
+ # else
+ #  error "Please port gnulib freading.c to your platform!"
+ # endif
++
++#endif
+ }
+ 
+ #endif
+--- a/lib/fseeko.c
++++ b/lib/fseeko.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include <stdio.h>
+@@ -40,6 +46,10 @@
+ # endif
+ #endif
+ {
++#if defined(__lume__)
++  return fseeko(fp, offset, whence);
++#else
++
+ #if LSEEK_PIPE_BROKEN
+   /* mingw gives bogus answers rather than failure on non-seekable files.  */
+   if (lseek (fileno (fp), 0, SEEK_CUR) == -1)
+@@ -161,4 +171,6 @@
+       return 0;
+     }
+   return fseeko (fp, offset, whence);
++
++#endif
+ }
+--- a/lib/fseterr.c
++++ b/lib/fseterr.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include "fseterr.h"
+@@ -29,6 +35,10 @@
+ void
+ fseterr (FILE *fp)
+ {
++#if defined(__lume__)
++  fp->flags |= __SERR;
++#else
++
+   /* Most systems provide FILE as a struct and the necessary bitmask in
+      <stdio.h>, because they need it for implementing getc() and putc() as
+      fast macros.  */
+@@ -81,4 +91,6 @@
+ #else
+  #error "Please port gnulib fseterr.c to your platform! Look at the definitions of ferror and clearerr on your system, then report this to bug-gnulib."
+ #endif
++
++#endif
+ }
+--- a/lib/getdtablesize.c
++++ b/lib/getdtablesize.c
+@@ -16,6 +16,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include <unistd.h>
+@@ -109,6 +115,10 @@
+ int
+ getdtablesize (void)
+ {
++#if defined(__lume__)
++  return LUME_FD_MAX;
++#else
++
+   struct rlimit lim;
+ 
+   if (getrlimit (RLIMIT_NOFILE, &lim) == 0
+@@ -119,6 +129,8 @@
+     return lim.rlim_cur;
+ 
+   return INT_MAX;
++
++#endif
+ }
+ 
+ #endif
+--- a/lib/getprogname.c
++++ b/lib/getprogname.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  Also get __argv declaration.  */
+ #include <stdlib.h>
+@@ -61,6 +67,10 @@
+ char const *
+ getprogname (void)
+ {
++#if defined(__lume__)
++  extern const char *program_name; return program_name ? program_name : "program";
++#else
++
+ # if HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME                /* glibc, BeOS */
+   /* https://www.gnu.org/software/libc/manual/html_node/Error-Messages.html */
+   return program_invocation_short_name;
+@@ -300,6 +310,8 @@
+ # else
+ #  error "getprogname module not ported to this OS"
+ # endif
++
++#endif
+ }
+ 
+ #endif
+--- a/lib/utime.c
++++ b/lib/utime.c
+@@ -19,6 +19,7 @@
+ #include <config.h>
+ 
+ /* Specification.  */
++#include <time.h>
+ #include <utime.h>
+ 
+ #if defined _WIN32 && ! defined __CYGWIN__

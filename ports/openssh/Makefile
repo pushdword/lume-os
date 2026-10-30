@@ -3,7 +3,7 @@ ARCH ?= aarch64
 PORT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 OS_ROOT := $(abspath $(PORT)/../..)
 include $(OS_ROOT)/mk/port.mk
-SOURCE := $(OS_ROOT)/vendor/openssh
+SOURCE ?= $(PORT)/source
 SDK ?= /data/sdk
 SYSROOT ?= $(SDK)
 OUT ?= build
@@ -13,6 +13,7 @@ AR = llvm-ar
 include $(PORT)/objects.mk
 CPPFLAGS += -I$(OS_ROOT)/arch/$(ARCH)/include -I$(OS_ROOT)/include/internal -I$(OS_ROOT)/include/posix  -DHAVE_CONFIG_H -D_GNU_SOURCE -I$(PORT) -I$(PORT)/lume -I$(PORT)/lume/include -I$(SOURCE) -I$(SOURCE)/openbsd-compat -I$(OS_ROOT)/include/posix -I$(OS_ROOT)/include/lume -I$(KERNEL)/include/abi/$(UAPI_ABI) -I$(KERNEL)/include/uapi -isystem $(SYSROOT)/include
 CFLAGS += -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -ffunction-sections -fdata-sections -ffile-prefix-map=$(OS_ROOT)=lume-os -ffile-prefix-map=$(KERNEL)=lume-kernel
+CFLAGS += $(ARCH_CFLAGS) -ffile-prefix-map=$(SOURCE)=openssh
 NATIVE := $(addprefix $(OUT)/obj/native/,entry.o network.o platform.o process.o)
 CORE := $(addprefix $(OUT)/obj/,$(LIBSSH_OBJS))
 COMPAT_OBJS := $(addprefix $(OUT)/obj/compat/,$(OPENBSD) $(COMPAT) $(PORTS))

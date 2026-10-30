@@ -1,0 +1,22 @@
+--- a/src/line_printer.cc
++++ b/src/line_printer.cc
+@@ -24,7 +24,9 @@
+ #else
+ #include <unistd.h>
+ #include <sys/ioctl.h>
++#if !defined(__lume__)
+ #include <termios.h>
++#endif
+ #include <sys/time.h>
+ #endif
+ 
+--- a/src/subprocess.h
++++ b/src/subprocess.h
+@@ -22,6 +22,7 @@
+ #ifdef _WIN32
+ #include <windows.h>
+ #else
++#include <sys/types.h>
+ #include <signal.h>
+ #endif
+ 

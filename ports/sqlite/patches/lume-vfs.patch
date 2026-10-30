@@ -1,0 +1,43 @@
+--- a/shell.c
++++ b/shell.c
+@@ -26651,7 +26651,7 @@
+ 
+ 
+ /************************* BEGIN PERFORMANCE TIMER *****************************/
+-#if !defined(_WIN32) && !defined(WIN32) && !defined(__minux)
++#if !defined(_WIN32) && !defined(WIN32) && !defined(__minux) && !defined(__lume__)
+ #include <sys/time.h>
+ #include <sys/resource.h>
+ /* VxWorks does not support getrusage() as far as we can determine */
+@@ -38573,7 +38573,7 @@
+   if( home_dir ) return home_dir;
+ 
+ #if !defined(_WIN32) && !defined(WIN32) && !defined(_WIN32_WCE) \
+-     && !defined(__RTP__) && !defined(_WRS_KERNEL) && !defined(SQLITE_WASI)
++     && !defined(__RTP__) && !defined(_WRS_KERNEL) && !defined(SQLITE_WASI) && !defined(__lume__)
+   {
+     struct passwd *pwent;
+     uid_t uid = getuid();
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -40610,7 +40610,7 @@
+ static int kvvfsCurrentTimeInt64(sqlite3_vfs *pVfs, sqlite3_int64 *pTimeOut){
+   static const sqlite3_int64 unixEpoch = 24405875*(sqlite3_int64)8640000;
+   struct timeval sNow;
+-  (void)gettimeofday(&sNow, 0);  /* Cannot fail given valid arguments */
++  if( gettimeofday(&sNow, 0) ) return SQLITE_ERROR;
+   *pTimeOut = unixEpoch + 1000*(sqlite3_int64)sNow.tv_sec + sNow.tv_usec/1000;
+   return SQLITE_OK;
+ }
+@@ -47837,7 +47837,11 @@
+   *piNow = unixEpoch + 1000*(sqlite3_int64)sNow.tv_sec + sNow.tv_nsec/1000000;
+ #else
+   struct timeval sNow;
++#if defined(__lume__)
++    if( gettimeofday(&sNow, 0) ) return SQLITE_ERROR;
++#else
+   (void)gettimeofday(&sNow, 0);  /* Cannot fail given valid arguments */
++#endif
+   *piNow = unixEpoch + 1000*(sqlite3_int64)sNow.tv_sec + sNow.tv_usec/1000;
+ #endif
+ 

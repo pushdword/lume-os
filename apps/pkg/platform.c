@@ -9,6 +9,11 @@ static struct lume_stream_request stream;
 static unsigned char network_buffer[4096];
 static unsigned received, consumed;
 
+int pkg_boot(unsigned operation, struct lume_boot_request *request)
+{
+    return (int)call(LUME_SYS_BOOT, operation, (uintptr_t)request, sizeof(*request));
+}
+
 int pkg_payload_mode(int fd, unsigned mode)
 {
     struct lume_file_mode_request request = {

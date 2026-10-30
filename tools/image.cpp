@@ -139,6 +139,8 @@ struct Node
     std::vector<size_t> children;
     uint32_t cluster = 0, size = 0;
     size_t parent = 0;
+    std::string alias;
+    bool long_name = false;
 };
 
 static std::string shortname(const std::string &name)
@@ -166,6 +168,45 @@ static std::string shortname(const std::string &name)
            std::string(3 - ext.size(), ' ');
 }
 
+static bool short_compatible(const std::string &name)
+{
+    size_t dot = name.find_last_of('.');
+    std::string stem = dot == std::string::npos ? name : name.substr(0, dot),
+                ext = dot == std::string::npos ? "" : name.substr(dot + 1);
+    if (stem.empty() || stem.size() > 8 || ext.size() > 3)
+        return false;
+    for (char c : stem + ext)
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '~'))
+            return false;
+    return true;
+}
+
+static std::string alias_name(const std::string &name, unsigned sequence)
+{
+    size_t dot = name.find_last_of('.');
+    auto clean = [](std::string text)
+    {
+        std::string out;
+        for (char c : text)
+        {
+            if (c >= 'a' && c <= 'z')
+                c -= 32;
+            if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-')
+                out += c;
+        }
+        return out;
+    };
+    std::string stem = clean(dot == std::string::npos ? name : name.substr(0, dot)),
+                ext = dot == std::string::npos ? "" : clean(name.substr(dot + 1)),
+                suffix = "~" + std::to_string(sequence);
+    check(suffix.size() < 8, "FAT alias capacity exceeded");
+    if (stem.empty())
+        stem = "FILE";
+    stem = stem.substr(0, 8 - suffix.size()) + suffix;
+    return stem + std::string(8 - stem.size(), ' ') + ext.substr(0, 3) +
+           std::string(3 - std::min(size_t(3), ext.size()), ' ');
+}
+
 static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t mib = 34)
 {
     check(fs::is_directory(root), "Root directory required");
@@ -185,10 +226,33 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
                           return a.path().filename().string() < b.path().filename().string();
                       });
             std::map<std::string, bool> seen;
+            std::map<std::string, bool> names;
             for (auto &e : entries)
             {
-                std::string name = e.path().filename().string(), shortn = shortname(name);
-                check(!seen[shortn], "FAT name collision: " + name);
+                std::string name = e.path().filename().string(), folded = name;
+                check(!name.empty() && name.size() <= 255 && name.back() != '.' &&
+                          name.back() != ' ',
+                      "Invalid FAT filename");
+                for (char &c : folded)
+                {
+                    check(c >= 32 && c < 127 &&
+                              std::string("\"*/:<>?\\|").find(c) == std::string::npos,
+                          "ASCII FAT filename required");
+                    if (c >= 'A' && c <= 'Z')
+                        c += 32;
+                }
+                check(!names[folded], "FAT name collision: " + name);
+                names[folded] = true;
+                bool long_name = !short_compatible(name);
+                std::string shortn = long_name ? "" : shortname(name);
+                if (shortn.empty() || seen[shortn])
+                {
+                    long_name = true;
+                    unsigned sequence = 0;
+                    do
+                        shortn = alias_name(name, ++sequence);
+                    while (seen[shortn]);
+                }
                 seen[shortn] = true;
                 bool dir = e.is_directory();
                 check(dir || e.is_regular_file(), "Unsupported root entry");
@@ -196,6 +260,8 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
                 check(size <= UINT32_MAX, "FAT file exceeds 4 GiB");
                 nodes[i].children.push_back(nodes.size());
                 nodes.push_back({e.path(), name, dir, {}, 0, uint32_t(size), i});
+                nodes.back().alias = shortn;
+                nodes.back().long_name = long_name;
             }
         }
     const uint32_t sectors = mib * 1024 * 1024 / 512, reserved = 32;
@@ -211,7 +277,11 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
     for (size_t i = 0; i < nodes.size(); i++)
     {
         auto &n = nodes[i];
-        uint32_t size = n.directory ? uint32_t((n.children.size() + 3) * 32) : n.size,
+        size_t slots = n.children.size() + 3;
+        for (size_t child : n.children)
+            if (nodes[child].long_name)
+                slots += (nodes[child].name.size() + 12) / 13;
+        uint32_t size = n.directory ? uint32_t(slots * 32) : n.size,
                  count = std::max(1u, (size + 511) / 512);
         check(uint64_t(cursor) + count <= uint64_t(clusters) + 2, "Root volume is full");
         n.cluster = cursor;
@@ -225,9 +295,8 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             std::copy(b.begin(), b.end(), volume.begin() + size_t(first + n.cluster - 2) * 512);
         }
     }
-    auto entry = [&](size_t at, const std::string &name, uint32_t cluster, uint32_t size, bool dir)
+    auto entry = [&](size_t at, const std::string &sn, uint32_t cluster, uint32_t size, bool dir)
     {
-        auto sn = shortname(name);
         std::copy(sn.begin(), sn.end(), volume.begin() + at);
         volume[at + 11] = dir ? 16 : 32;
         volume[at + 12] = 0x18;
@@ -244,8 +313,8 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             size_t at = size_t(first + n.cluster - 2) * 512;
             if (i)
             {
-                entry(at, ".", n.cluster, 0, true);
-                entry(at + 32, "..", n.parent ? nodes[n.parent].cluster : 0, 0, true);
+                entry(at, shortname("."), n.cluster, 0, true);
+                entry(at + 32, shortname(".."), n.parent ? nodes[n.parent].cluster : 0, 0, true);
                 at += 64;
             }
             else
@@ -258,7 +327,38 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             for (size_t child : n.children)
             {
                 auto &c = nodes[child];
-                entry(at, c.name, c.cluster, c.size, c.directory);
+                if (c.long_name)
+                {
+                    unsigned checksum = 0;
+                    for (unsigned char value : c.alias)
+                        checksum = (((checksum & 1) << 7) + (checksum >> 1) + value) & 255;
+                    unsigned count = unsigned((c.name.size() + 12) / 13);
+                    for (unsigned part = count; part; --part)
+                    {
+                        std::fill_n(volume.begin() + at, 32, 0xff);
+                        volume[at] = uint8_t(part | (part == count ? 0x40 : 0));
+                        volume[at + 11] = 0x0f;
+                        volume[at + 12] = 0;
+                        volume[at + 13] = uint8_t(checksum);
+                        put(volume, at + 26, 0, 2);
+                        unsigned word = 0;
+                        for (unsigned start : {1u, 14u, 28u})
+                            for (unsigned offset = start; offset < start + (start == 1    ? 10
+                                                                            : start == 14 ? 12
+                                                                                          : 4);
+                                 offset += 2)
+                            {
+                                size_t index = (part - 1) * 13 + word++;
+                                put(volume, at + offset,
+                                    index < c.name.size()    ? uint16_t(c.name[index])
+                                    : index == c.name.size() ? 0
+                                                             : 0xffff,
+                                    2);
+                            }
+                        at += 32;
+                    }
+                }
+                entry(at, c.alias, c.cluster, c.size, c.directory);
                 at += 32;
             }
         }

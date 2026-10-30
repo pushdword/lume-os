@@ -3,7 +3,8 @@ ARCH ?= aarch64
 PORT ?=
 PORTS ?= /data/share/ports
 SDK ?= /data/sdk
-WORK ?= /data/build/$(PORT)
+PORT_REVISION ?= 0
+WORK ?= /data/build/$(PORT)-r$(PORT_REVISION)
 JOBS ?= 2
 ifneq ($(words $(JOBS)),1)
 $(error JOBS must be 1, 2, 3 or 4)
@@ -15,13 +16,13 @@ ifeq ($(PORT),)
 $(error PORT must name an installed source package)
 endif
 include $(PORTS)/$(PORT).mk
-COMMON_ARCHIVE := /data/share/src/lume.tar
+COMMON_ARCHIVE := $(if $(filter 1,$(PORT_STANDALONE)),,/data/share/src/lume.tar)
 .PHONY: all prepare
 all: prepare
-	$(MAKE) -j$(JOBS) -C $(WORK)/$(PORT_DIR) $(PORT_TARGET) OUT=$(WORK)/out BUILD=$(WORK)/out SDK=$(SDK)
+	$(MAKE) -B -j$(JOBS) -C $(WORK)/$(PORT_DIR) $(PORT_TARGET) OUT=$(WORK)/out BUILD=$(WORK)/out SDK=$(SDK)
 prepare: $(WORK)/.sources-ready
-$(WORK)/.sources-ready: | $(COMMON_ARCHIVE) $(PORT_ARCHIVE)
+$(WORK)/.sources-ready: $(COMMON_ARCHIVE) $(PORT_ARCHIVE)
 	mkdir -p $(WORK)
-	tar -xf $(COMMON_ARCHIVE) -C $(WORK)
+	$(if $(COMMON_ARCHIVE),tar -xf $(COMMON_ARCHIVE) -C $(WORK),true)
 	$(if $(PORT_ARCHIVE),tar -xf $(PORT_ARCHIVE) -C $(WORK),true)
 	touch $@

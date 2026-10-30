@@ -1,5 +1,8 @@
 #include "api.h"
 #include "fd_client.h"
+#if defined(LUME_ARCH_AARCH64)
+#include "lume/io.h"
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -718,6 +721,20 @@ int app_main(unsigned initial_argc, char **initial_argv)
     if (!command_mode && script < 0)
     {
         profile();
+#if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
+        if (lume_syscall(LUME_PID, 0, 0, 0) == 0)
+        {
+            struct lume_boot_request boot = {.version = LUME_IO_VERSION};
+            if (app_boot(LUME_BOOT_INFO, &boot) == 0 && (boot.total & LUME_BOOT_STATE_TRIAL))
+            {
+                const char *const args[] = {"/bin/pkg", "confirm"};
+                int pid = app_spawn(args[0], 2, args);
+                struct lume_wait_status status;
+                if (pid < 0 || app_wait(pid, &status) < 0 || status.code)
+                    app_puts("shell: boot confirmation failed\n");
+            }
+        }
+#endif
         (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
         (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
     }

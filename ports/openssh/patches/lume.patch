@@ -1,0 +1,13 @@
+--- a/auth-options.c
++++ b/auth-options.c
+@@ -387,6 +387,10 @@
+ 			if (ret->required_from_host_keys == NULL)
+ 				goto fail;
+ 		} else if (opt_match(&opts, "expiry-time")) {
++			if (time(NULL) == (time_t)-1) {
++				errstr = "key expiry requires a realtime clock";
++				goto fail;
++			}
+ 			if ((opt = opt_dequote(&opts, &errstr)) == NULL)
+ 				goto fail;
+ 			if (parse_absolute_time(opt, &valid_before) != 0 ||

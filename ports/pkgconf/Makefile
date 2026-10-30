@@ -1,9 +1,9 @@
 .DEFAULT_GOAL := all
 CSTD := gnu11
 PORT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-SOURCE = $(OS_ROOT)/vendor/pkgconf
+SOURCE ?= $(PORT)/source
 include $(PORT)/../standalone.mk
-CPPFLAGS += -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L '-I$(OS_ROOT)/ports/pkgconf' '-I$(OS_ROOT)/vendor/pkgconf'
+CPPFLAGS += -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L '-I$(OS_ROOT)/ports/pkgconf' '-I$(SOURCE)'
 SOURCES := libpkgconf/argvsplit.c libpkgconf/audit.c libpkgconf/bsdstubs.c libpkgconf/buffer.c libpkgconf/cache.c libpkgconf/client.c libpkgconf/dependency.c libpkgconf/fileio.c libpkgconf/fragment.c libpkgconf/parser.c libpkgconf/path.c libpkgconf/personality.c libpkgconf/pkg.c libpkgconf/queue.c libpkgconf/tuple.c
 OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(basename $(SOURCES))))
 .PHONY: all

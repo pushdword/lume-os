@@ -47,4 +47,5 @@ void lrec_init(struct lrec *, const struct lrec_io *, unsigned char *kernel0,
 void lrec_feed(struct lrec *, int byte);
 const struct lrec_image *lrec_kernel(const struct lrec *);
 const struct lrec_image *lrec_root(const struct lrec *);
+bool lrec_start(struct lrec *);
 #endif

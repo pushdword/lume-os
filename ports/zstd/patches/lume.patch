@@ -1,0 +1,39 @@
+--- a/programs/fileio.c
++++ b/programs/fileio.c
+@@ -1811,8 +1811,13 @@
+         U64 const timeLength_ns = UTIL_clockSpanNano(timeStart);
+         double const timeLength_s = (double)timeLength_ns / 1000000000;
+         double const cpuLoad_pct = (cpuLoad_s / timeLength_s) * 100;
++#if defined(__lume__)
++        (void)cpuLoad_pct;
++        DISPLAYLEVEL(4, "%-20s : Completed in %.2f sec\n", srcFileName, timeLength_s);
++#else
+         DISPLAYLEVEL(4, "%-20s : Completed in %.2f sec  (cpu load : %.0f%%)\n",
+                         srcFileName, timeLength_s, cpuLoad_pct);
++#endif
+     }
+     return 0;
+ }
+--- a/programs/util.c
++++ b/programs/util.c
+@@ -259,6 +259,12 @@
+ /* set access and modification times */
+ int UTIL_utime(const char* filename, const stat_t *statbuf)
+ {
++#if defined(__lume__)
++    (void)filename;
++    (void)statbuf;
++    errno = ENOTSUP;
++    return -1;
++#else
+     int ret;
+     UTIL_TRACE_CALL("UTIL_utime(%s)", filename);
+     /* We check that st_mtime is a macro here in order to give us confidence
+@@ -288,6 +294,7 @@
+     errno = 0;
+     UTIL_TRACE_RET(ret);
+     return ret;
++#endif
+ }
+ 
+ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)

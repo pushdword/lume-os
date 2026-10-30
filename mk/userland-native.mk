@@ -135,6 +135,8 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 ifneq ($(ARCH),amd64)
 	cp assets/firmware/cyw43455/* "$(OUT)/root/lib/firmware/"
 	$(foreach name,gic timer watchdog dma uart sd usb display entropy wifi gem,cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
+	cp "$(KERNEL)/$(KERNEL_OUT)/modules/brcm-l2.lkm" "$(OUT)/root/lib/modules/"
+	cp "$(KERNEL)/$(KERNEL_OUT)/modules/bcm2712-hdmi.lkm" "$(OUT)/root/lib/modules/hdmi.lkm"
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
 	$(foreach name,vblk vrng vga ps2 xhci $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)

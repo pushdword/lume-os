@@ -1,0 +1,18 @@
+--- a/libpkgconf/pkg.c
++++ b/libpkgconf/pkg.c
+@@ -76,6 +76,7 @@
+ 	 * We want to resolve symlinks, since ${pcfiledir} should point to the
+ 	 * parent of the file symlinked to.
+ 	 */
++#if !defined(__lume__)
+ 	struct stat path_stat;
+ 	while (!lstat(buf, &path_stat) && S_ISLNK(path_stat.st_mode))
+ 	{
+@@ -128,6 +129,7 @@
+ 		}
+ 		pkgconf_strlcat(buf, sourcebuf, sizeof buf);
+ 	}
++#endif
+ #endif
+ 
+ 	pathbuf = strrchr(buf, PKG_DIR_SEP_S);

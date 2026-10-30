@@ -75,6 +75,15 @@ const struct lrec_image *lrec_root(const struct lrec *s)
     return &s->root[s->selected_root];
 }
 
+bool lrec_start(struct lrec *s)
+{
+    if (s->run || s->pending || !lrec_kernel(s)->valid || !lrec_root(s)->valid ||
+        !s->io.prepare(s->io.context, lrec_kernel(s), lrec_root(s)))
+        return false;
+    s->run = true;
+    return true;
+}
+
 struct baseline
 {
     struct lume_fat_file file;
@@ -348,13 +357,12 @@ static void process(struct lrec *s)
     {
         if (s->pending || !lrec_kernel(s)->valid || !lrec_root(s)->valid)
             error = "NOT_READY";
-        else if (!s->io.prepare(s->io.context, lrec_kernel(s), lrec_root(s)))
+        else if (!lrec_start(s))
             error = "HANDOFF";
         else
         {
             error = NULL;
             answer = "GO";
-            s->run = true;
         }
     }
     reply(s, seq, actual, error == NULL, error ? error : answer, true);

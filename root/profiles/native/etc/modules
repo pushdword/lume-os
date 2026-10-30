@@ -12,11 +12,14 @@ load /lib/modules/sd.lkm
 probe pi5-sd retain
 load /lib/modules/usb.lkm
 probe pi5-usb
-load /lib/modules/display.lkm
-probe pi5-display
 load /lib/modules/entropy.lkm
 probe pi5-entropy
 load /lib/modules/wifi.lkm
 probe pi5-wifi
 load /lib/modules/gem.lkm
 probe pi5-gem
+load /lib/modules/brcm-l2.lkm
+probe brcm-l2
+load /lib/modules/hdmi.lkm
+probe bcm2712-hdmi
+probe pi5-hdmi-framebuffer

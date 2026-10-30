@@ -1,0 +1,70 @@
+--- a/lib/getdtablesize.c
++++ b/lib/getdtablesize.c
+@@ -16,6 +16,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  */
+ #include <unistd.h>
+@@ -109,6 +115,10 @@
+ int
+ getdtablesize (void)
+ {
++#if defined(__lume__)
++  return LUME_FD_MAX;
++#else
++
+   struct rlimit lim;
+ 
+   if (getrlimit (RLIMIT_NOFILE, &lim) == 0
+@@ -119,6 +129,8 @@
+     return lim.rlim_cur;
+ 
+   return INT_MAX;
++
++#endif
+ }
+ 
+ #endif
+--- a/lib/getprogname.c
++++ b/lib/getprogname.c
+@@ -15,6 +15,12 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__)
++#include <stdio-bufio.h>
++#include <errno.h>
++#include <lume/abi.h>
++#endif
++
+ 
+ /* Specification.  Also get __argv declaration.  */
+ #include <stdlib.h>
+@@ -61,6 +67,10 @@
+ char const *
+ getprogname (void)
+ {
++#if defined(__lume__)
++  extern const char *program_name; return program_name ? program_name : "program";
++#else
++
+ # if HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME                /* glibc, BeOS */
+   /* https://www.gnu.org/software/libc/manual/html_node/Error-Messages.html */
+   return program_invocation_short_name;
+@@ -300,6 +310,8 @@
+ # else
+ #  error "getprogname module not ported to this OS"
+ # endif
++
++#endif
+ }
+ 
+ #endif

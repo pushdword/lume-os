@@ -1,1 +1,4 @@
-/axi/pcie@1000120000/rp1/dsi@128000
+/soc@107c000000/interrupt-controller@7d510600
+/soc@107c000000/hdmi@7c701400
+/soc@107c000000/hdmi@7c706400
+/soc@107c000000/fb

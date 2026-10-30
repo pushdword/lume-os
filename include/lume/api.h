@@ -20,6 +20,8 @@ extern "C"
     int app_write_all(int, const void *, unsigned);
     int app_seek(int, int32_t, unsigned);
     int app_sync(int);
+    struct lume_boot_request;
+    int app_boot(unsigned, struct lume_boot_request *);
     int app_stat(const char *, struct lume_stat *);
     /* The runtime keeps raw stdio mode separately for each process. Kernel console input
      * supplies bytes. */

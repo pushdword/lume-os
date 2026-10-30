@@ -15,6 +15,7 @@
 #include "lume/process.h"
 #include "lume/credential.h"
 #include "lume/file_mode.h"
+#include "lume/io.h"
 #include "perf.h"
 #include "fd.h"
 #include <stddef.h>
@@ -32,6 +33,11 @@ static int64_t native(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 #else
     return lume_native_call(number, a, b, c);
 #endif
+}
+
+int app_boot(unsigned operation, struct lume_boot_request *request)
+{
+    return (int)native(LUME_SYS_BOOT, operation, (uintptr_t)request, sizeof(*request));
 }
 
 static int valid(uint32_t p, size_t bytes, unsigned write)

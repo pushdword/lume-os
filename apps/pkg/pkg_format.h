@@ -65,6 +65,8 @@ int pkg_owner_alive(unsigned);
 unsigned pkg_current_pid(void);
 unsigned pkg_current_abi(void);
 int pkg_download(const char *, const char *, uint32_t, const unsigned char[32]);
+struct lume_boot_request;
+int pkg_boot(unsigned, struct lume_boot_request *);
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
 int pkg_payload_mode(int, unsigned);
 #endif

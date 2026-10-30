@@ -1,4 +1,5 @@
 RECOVERY_HEADERS := boot/recovery/recovery.h $(KERNEL)/include/kernel/lume/watchdog.h
+RECOVERY_AUTOBOOT_SECONDS ?= 3
 RECOVERY_CPPFLAGS := -I$(KERNEL)/platform/raspberrypi5/include -I$(KERNEL)/arch/aarch64/include/kernel -Iboot/recovery -I$(KERNEL)/include/kernel -I$(KERNEL)/include/kernel -I$(KERNEL)/include/ddk -I$(KERNEL)/include/uapi -I$(KERNEL)/include/abi/native
 RECOVERY_NAMES := start recovery platform fat vfs fdt memory watchdog file_modes
 RECOVERY_OBJECTS := $(addprefix $(OUT)/recovery/obj/,$(addsuffix .o,$(RECOVERY_NAMES)))
@@ -10,7 +11,7 @@ $(OUT)/recovery/obj/recovery.o: boot/recovery/recovery.c $(RECOVERY_HEADERS)
 	$(CC) -I$(KERNEL)/include/freestanding $(RECOVERY_CPPFLAGS) $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 $(OUT)/recovery/obj/platform.o: platform/raspberrypi5/recovery.c $(RECOVERY_HEADERS)
 	mkdir -p "$(@D)"
-	$(CC) -I$(KERNEL)/include/freestanding $(RECOVERY_CPPFLAGS) $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+	$(CC) -DLREC_AUTOBOOT_SECONDS=$(RECOVERY_AUTOBOOT_SECONDS) -I$(KERNEL)/include/freestanding $(RECOVERY_CPPFLAGS) $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 $(OUT)/recovery/obj/fat.o: $(KERNEL)/src/fs/fat/fat.c $(RECOVERY_HEADERS)
 	mkdir -p "$(@D)"
 	$(CC) -I$(KERNEL)/include/freestanding $(RECOVERY_CPPFLAGS) $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"

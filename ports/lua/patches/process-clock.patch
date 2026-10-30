@@ -1,0 +1,15 @@
+--- a/src/loslib.c
++++ b/src/loslib.c
+@@ -187,8 +187,12 @@
+ 
+ 
+ static int os_clock (lua_State *L) {
++#if defined(__lume__)
++  return luaL_error(L, "process CPU clock unavailable");
++#else
+   lua_pushnumber(L, ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC);
+   return 1;
++#endif
+ }
+ 
+ 

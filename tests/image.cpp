@@ -57,6 +57,33 @@ int main(int argc, char **argv)
             check(invoke({"image-tool", "disk", root.string(), (output / "invalid.img").string(),
                           size}) == 1,
                   "Invalid volume size accepted");
+        fs::path long_root = output / "long-root";
+        fs::create_directories(long_root);
+        write(long_root / "bcm2712-rpi-5-b.dtb", Bytes{1, 2, 3});
+        write(long_root / "bcm2712-rpi-5-c.dtb", Bytes{4, 5, 6});
+        write(long_root / "LICENSE", Bytes{7});
+        check(invoke({"image-tool", "fat", long_root.string(), (output / "long.fat").string()}) ==
+                  0,
+              "Long FAT filename generation failed");
+        {
+            Bytes image = read(output / "long.fat");
+            size_t directory = (32 + 2 * size_t(get(image, 36, 4))) * 512;
+            unsigned long_entries = 0, short_entries = 0;
+            std::map<std::string, bool> aliases;
+            for (size_t at = directory + 32; image[at]; at += 32)
+            {
+                if (image[at + 11] == 0x0f)
+                    ++long_entries;
+                else
+                {
+                    std::string alias(image.begin() + at, image.begin() + at + 11);
+                    check(!aliases[alias], "Long FAT aliases collide");
+                    aliases[alias] = true;
+                    ++short_entries;
+                }
+            }
+            check(long_entries == 5 && short_entries == 3, "Long FAT entries differ");
+        }
         std::cout << "PASS FAT default compatibility, capacity, partition size and rejection\n";
         return 0;
     }

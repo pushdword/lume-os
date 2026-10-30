@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "pkg_format.h"
 #include "sha256.h"
+#include "lume/io.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,8 +15,10 @@
 
 #ifdef LUME_PKG_HOST_TEST
 #define PATH_BYTES 512u
+#ifdef _WIN32
 #define fsync _commit
 #define mkdir(path, mode) _mkdir(path)
+#endif
 #else
 #define PATH_BYTES 128u
 #endif
@@ -26,6 +29,7 @@ static struct pkg_manifest incoming, previous, other;
 static unsigned char buffer[16384];
 static char origin[256];
 static bool locked;
+static struct lume_boot_request boot;
 
 struct repository_header
 {
@@ -1034,18 +1038,9 @@ static int adopt(const char *source, const char *digest_text)
     return 0;
 }
 
-static int install(const char *name)
+static int apply_plan(void)
 {
     char path[PATH_BYTES];
-    if (saved_catalog())
-        return fail("no valid repository catalog, run pkg update");
-    int target = catalog_index(name);
-    if (target < 0)
-        return fail("package is absent from the catalog");
-    memset(visited, 0, sizeof(visited));
-    plan_used = 0;
-    if (resolve((unsigned)target))
-        return -1;
     char cache[PATH_BYTES];
     if (state_path(cache, "cache") || directory(cache))
         return -1;
@@ -1107,6 +1102,215 @@ static int install(const char *name)
     return 0;
 }
 
+static int install(const char *name)
+{
+    if (saved_catalog())
+        return fail("no valid repository catalog, run pkg update");
+    int target = catalog_index(name);
+    if (target < 0)
+        return fail("package is absent from the catalog");
+    memset(visited, 0, sizeof(visited));
+    plan_used = 0;
+    return resolve((unsigned)target) ? -1 : apply_plan();
+}
+
+static int upgrade(void)
+{
+    if (saved_catalog())
+        return fail("no valid repository catalog, run pkg update");
+    char path[PATH_BYTES];
+    if (state_path(path, "db"))
+        return -1;
+    DIR *db = opendir(path);
+    if (!db)
+        return fail("cannot read installed package receipts");
+    bool selected[PKG_COUNT_MAX] = {false};
+    int result = 0;
+    for (;;)
+    {
+        errno = 0;
+        struct dirent *entry = readdir(db);
+        if (!entry)
+        {
+            if (errno)
+                result = fail("cannot read installed package receipts");
+            break;
+        }
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+            continue;
+        if (load_installed(entry->d_name, &other) != 1)
+        {
+            result = fail("invalid installed package receipt");
+            break;
+        }
+        int index = catalog_index(other.identity.name);
+        if (index < 0)
+        {
+            result = fail("repository omits an installed package");
+            break;
+        }
+        if (other.identity.revision > catalog.entry[index].identity.revision)
+        {
+            result = fail("package downgrade rejected");
+            break;
+        }
+        selected[index] = true;
+    }
+    if (closedir(db))
+        result = -1;
+    if (result)
+        return result;
+    memset(visited, 0, sizeof(visited));
+    plan_used = 0;
+    for (unsigned i = 0; i < catalog.count; ++i)
+        if (selected[i] && resolve(i))
+            return -1;
+    if (!plan_used)
+    {
+        puts("pkg: no installed packages");
+        return 0;
+    }
+    return apply_plan();
+}
+
+static int activate(const char *name)
+{
+    if (strcmp(name, "lume-system") || load_installed(name, &incoming) != 1)
+        return fail("an installed lume-system package is required");
+    if (check_files(&incoming))
+        return -1;
+    const struct pkg_file *image = NULL;
+    for (unsigned i = 0; i < incoming.identity.files; ++i)
+    {
+        const struct pkg_file *file = &incoming.file[i];
+        const char *end = strrchr(file->path, '/');
+        if (end && !strcmp(end, "/root.fat"))
+        {
+            if (image || strncmp(file->path, "share/system/", 13) || end == file->path + 13)
+                return fail("invalid system image layout");
+            image = file;
+        }
+    }
+    if (!image || image->bytes < 1048576 || image->bytes > 64u * 1024u * 1024u ||
+        (image->bytes & 511))
+        return fail("invalid system image size");
+    memset(&boot, 0, sizeof(boot));
+    boot.version = LUME_IO_VERSION;
+    unsigned required = LUME_BOOT_CAP_RESTART_GUARD | LUME_BOOT_CAP_TRIAL;
+    if (pkg_boot(LUME_BOOT_CAPABILITIES, &boot) || (boot.total & required) != required)
+        return fail("the running system requires a boot volume with trial rollback support");
+    char path[PATH_BYTES];
+    if (path_join(path, root, image->path))
+        return -1;
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return fail("cannot open the system image");
+    bool staging = false;
+    int result = -1;
+    memset(&boot, 0, sizeof(boot));
+    boot.version = LUME_IO_VERSION;
+    boot.total = image->bytes;
+    if (pkg_boot(LUME_BOOT_BEGIN, &boot))
+    {
+        fail("cannot begin an inactive boot slot update");
+        goto done;
+    }
+    staging = true;
+    if (boot.active > 1)
+    {
+        fail("invalid active boot slot");
+        goto done;
+    }
+    unsigned target = 1u - boot.active;
+    struct lume_sha256 hash;
+    lume_sha256_init(&hash);
+    for (uint32_t offset = 0; offset < image->bytes;)
+    {
+        unsigned count = image->bytes - offset;
+        if (count > sizeof(boot.data))
+            count = sizeof(boot.data);
+        if (read_exact(fd, boot.data, count))
+        {
+            fail("cannot read the complete system image");
+            goto done;
+        }
+        lume_sha256_update(&hash, boot.data, count);
+        boot.offset = offset;
+        boot.count = count;
+        if (pkg_boot(LUME_BOOT_WRITE, &boot) != (int)count)
+        {
+            fail("inactive boot slot write failed");
+            goto done;
+        }
+        offset += count;
+    }
+    unsigned char digest[32], extra;
+    lume_sha256_final(&hash, digest);
+    if (read(fd, &extra, 1) != 0 || memcmp(digest, image->digest, sizeof(digest)))
+    {
+        fail("system image changed during staging");
+        goto done;
+    }
+    if (close(fd))
+    {
+        fd = -1;
+        fail("system image close failed");
+        goto done;
+    }
+    fd = -1;
+    boot.count = 0;
+    for (uint32_t offset = 0;;)
+    {
+        int status = pkg_boot(LUME_BOOT_VERIFY, &boot);
+        unsigned count = image->bytes - offset;
+        if (count > sizeof(boot.data))
+            count = sizeof(boot.data);
+        if (boot.total != image->bytes || boot.offset != offset + count ||
+            status != (boot.offset == image->bytes ? 0 : 1))
+        {
+            fail("inactive boot slot readback failed");
+            goto done;
+        }
+        offset = boot.offset;
+        if (!status)
+            break;
+    }
+    if (pkg_boot(LUME_BOOT_ACTIVATE, &boot) || boot.active != target)
+    {
+        fail("boot slot selection could not be confirmed");
+        goto done;
+    }
+    staging = false;
+    printf("pkg: system verified and boot slot %u selected for a trial restart\n", boot.active);
+    result = 0;
+done:
+    if (fd >= 0 && close(fd))
+        result = -1;
+    if (staging)
+        (void)pkg_boot(LUME_BOOT_ABORT, &boot);
+    return result;
+}
+
+static int confirm_boot(void)
+{
+    static struct lume_boot_request boot;
+    boot.version = LUME_IO_VERSION;
+    if (pkg_boot(LUME_BOOT_INFO, &boot))
+        return fail("cannot read boot state");
+    if (!(boot.total & LUME_BOOT_STATE_TRIAL))
+    {
+        puts("pkg: boot already confirmed");
+        return 0;
+    }
+    if (load_installed("lume-system", &incoming) != 1 || check_files(&incoming))
+        return fail("the installed system package could not be verified");
+    boot.count = 0;
+    if (pkg_boot(LUME_BOOT_CONFIRM, &boot))
+        return fail("the running trial image could not be confirmed");
+    printf("pkg: boot slot %u confirmed\n", boot.active);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
 #ifdef LUME_PKG_HOST_TEST
@@ -1117,13 +1321,15 @@ int main(int argc, char **argv)
 #endif
     if (argc == 2 && !strcmp(argv[1], "--version"))
     {
-        puts("pkg 0.2.1 (" PKG_ARCH " ABI 1.0)");
+        puts("pkg 0.4.0 (" PKG_ARCH " ABI 1.0)");
         return 0;
     }
     if (argc == 2 && !strcmp(argv[1], "recover"))
         return recover() ? 1 : 0;
-    if ((argc == 2 && (!strcmp(argv[1], "list") || !strcmp(argv[1], "search"))) ||
-        (argc == 3 && (!strcmp(argv[1], "install") || !strcmp(argv[1], "verify"))) ||
+    if ((argc == 2 && (!strcmp(argv[1], "list") || !strcmp(argv[1], "search") ||
+                       !strcmp(argv[1], "upgrade") || !strcmp(argv[1], "confirm"))) ||
+        (argc == 3 && (!strcmp(argv[1], "install") || !strcmp(argv[1], "verify") ||
+                       !strcmp(argv[1], "activate"))) ||
         (argc == 4 && (!strcmp(argv[1], "update") || !strcmp(argv[1], "adopt"))))
     {
         if (acquire())
@@ -1143,6 +1349,12 @@ int main(int argc, char **argv)
             result = adopt(argv[2], argv[3]);
         else if (!strcmp(argv[1], "install"))
             result = install(argv[2]);
+        else if (!strcmp(argv[1], "upgrade"))
+            result = upgrade();
+        else if (!strcmp(argv[1], "confirm"))
+            result = confirm_boot();
+        else if (!strcmp(argv[1], "activate"))
+            result = activate(argv[2]);
         else if (!strcmp(argv[1], "verify"))
         {
             result = load_installed(argv[2], &incoming) == 1 ? check_files(&incoming)
@@ -1167,7 +1379,9 @@ int main(int argc, char **argv)
     }
     fputs("usage: pkg update catalog-path-or-http-url SHA256\n"
           "       pkg adopt manifest-path SHA256\n"
-          "       pkg search|list|install name|verify name|recover\n",
+          "       pkg activate lume-system\n"
+          "       pkg confirm\n"
+          "       pkg search|list|upgrade|install name|verify name|recover\n",
           stderr);
     return 2;
 }

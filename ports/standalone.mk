@@ -10,7 +10,9 @@ TARGET ?= aarch64-unknown-none-elf
 BASE_CPPFLAGS := -D__lume__=1 $(ARCH_CPPFLAGS) -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -I$(OS_ROOT)/arch/$(ARCH)/include -I$(OS_ROOT)/include/internal -I$(OS_ROOT)/include/lume -I$(OS_ROOT)/include/posix -I$(KERNEL)/include/abi/$(UAPI_ABI) -I$(KERNEL)/include/uapi -isystem $(SYSROOT)/include
 CPPFLAGS += $(BASE_CPPFLAGS)
 CFLAGS += -O2 -std=$(CSTD) -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -ffunction-sections -fdata-sections -ffile-prefix-map=$(OS_ROOT)=lume-os -ffile-prefix-map=$(KERNEL)=lume-kernel
+CFLAGS += -ffile-prefix-map=$(SOURCE)=lume-os/vendor/$(notdir $(PORT))
 CXXFLAGS += $(ARCH_CFLAGS) -O2 -std=c++17 -fhosted -fno-builtin -fno-stack-protector -fno-pic -fno-pie -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -nostdinc++ -isystem $(SYSROOT)/include/c++/v1 -isystem $(SYSROOT)/include
+CXXFLAGS += -ffile-prefix-map=$(OS_ROOT)=lume-os -ffile-prefix-map=$(KERNEL)=lume-kernel -ffile-prefix-map=$(SOURCE)=lume-os/vendor/$(notdir $(PORT))
 LDFLAGS += --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld
 RUNTIME := $(SDK)/lib/crt0.o
 LIBS := --start-group $(SDK)/lib/liblume.a $(SDK)/lib/libc.a $(SDK)/lib/libcrt.a --end-group

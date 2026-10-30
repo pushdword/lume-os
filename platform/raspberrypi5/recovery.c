@@ -4,6 +4,9 @@
 #include "lume/abi.h"
 
 #define UART UINT64_C(0x1c00030000)
+#ifndef LREC_AUTOBOOT_SECONDS
+#define LREC_AUTOBOOT_SECONDS 0
+#endif
 extern unsigned char __image_start[], __image_end[];
 extern _Noreturn void lrec_jump(uint64_t);
 static struct lrec state;
@@ -85,6 +88,7 @@ void lume_console_write(const char *data, size_t bytes)
 
 static _Noreturn void failure(const char *reason)
 {
+    (void)lume_watchdog_arm(&watchdog, LUME_WATCHDOG_SECONDS);
     send(NULL, "\nLUME RECOVERY ", 15);
     size_t length = 0;
     while (reason[length])
@@ -124,14 +128,26 @@ _Noreturn void lrec_main(uint64_t dtb)
               (void *)(uintptr_t)(LREC_ROOT_STAGE + LREC_ROOT_LIMIT),
               (void *)(uintptr_t)tree.initrd_start, (uint32_t)root_size);
     send(NULL, ready, sizeof(ready) - 1);
+    uint64_t start, frequency;
+    __asm__ volatile("mrs %0, cntpct_el0; mrs %1, cntfrq_el0" : "=r"(start), "=r"(frequency));
+    bool automatic = LREC_AUTOBOOT_SECONDS > 0 && frequency;
     while (!state.run)
     {
+        uint64_t now;
+        __asm__ volatile("mrs %0, cntpct_el0" : "=r"(now));
+        if (automatic && now - start >= LREC_AUTOBOOT_SECONDS * frequency)
+        {
+            if (!lrec_start(&state))
+                failure("AUTOMATIC BOOT");
+            break;
+        }
         if (*(volatile uint32_t *)(uintptr_t)(UART + 0x18) & 0x10u)
         {
             __asm__ volatile("yield");
             continue;
         }
         uint32_t value = *(volatile uint32_t *)(uintptr_t)UART;
+        automatic = false;
         if (value & 0xf00)
         {
             *(volatile uint32_t *)(uintptr_t)(UART + 4) = 0;
