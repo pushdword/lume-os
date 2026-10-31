@@ -351,7 +351,7 @@ static void shell_jobs(void)
     shell_input(master, "echo background &\n");
     shell_expect(master, "# ");
     unlink("/data/tmp/terminal-utf8");
-    shell_input(master, "vi -u NONE -i NONE -n /data/tmp/terminal-utf8\n");
+    shell_input(master, "/usr/bin/vi -u NONE -i NONE -n /data/tmp/terminal-utf8\n");
     struct termios vim_mode;
     uint64_t ready_deadline = milliseconds() + 5000;
     do

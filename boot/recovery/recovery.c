@@ -57,8 +57,16 @@ bool lrec_kernel_valid(const void *data, size_t bytes)
 
 bool lrec_root_valid(const void *data, size_t bytes)
 {
+    static _Alignas(16) unsigned char root_nodes[128u * 1024u];
+    static bool node_buffer_ready;
     if (!bytes || bytes > LREC_ROOT_LIMIT)
         return false;
+    if (!node_buffer_ready)
+    {
+        if (!lume_vfs_node_buffer(root_nodes, sizeof(root_nodes)))
+            return false;
+        node_buffer_ready = true;
+    }
     /* Use the kernel's actual import rules, including its embedded shell and
      * node limits, rather than accepting only a syntactically valid FAT. */
     lume_vfs_init(NULL, 0);
