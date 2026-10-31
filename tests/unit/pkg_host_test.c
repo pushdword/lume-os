@@ -140,6 +140,13 @@ int pkg_download(const char *source, const char *target, uint32_t bytes,
     return -1;
 }
 
+int pkg_payload_mode(int fd, unsigned mode)
+{
+    (void)fd;
+    (void)mode;
+    return 0;
+}
+
 int pkg_boot(unsigned operation, struct lume_boot_request *request)
 {
     static FILE *output;

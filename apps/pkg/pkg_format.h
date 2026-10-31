@@ -9,6 +9,8 @@
 #define PKG_ABI 65536u
 #if defined(LUME_ARCH_AMD64)
 #define PKG_ARCH "amd64"
+#elif defined(LUME_ARCH_I686)
+#define PKG_ARCH "i686"
 #else
 #define PKG_ARCH "aarch64"
 #endif
@@ -67,7 +69,7 @@ unsigned pkg_current_abi(void);
 int pkg_download(const char *, const char *, uint32_t, const unsigned char[32]);
 struct lume_boot_request;
 int pkg_boot(unsigned, struct lume_boot_request *);
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 int pkg_payload_mode(int, unsigned);
 #endif
 #endif
