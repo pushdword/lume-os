@@ -174,6 +174,8 @@ void YWindowManager::ungrabServer() {
 }
 
 void YWindowManager::grabKeys() {
+    grabServer();
+    xapp->getKeycodeMap();
     const Window win = handle();
     XUngrabKey(xapp->display(), AnyKey, AnyModifier, win);
 
@@ -281,6 +283,7 @@ void YWindowManager::grabKeys() {
     for (YFrameWindow *ff = topLayer(); ff; ff = ff->nextLayer()) {
         ff->grabKeys();
     }
+    ungrabServer();
 }
 
 bool YWindowManager::handleTimer(YTimer* timer) {
