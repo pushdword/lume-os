@@ -406,10 +406,38 @@ static void shell_jobs(void)
     puts("TERMINAL_SHELL_JOBS_PASS");
 }
 
+static void exit_storage(void)
+{
+    const char *path = "/data/tmp/terminal-exit";
+    unsigned char expected[1025], actual[sizeof(expected)];
+    for (unsigned i = 0; i < sizeof(expected); ++i)
+        expected[i] = (unsigned char)(i * 13u + 7u);
+    for (unsigned iteration = 0; iteration < 8; ++iteration)
+    {
+        pid_t child = fork();
+        require(child >= 0, "storage writer fork");
+        if (!child)
+        {
+            int file = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            _exit(file >= 0 && write(file, expected, sizeof(expected)) == sizeof(expected) ? 0 : 1);
+        }
+        reaped(child);
+        int file = open(path, O_RDONLY);
+        require(file >= 0, "storage exit open");
+        require(read(file, actual, sizeof(actual)) == sizeof(actual) &&
+                    !memcmp(actual, expected, sizeof(actual)),
+                "storage exit payload");
+        require(read(file, actual, 1) == 0 && !close(file), "storage exit size");
+        require(!unlink(path), "storage exit cleanup");
+    }
+    puts("TERMINAL_STORAGE_EXIT_PASS");
+}
+
 int main(void)
 {
     require(!atexit(close_test_shell), "test cleanup");
     require(!mkdir("/data/tmp", 0777) || errno == EEXIST, "temporary directory");
+    exit_storage();
     int descriptors[2];
     require(!pipe(descriptors), "select pipe");
     int high = LUME_FD_LIMIT - 1;

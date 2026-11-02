@@ -12,6 +12,7 @@ static struct lume_netif_info interfaces[2];
 static uint64_t sequence;
 static char actual_output[4096];
 static unsigned output_bytes, write_calls;
+static bool bad_statistics;
 
 #define T(x)                                                                                       \
     do                                                                                             \
@@ -41,6 +42,13 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
             return -LUME_ENOENT;
         if (a == LUME_NET_GET)
             r->data.interfaces[0] = interfaces[i];
+        else if (a == LUME_NET_STATS)
+            r->data.statistics =
+                (struct lume_net_statistics){.version = bad_statistics ? 2 : LUME_NET_STATS_VERSION,
+                                             .bytes = sizeof(struct lume_net_statistics),
+                                             .tx_completed = 123,
+                                             .tx_timeouts = 4,
+                                             .wifi_credit_stalls = 7};
         else if (a == LUME_NET_DHCP_START)
             dhcp_index = r->ifindex;
         else if (a == LUME_NET_ADMIN)
@@ -112,6 +120,11 @@ int main(void)
     T(run("dhcp", 0) == 0 && dhcp_index == 2);
     T(run("dhcp", "wlan0") == 0 && dhcp_index == 1);
     T(run("caps", 0) == 0);
+    T(run("stats", "eth0") == 0 && strstr(net_output, "tx_completed=123\n"));
+    T(strstr(net_output, "tx_timeouts=4\n") && strstr(net_output, "wifi_credit_stalls=7\n"));
+    bad_statistics = true;
+    T(run("stats", "eth0") == 1);
+    bad_statistics = false;
     T(run("down", "eth0") == 0 && admin_index == 2 && service_calls == 0);
     T(run("up", "eth0") == 0 && admin_index == 2 && service_calls == 0);
     T(run("down", "wlan0") == 0 && admin_index == 1);

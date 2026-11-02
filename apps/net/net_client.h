@@ -102,18 +102,19 @@ static int network_run(char **args, unsigned count)
     int managed = service_command(args, count);
     if (managed >= 0)
         return managed;
-    static const char *const verbs[] = {"status", "scan",   "join", "leave",  "dhcp", "ping", "dns",
-                                        "tcp",    "ifaces", "caps", "events", "up",   "down"};
+    static const char *const verbs[] = {"status", "scan", "join", "leave",  "dhcp",
+                                        "ping",   "dns",  "tcp",  "ifaces", "caps",
+                                        "events", "up",   "down", "stats"};
     unsigned op = 0;
     if (count > 1)
-        for (; op < 13; ++op)
+        for (; op < 14; ++op)
             if (eq(args[1], verbs[op]))
                 break;
     bool diagnostic = op >= 5 && op <= 7;
-    if (op == 13 || count > 3 || (diagnostic && count != 3) || (op == 8 && count > 2))
+    if (op == 14 || count > 3 || (diagnostic && count != 3) || (op == 8 && count > 2))
     {
         net_text(
-            "net status|scan|join|leave|dhcp|ifaces|caps|events|up|down [INTERFACE]\nnet ping HOST|dns HOST|tcp HOST:PORT\n");
+            "net status|scan|join|leave|dhcp|ifaces|caps|events|up|down|stats [INTERFACE]\nnet ping HOST|dns HOST|tcp HOST:PORT\n");
         return 1;
     }
     net_init(0);
@@ -191,7 +192,75 @@ static int network_run(char **args, unsigned count)
         return 1;
     net_init(index);
     int64_t result = 0;
-    if (op == 0)
+    if (op == 13)
+    {
+        result = net_call(LUME_NET_STATS);
+        if (!result)
+        {
+            const struct lume_net_statistics *s = &net_request.data.statistics;
+            if (s->version != LUME_NET_STATS_VERSION || s->bytes != sizeof(*s))
+                result = -LUME_EINVAL;
+            else
+            {
+                const char *const labels[] = {"polls",
+                                              "rx_bytes",
+                                              "tx_bytes",
+                                              "tx_busy",
+                                              "tx_polls",
+                                              "tx_completed",
+                                              "tx_dma_errors",
+                                              "tx_timeouts",
+                                              "tx_submit_errors",
+                                              "tx_cancelled",
+                                              "tx_depth",
+                                              "tx_high_water",
+                                              "tx_completion_ms",
+                                              "tx_max_completion_ms",
+                                              "rx_budget_exhausted",
+                                              "tx_restarts",
+                                              "wifi_credit_available",
+                                              "wifi_credit_stalls",
+                                              "wifi_rx_high_water",
+                                              "wifi_rx_drops",
+                                              "wifi_packets",
+                                              "wifi_bus_errors",
+                                              "wifi_poll_ms",
+                                              "wifi_send_ms"};
+                const uint64_t values[] = {s->polls,
+                                           s->rx_bytes,
+                                           s->tx_bytes,
+                                           s->tx_busy,
+                                           s->tx_polls,
+                                           s->tx_completed,
+                                           s->tx_dma_errors,
+                                           s->tx_timeouts,
+                                           s->tx_submit_errors,
+                                           s->tx_cancelled,
+                                           s->tx_depth,
+                                           s->tx_high_water,
+                                           s->tx_completion_ms,
+                                           s->tx_max_completion_ms,
+                                           s->rx_budget_exhausted,
+                                           s->tx_restarts,
+                                           s->wifi_credit_available,
+                                           s->wifi_credit_stalls,
+                                           s->wifi_rx_high_water,
+                                           s->wifi_rx_drops,
+                                           s->wifi_packets,
+                                           s->wifi_bus_errors,
+                                           s->wifi_poll_ms,
+                                           s->wifi_send_ms};
+                for (unsigned i = 0; i < sizeof(values) / sizeof(values[0]); ++i)
+                {
+                    net_text(labels[i]);
+                    net_text("=");
+                    net_number(values[i]);
+                    net_text("\n");
+                }
+            }
+        }
+    }
+    else if (op == 0)
     {
         result = net_call(LUME_NET_GET);
         if (!result)

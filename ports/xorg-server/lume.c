@@ -54,6 +54,8 @@ static CreateScreenResourcesProcPtr create_resources;
 static Bool held[256];
 static unsigned buttons;
 static ValuatorMask *motion;
+static CARD32 last_present;
+static Bool present_valid;
 
 int FakeScreenFps = 60;
 
@@ -90,14 +92,34 @@ static void present(unsigned x, unsigned y, unsigned width, unsigned height)
 static void flush_screen(void *data, void *timeout)
 {
     (void)data;
-    (void)timeout;
     if (!damage)
         return;
     RegionPtr region = DamageRegion(damage);
     BoxPtr boxes = RegionRects(region);
     int count = RegionNumRects(region);
-    for (int i = 0; i < count; ++i)
-        present(boxes[i].x1, boxes[i].y1, boxes[i].x2 - boxes[i].x1, boxes[i].y2 - boxes[i].y1);
+    if (!count)
+        return;
+    CARD32 now = GetTimeInMillis();
+    CARD32 elapsed = now - last_present;
+    if (present_valid && elapsed < 17)
+    {
+        AdjustWaitForDelay(timeout, 17 - elapsed);
+        return;
+    }
+    BoxPtr bounds = RegionExtents(region);
+    uint64_t bounding_area = (uint64_t)(bounds->x2 - bounds->x1) * (bounds->y2 - bounds->y1);
+    uint64_t area = 0;
+    if (count <= 128)
+        for (int i = 0; i < count; ++i)
+            area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
+    /* Merge nearby damage when the extra pixel work stays within one quarter of its area. */
+    if (count > 128 || bounding_area <= area + area / 4)
+        present(bounds->x1, bounds->y1, bounds->x2 - bounds->x1, bounds->y2 - bounds->y1);
+    else
+        for (int i = 0; i < count; ++i)
+            present(boxes[i].x1, boxes[i].y1, boxes[i].x2 - boxes[i].x1, boxes[i].y2 - boxes[i].y1);
+    last_present = now;
+    present_valid = TRUE;
     DamageEmpty(damage);
 }
 
@@ -117,6 +139,7 @@ static Bool screen_resources(ScreenPtr screen)
         return FALSE;
     DamageRegister(&screen->GetScreenPixmap(screen)->drawable, damage);
     present(0, 0, framebuffer_info.width, framebuffer_info.height);
+    present_valid = FALSE;
     return TRUE;
 }
 
