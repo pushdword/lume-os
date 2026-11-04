@@ -27,6 +27,7 @@ static int service_result_wait(struct lume_supervision_request *request)
 
 static int service_step(void)
 {
+    discovery_invalidate();
     tick();
     for (unsigned handled = 0; handled < LUME_SUPERVISION_COUNT; ++handled)
     {

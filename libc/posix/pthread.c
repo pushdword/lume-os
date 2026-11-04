@@ -30,6 +30,14 @@ static struct thread_start
 static pthread_mutex_t start_lock = PTHREAD_MUTEX_INITIALIZER;
 static _Thread_local struct thread_start *current_start;
 
+/* Each thread can hold read locks on 64 distinct objects. Recursion shares an entry.
+ * An exhausted table returns EAGAIN without allocating or blocking. */
+static _Thread_local struct rwlock_read_hold
+{
+    pthread_rwlock_t *lock;
+    unsigned depth;
+} rwlock_read_holds[64];
+
 static int wait_word(uint32_t *word, uint32_t value, uint64_t timeout)
 {
     struct lume_thread_request r = {
@@ -447,7 +455,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *lock)
     int result = pthread_mutex_trylock(&lock->mutex);
     if (result)
         return result;
-    bool busy = lock->writer || lock->readers || lock->waiters;
+    bool busy = lock->writer || lock->readers || lock->waiters || lock->mutex.reserved;
     pthread_mutex_unlock(&lock->mutex);
     if (busy)
         return EBUSY;
@@ -455,21 +463,58 @@ int pthread_rwlock_destroy(pthread_rwlock_t *lock)
     return result ? result : pthread_mutex_destroy(&lock->mutex);
 }
 
-/* Readers may acquire the lock recursively while no writer owns it. */
+static struct rwlock_read_hold *rwlock_read_slot(pthread_rwlock_t *lock)
+{
+    struct rwlock_read_hold *available = NULL;
+    for (unsigned i = 0; i < sizeof(rwlock_read_holds) / sizeof(rwlock_read_holds[0]); ++i)
+    {
+        struct rwlock_read_hold *hold = rwlock_read_holds + i;
+        if (hold->lock == lock)
+            return hold;
+        if (!hold->lock && !available)
+            available = hold;
+    }
+    return available;
+}
+
+static void rwlock_wake(pthread_rwlock_t *lock)
+{
+    if (lock->waiters && __atomic_load_n(&lock->changed.waiters, __ATOMIC_ACQUIRE))
+        pthread_cond_broadcast(&lock->changed);
+}
+
+/* New readers wait behind pending writers. Existing readers may still recurse. */
 static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
 {
-    int result = pthread_mutex_lock(&lock->mutex);
+    int result = try_only ? pthread_mutex_trylock(&lock->mutex) : pthread_mutex_lock(&lock->mutex);
     if (result)
         return result;
     pthread_t self = pthread_self();
+    struct rwlock_read_hold *hold = writer ? NULL : rwlock_read_slot(lock);
+    bool recursive = hold && hold->lock == lock;
+    bool pending_writer = false;
+    if (!writer && !hold)
+        result = EAGAIN;
     if (!try_only && lock->writer == self)
         result = EDEADLK;
-    while (!result && (lock->writer || (writer && lock->readers)))
+    while (!result && (lock->writer || (writer && lock->readers) ||
+                       (!writer && !recursive && lock->mutex.reserved)))
     {
         if (try_only)
         {
             result = EBUSY;
             break;
+        }
+        if (lock->waiters == UINT_MAX)
+        {
+            result = EAGAIN;
+            break;
+        }
+        if (writer && !pending_writer)
+        {
+            /* The internal mutex reserves this field for the number of pending writers. */
+            ++lock->mutex.reserved;
+            pending_writer = true;
         }
         ++lock->waiters;
         result = pthread_cond_wait(&lock->changed, &lock->mutex);
@@ -477,6 +522,8 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
         if (result == EINTR)
             result = 0;
     }
+    if (pending_writer)
+        --lock->mutex.reserved;
     if (!result)
     {
         if (writer)
@@ -484,8 +531,14 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
         else if (lock->readers == UINT_MAX)
             result = EAGAIN;
         else
+        {
             ++lock->readers;
+            hold->lock = lock;
+            ++hold->depth;
+        }
     }
+    if (pending_writer && result && !lock->mutex.reserved && !lock->writer)
+        rwlock_wake(lock);
     pthread_mutex_unlock(&lock->mutex);
     return result;
 }
@@ -523,11 +576,21 @@ int pthread_rwlock_unlock(pthread_rwlock_t *lock)
             lock->writer = 0;
     }
     else if (lock->readers)
-        --lock->readers;
+    {
+        struct rwlock_read_hold *hold = rwlock_read_slot(lock);
+        if (!hold || hold->lock != lock)
+            result = EPERM;
+        else
+        {
+            --lock->readers;
+            if (!--hold->depth)
+                hold->lock = NULL;
+        }
+    }
     else
         result = EPERM;
     if (!result && !lock->readers && !lock->writer)
-        pthread_cond_broadcast(&lock->changed);
+        rwlock_wake(lock);
     pthread_mutex_unlock(&lock->mutex);
     return result;
 }

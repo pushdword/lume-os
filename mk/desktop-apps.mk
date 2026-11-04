@@ -1792,6 +1792,8 @@ $(DESKTOP_APPS_OUT)/vsource.dpi.elf: arch/$(ARCH)/user.ld $(DESKTOP_APPS_OUT)/ob
 	$(LD) @"$@.rsp"
 
 desktop-apps-install: desktop-apps
+	mkdir -p "$(DESKTOP_ROOT)/usr/share/applications"
+	cp "ports/dillo/resources/dillo.desktop" "$(DESKTOP_ROOT)/usr/share/applications/dillo.desktop"
 	mkdir -p "$(DESKTOP_ROOT)/usr/bin" "$(DESKTOP_ROOT)/usr/share/dillo" "$(DESKTOP_ROOT)/usr/share/lume/ssl" "$(DESKTOP_ROOT)/usr/share/licenses/dillo" "$(DESKTOP_ROOT)/usr/share/licenses/fltk" "$(DESKTOP_ROOT)/usr/share/licenses/stb" "$(DESKTOP_ROOT)/usr/share/licenses/mbedtls" "$(DESKTOP_ROOT)/usr/share/licenses/ca-certificates"
 	cp "$(DESKTOP_APPS_OUT)/dillo.elf" "$(DESKTOP_ROOT)/usr/bin/dillo"
 	cp "$(DESKTOP_APPS_OUT)/dilloc.elf" "$(DESKTOP_ROOT)/usr/bin/dilloc"

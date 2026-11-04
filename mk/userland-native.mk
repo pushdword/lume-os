@@ -123,7 +123,7 @@ SERVICE_OBJECTS := $(OUT)/obj/services/svcd/service.c.o $(OUT)/obj/services/svcd
 $(SERVICE_OBJECTS): CPPFLAGS += -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/utils -Iapps/shell -Iapps/diagnostics -Iservices/svcd -Iapps/pkg -Iinclude/posix
 $(SERVICE_OBJECTS): | headers
 $(SERVICE_OBJECTS): services/svcd/service_platform.h $(KERNEL)/include/abi/native/lume/supervision.h
-$(OUT)/obj/services/svcd/service.c.o: services/svcd/service_loop.h
+$(OUT)/obj/services/svcd/service.c.o: services/svcd/service_loop.h services/svcd/service_discovery.h
 all pkg: $(OUT)/pkg.elf
 all: $(OUT)/service.elf $(OUT)/svcd.elf
 $(OUT)/service.elf: $(SERVICE_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
@@ -191,10 +191,14 @@ endif
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 endif
 .PHONY: check-update check-network-tools check-services
-check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE) $(OUT)/tests/service-loop$(HOSTEXE)
+check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE) $(OUT)/tests/service-loop$(HOSTEXE) $(OUT)/tests/service-discovery$(HOSTEXE)
 	env "$(OUT)/tests/service$(HOSTEXE)"
 	env "$(OUT)/tests/supervision$(HOSTEXE)"
 	env "$(OUT)/tests/service-loop$(HOSTEXE)"
+	env "$(OUT)/tests/service-discovery$(HOSTEXE)"
+$(OUT)/tests/service-discovery$(HOSTEXE): tests/unit/service_discovery_test.c services/svcd/service_discovery.h services/svcd/service_loop.h services/svcd/service_platform.h $(KERNEL)/include/abi/native/lume/supervision.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iservices/svcd -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
 $(OUT)/tests/service-loop$(HOSTEXE): tests/unit/service_loop_test.c services/svcd/service_loop.h services/svcd/service_platform.h $(KERNEL)/include/abi/native/lume/supervision.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iservices/svcd -I"$(KERNEL)/include/abi/native" "$<" -o "$@"

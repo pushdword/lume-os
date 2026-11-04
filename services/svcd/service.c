@@ -155,6 +155,8 @@ static int discover(const char *path)
     return result;
 }
 
+#include "service_discovery.h"
+
 static int launch(struct supervised_service *service)
 {
     int result = configuration(service);
@@ -245,9 +247,7 @@ static void tick(void)
 static void respond(struct lume_supervision_request *request)
 {
     request->count = 0;
-    request->result = discover(SERVICE_OVERRIDE);
-    if (!request->result)
-        request->result = discover(SERVICE_INSTALLED);
+    request->result = discovery_refresh();
     if (request->result)
         return;
     if (request->command == LUME_SV_LIST)
@@ -304,9 +304,7 @@ static int daemon_main(void)
     if (!result)
         result = prepare();
     if (!result)
-        result = discover(SERVICE_OVERRIDE);
-    if (!result)
-        result = discover(SERVICE_INSTALLED);
+        result = discovery_refresh();
     if (result)
     {
         fprintf(stderr, "svcd: initialization failed (%d)\n", result);

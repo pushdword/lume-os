@@ -269,6 +269,20 @@ check-vector-io: $(OUT)/tests/vector-io$(HOSTEXE)
 $(OUT)/tests/vector-io$(HOSTEXE): tests/unit/vector_io_test.c libc/posix/vector_io.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG "$<" -o "$@"
+.PHONY: check-rwlock
+check: check-rwlock
+check-rwlock: $(OUT)/tests/rwlock$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/rwlock$(HOSTEXE): tests/unit/rwlock_test.c libc/posix/pthread.c include/posix/pthread.h $(KERNEL)/include/uapi/lume/thread.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -ffunction-sections -fdata-sections -Iinclude/posix -I"$(KERNEL)/include/uapi" "$<" -Wl,--gc-sections -o "$@"
+.PHONY: check-resource-gate
+check: check-resource-gate
+check-resource-gate: $(OUT)/tests/resource-gate$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/resource-gate$(HOSTEXE): tests/unit/native_resource_gate_test.c tests/integration/native_resource_gate.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG "$<" -o "$@"
 clean:
 	rm -rf -- "$(OUT)"
 -include $(addsuffix .d,$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(APP_OBJECTS) $(OUT)/obj/apps/shell/sshshell.c.o)

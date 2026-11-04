@@ -12,6 +12,10 @@ static uint64_t clock_ms;
 static bool client_mode, client_ready, late_ready, wait_timeout;
 static int wait_error;
 
+static void discovery_invalidate(void)
+{
+}
+
 static void tick(void)
 {
     ++ticks;

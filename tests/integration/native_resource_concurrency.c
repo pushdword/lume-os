@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include "native_resource_gate.h"
 
 static atomic_int ready, started, done;
 static struct lume_net_request network;
@@ -70,12 +72,19 @@ static void *network_wait(void *unused)
 
 int main(int argc, char **argv)
 {
-    if (argc != 3 || strlen(argv[1]) >= sizeof(network.argument))
+    struct resource_limits limits;
+    if (argc != 7 || strlen(argv[1]) >= sizeof(network.argument) ||
+        !positive_budget(argv[3], &limits.query_ms) || !positive_budget(argv[4], &limits.read_ms) ||
+        !positive_budget(argv[5], &limits.io_ms) || !positive_budget(argv[6], &limits.gap_ms))
+    {
+        fprintf(stderr, "Usage: %s NETWORK FILE MAX_QUERY_MS MAX_READ_MS MAX_IO_MS MAX_GAP_MS\n",
+                argv[0]);
         return 2;
+    }
     memcpy(network.argument, argv[1], strlen(argv[1]) + 1);
     int fd = open(argv[2], O_RDONLY);
     struct lume_stat stat;
-    if (fd < 0 || lume_native_call(LUME_SYS_STAT, fd, (uintptr_t)&stat, 0) < 0 ||
+    if (fd < 0 || lume_native_call(LUME_SYS_STAT, fd, (uintptr_t)&stat, 0) < 0 || !stat.size ||
         socketpair(AF_UNIX, SOCK_STREAM, 0, endpoints))
         return 3;
     if (stat.size > 2097152)
@@ -120,13 +129,28 @@ int main(int argc, char **argv)
     close(endpoints[0]);
     close(endpoints[1]);
     free(buffer);
+    struct resource_measurements measured = {
+        .net_result = net_result,
+        .query_result = query,
+        .bytes = bytes,
+        .query_ms = query_end - query_start,
+        .read_ms = storage_end - storage_start,
+        .io_ms = beat_io,
+        .gap_ms = beat_gap,
+        .samples = beat_samples,
+        .display_overlap = query_start >= net_start && query_end < net_end,
+        .storage_overlap = storage_start >= net_start && storage_end < net_end,
+        .error = beat_error};
     printf("RESOURCE_IO net_result=%lld query_result=%lld bytes=%llu sample=%u net_ms=%llu "
            "query_ms=%llu read_ms=%llu display_overlap=%u storage_overlap=%u io_ms=%llu "
-           "gap_ms=%llu samples=%llu error=%d\n",
+           "gap_ms=%llu samples=%llu error=%d max_query_ms=%llu max_read_ms=%llu "
+           "max_io_ms=%llu max_gap_ms=%llu\n",
            (long long)net_result, (long long)query, (unsigned long long)bytes, sample,
-           (unsigned long long)(net_end - net_start), (unsigned long long)(query_end - query_start),
-           (unsigned long long)(storage_end - storage_start), query_end < net_end,
-           storage_end < net_end, (unsigned long long)beat_io, (unsigned long long)beat_gap,
-           (unsigned long long)beat_samples, beat_error);
-    return net_result < 0 || query < 0 || beat_error || !beat_samples ? 10 : 0;
+           (unsigned long long)(net_end - net_start), (unsigned long long)measured.query_ms,
+           (unsigned long long)measured.read_ms, measured.display_overlap, measured.storage_overlap,
+           (unsigned long long)beat_io, (unsigned long long)beat_gap,
+           (unsigned long long)beat_samples, beat_error, (unsigned long long)limits.query_ms,
+           (unsigned long long)limits.read_ms, (unsigned long long)limits.io_ms,
+           (unsigned long long)limits.gap_ms);
+    return resource_passed(&measured, &limits) ? 0 : 10;
 }
