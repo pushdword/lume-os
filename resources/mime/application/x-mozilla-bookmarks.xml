@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-mozilla-bookmarks">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Mozilla bookmarks</comment>
+  <sub-class-of type="text/html"/>
+  <generic-icon name="text-html"/>
+  <alias type="application/x-netscape-bookmarks"/>
+</mime-type>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/spdx">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SPDX document</comment>
+  <acronym>SPDX</acronym>
+  <expanded-acronym>Software Package Data Exchange</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.spdx"/>
+</mime-type>

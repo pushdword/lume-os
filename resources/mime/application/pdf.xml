@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pdf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PDF document</comment>
+  <acronym>PDF</acronym>
+  <expanded-acronym>Portable Document Format</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.pdf"/>
+  <alias type="application/x-pdf"/>
+  <alias type="image/pdf"/>
+  <alias type="application/acrobat"/>
+  <alias type="application/nappdf"/>
+</mime-type>

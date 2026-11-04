@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-portable-graymap">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PGM image</comment>
+  <acronym>PGM</acronym>
+  <expanded-acronym>Portable GrayMap</expanded-acronym>
+  <sub-class-of type="image/x-portable-anymap"/>
+  <glob pattern="*.pgm"/>
+</mime-type>

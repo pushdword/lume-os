@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-bzeps">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>EPS image (bzip2-compressed)</comment>
+  <sub-class-of type="application/x-bzip2"/>
+  <glob pattern="*.eps.bz2"/>
+  <glob pattern="*.epsi.bz2"/>
+  <glob pattern="*.epsf.bz2"/>
+</mime-type>

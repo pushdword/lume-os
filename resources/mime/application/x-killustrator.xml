@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-killustrator">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>KIllustrator drawing</comment>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.kil"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.radiance">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Radiance HDR image</comment>
+  <alias type="image/x-hdr"/>
+  <glob pattern="*.hdr"/>
+  <glob pattern="*.pic"/>
+  <glob pattern="*.rgbe"/>
+  <glob pattern="*.xyze"/>
+</mime-type>

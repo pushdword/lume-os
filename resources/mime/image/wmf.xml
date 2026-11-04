@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/wmf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>WMF image</comment>
+  <acronym>WMF</acronym>
+  <expanded-acronym>Windows Metafile</expanded-acronym>
+  <glob pattern="*.wmf"/>
+  <alias type="image/x-wmf"/>
+  <alias type="image/x-win-metafile"/>
+  <alias type="application/x-wmf"/>
+  <alias type="application/wmf"/>
+  <alias type="application/x-msmetafile"/>
+</mime-type>

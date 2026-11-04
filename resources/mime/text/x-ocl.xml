@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-ocl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>OCL file</comment>
+  <acronym>OCL</acronym>
+  <expanded-acronym>Object Constraint Language</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.ocl"/>
+</mime-type>

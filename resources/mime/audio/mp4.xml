@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/mp4">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MPEG-4 audio</comment>
+  <alias type="audio/x-m4a"/>
+  <alias type="audio/m4a"/>
+  <glob pattern="*.m4a"/>
+  <glob pattern="*.f4a"/>
+</mime-type>

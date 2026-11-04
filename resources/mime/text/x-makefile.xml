@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-makefile">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Makefile build file</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="makefile"/>
+  <glob pattern="GNUmakefile"/>
+  <glob pattern="*.mk"/>
+  <glob pattern="*.mak"/>
+  <glob weight="10" pattern="Makefile.*"/>
+</mime-type>

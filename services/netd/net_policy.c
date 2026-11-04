@@ -40,6 +40,21 @@ bool net_name(const char *s)
     return n > 0 && n < 16;
 }
 
+bool net_import_path(const char *name, char *path, size_t bytes)
+{
+    static const char prefix[] = "/data/system/wifi-";
+    if (!net_name(name) || bytes < sizeof(prefix) + 15 + 4)
+        return false;
+    unsigned used = 0;
+    for (unsigned i = 0; prefix[i]; ++i)
+        path[used++] = prefix[i];
+    for (unsigned i = 0; name[i]; ++i)
+        path[used++] = name[i];
+    for (unsigned i = 0; i < sizeof(".cfg"); ++i)
+        path[used++] = ".cfg"[i];
+    return true;
+}
+
 static bool same(const char *a, const char *b)
 {
     for (unsigned i = 0; i < 16; ++i)

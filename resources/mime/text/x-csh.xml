@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-csh">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>C shell script</comment>
+  <sub-class-of type="text/x-shellscript"/>
+  <sub-class-of type="application/x-executable"/>
+  <alias type="application/x-csh"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.csh"/>
+</mime-type>

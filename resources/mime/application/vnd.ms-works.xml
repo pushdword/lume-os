@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.ms-works">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Microsoft Works document</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.wcm"/>
+  <glob pattern="*.wdb"/>
+  <glob pattern="*.wks"/>
+  <glob pattern="*.wps"/>
+  <glob pattern="*.xlr"/>
+</mime-type>

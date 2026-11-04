@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-quattropro">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Quattro Pro spreadsheet</comment>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.wb1"/>
+  <glob pattern="*.wb2"/>
+  <glob pattern="*.wb3"/>
+  <glob pattern="*.qpw"/>
+</mime-type>

@@ -526,7 +526,9 @@ static tcap_entry_T builtin_xterm[] = {
     {(int)KS_CGP,	"\033[13t"},
 #endif
     {(int)KS_CRV,	"\033[>c"},
+#if defined(HAVE_TGETENT) || !defined(__lume__)
     {(int)KS_CXM,	"\033[?1006;1000%?%p1%{1}%=%th%el%;"},
+#endif
     {(int)KS_RFG,	"\033]10;?\007"},
     {(int)KS_RBG,	"\033]11;?\007"},
     {(int)KS_U7,	"\033[6n"},

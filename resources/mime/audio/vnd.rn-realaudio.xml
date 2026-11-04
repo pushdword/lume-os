@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/vnd.rn-realaudio">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RealAudio document</comment>
+  <glob pattern="*.ra"/>
+  <glob pattern="*.rax"/>
+  <alias type="audio/x-pn-realaudio"/>
+  <alias type="audio/vnd.m-realaudio"/>
+</mime-type>

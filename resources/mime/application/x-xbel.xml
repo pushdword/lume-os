@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-xbel">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XBEL bookmarks</comment>
+  <acronym>XBEL</acronym>
+  <expanded-acronym>XML Bookmark Exchange Language</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="text-html"/>
+  <glob pattern="*.xbel"/>
+</mime-type>

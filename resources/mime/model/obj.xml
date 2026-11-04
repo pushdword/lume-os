@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="model/obj">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>OBJ 3D model</comment>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.obj"/>
+  <alias type="application/prs.wavefront-obj"/>
+</mime-type>

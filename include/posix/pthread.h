@@ -34,6 +34,19 @@ typedef struct
     int clock;
 } pthread_condattr_t;
 
+typedef struct
+{
+    pthread_mutex_t mutex;
+    pthread_cond_t changed;
+    unsigned readers, waiters;
+    pthread_t writer;
+} pthread_rwlock_t;
+
+typedef struct
+{
+    int shared;
+} pthread_rwlockattr_t;
+
 typedef uint32_t pthread_once_t;
 #define PTHREAD_CREATE_JOINABLE 0
 #define PTHREAD_CREATE_DETACHED 1
@@ -44,6 +57,9 @@ typedef uint32_t pthread_once_t;
 #define PTHREAD_MUTEX_INITIALIZER {0}
 #define PTHREAD_COND_INITIALIZER {0, 0, CLOCK_REALTIME}
 #define PTHREAD_ONCE_INIT 0
+#define PTHREAD_RWLOCK_INITIALIZER {0}
+#define PTHREAD_PROCESS_PRIVATE 0
+#define PTHREAD_PROCESS_SHARED 1
 #define PTHREAD_DESTRUCTOR_ITERATIONS 4
 #define PTHREAD_STACK_MIN 32768u
 #ifdef __cplusplus
@@ -87,6 +103,17 @@ _Noreturn void pthread_exit(void *);
     int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
     int pthread_cond_signal(pthread_cond_t *);
     int pthread_cond_broadcast(pthread_cond_t *);
+    int pthread_rwlockattr_init(pthread_rwlockattr_t *);
+    int pthread_rwlockattr_destroy(pthread_rwlockattr_t *);
+    int pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *, int *);
+    int pthread_rwlockattr_setpshared(pthread_rwlockattr_t *, int);
+    int pthread_rwlock_init(pthread_rwlock_t *, const pthread_rwlockattr_t *);
+    int pthread_rwlock_destroy(pthread_rwlock_t *);
+    int pthread_rwlock_rdlock(pthread_rwlock_t *);
+    int pthread_rwlock_tryrdlock(pthread_rwlock_t *);
+    int pthread_rwlock_wrlock(pthread_rwlock_t *);
+    int pthread_rwlock_trywrlock(pthread_rwlock_t *);
+    int pthread_rwlock_unlock(pthread_rwlock_t *);
     int pthread_once(pthread_once_t *, void (*)(void));
     int pthread_key_create(pthread_key_t *, void (*)(void *));
     int pthread_key_delete(pthread_key_t);

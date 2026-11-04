@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/gif">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>GIF image</comment>
+  <acronym>GIF</acronym>
+  <expanded-acronym>Graphics Interchange Format</expanded-acronym>
+  <glob pattern="*.gif"/>
+</mime-type>

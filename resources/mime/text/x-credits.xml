@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-credits">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Author credits</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="CREDITS"/>
+</mime-type>

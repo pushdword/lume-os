@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-aseprite">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Aseprite image</comment>
+  <acronym>ASE</acronym>
+  <expanded-acronym>Allegro Sprite Editor</expanded-acronym>
+  <glob pattern="*.ase"/>
+  <glob pattern="*.aseprite"/>
+  <generic-icon name="image-x-generic"/>
+</mime-type>

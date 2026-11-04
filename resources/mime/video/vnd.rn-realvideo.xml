@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/vnd.rn-realvideo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RealVideo document</comment>
+  <glob pattern="*.rv"/>
+  <glob pattern="*.rvx"/>
+  <alias type="video/x-real-video"/>
+</mime-type>

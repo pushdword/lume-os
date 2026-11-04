@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spectrum-slt">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ZX Spectrum SLT multiload snapshot</comment>
+  <acronym>SLT</acronym>
+  <expanded-acronym>Super Level loader Trap</expanded-acronym>
+  <sub-class-of type="application/x-spectrum-z80"/>
+  <glob pattern="*.slt"/>
+</mime-type>

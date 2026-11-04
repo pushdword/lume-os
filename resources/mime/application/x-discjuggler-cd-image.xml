@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-discjuggler-cd-image">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Padus DiscJuggler CD image</comment>
+  <generic-icon name="media-optical"/>
+  <glob pattern="*.cdi"/>
+</mime-type>

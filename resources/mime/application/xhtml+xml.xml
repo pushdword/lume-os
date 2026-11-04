@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/xhtml+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XHTML page</comment>
+  <acronym>XHTML</acronym>
+  <expanded-acronym>Extensible HyperText Markup Language</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="text-html"/>
+  <glob pattern="*.xhtml"/>
+  <glob pattern="*.xht"/>
+  <glob pattern="*.html"/>
+  <glob pattern="*.htm"/>
+</mime-type>

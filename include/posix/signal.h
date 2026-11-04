@@ -68,6 +68,7 @@ extern "C"
 #endif
     int sigaction(int, const struct sigaction *, struct sigaction *);
     int sigprocmask(int, const sigset_t *, sigset_t *);
+    int pthread_sigmask(int, const sigset_t *, sigset_t *);
     int sigemptyset(sigset_t *);
     int sigfillset(sigset_t *);
     int sigaddset(sigset_t *, int);

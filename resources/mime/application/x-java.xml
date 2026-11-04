@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-java">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Java class</comment>
+  <alias type="application/java"/>
+  <alias type="application/java-byte-code"/>
+  <alias type="application/java-vm"/>
+  <alias type="application/x-java-class"/>
+  <alias type="application/x-java-vm"/>
+  <glob pattern="*.class"/>
+</mime-type>

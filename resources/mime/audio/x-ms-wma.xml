@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-ms-wma">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Windows Media audio</comment>
+  <sub-class-of type="application/vnd.ms-asf"/>
+  <glob pattern="*.wma"/>
+  <alias type="audio/wma"/>
+</mime-type>

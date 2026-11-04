@@ -35,6 +35,7 @@ static void directory_free(void *p)
 #define calloc directory_calloc
 #define free directory_free
 #define opendir directory_opendir
+#define fdopendir directory_fdopendir
 #define readdir directory_readdir
 #define closedir directory_closedir
 #define telldir directory_telldir
@@ -61,9 +62,17 @@ static int open_error, stat_error, close_error, fetch_error, seek_error;
 static int malformed_count;
 static bool malformed_name, malformed_cookie;
 static unsigned metadata_kind;
+static int descriptor_access;
 
 int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
+    if (number == LUME_SYS_FD)
+    {
+        assert(a == LUME_FD_GETMODE && c == sizeof(struct lume_fd_request));
+        const struct lume_fd_request *request = (const void *)(uintptr_t)b;
+        assert(request->fd == 9 && descriptor_live);
+        return descriptor_access;
+    }
     if (number == LUME_SYS_FILE_MODE)
     {
         assert(a == LUME_FILE_MODE_OPEN && c == sizeof(struct lume_file_mode_request));
@@ -100,12 +109,12 @@ int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
     }
     if (number == LUME_SYS_SEEK)
     {
-        assert(!c);
+        assert(c <= 1);
         ++seeks;
         if (seek_error)
             return seek_error;
-        descriptor_cookie = b;
-        return (int64_t)b;
+        descriptor_cookie = c ? descriptor_cookie + b : b;
+        return (int64_t)descriptor_cookie;
     }
     assert(number == LUME_SYS_GETDENTS && c == sizeof(((DIR *)0)->buffer));
     ++fetches;
@@ -279,10 +288,36 @@ static void failures(void)
     assert(errno == EBADF);
 }
 
+static void descriptor_directory(void)
+{
+    reset();
+    descriptor_live = true;
+    descriptor_cookie = entries[2].inode;
+    assert(!fdopendir(-1) && errno == EBADF && descriptor_live && !closes);
+    metadata_kind = LUME_NODE_FILE;
+    assert(!fdopendir(9) && errno == ENOTDIR && descriptor_live && !closes);
+    metadata_kind = LUME_NODE_DIR;
+    descriptor_access = LUME_O_WRONLY;
+    assert(!fdopendir(9) && errno == EBADF && descriptor_live && !closes);
+    descriptor_access = 0;
+    allocation_failure = true;
+    assert(!fdopendir(9) && errno == ENOMEM && descriptor_live && !closes);
+    allocation_failure = false;
+    seek_error = -LUME_EIO;
+    assert(!fdopendir(9) && errno == EIO && descriptor_live && !closes);
+    seek_error = 0;
+    DIR *directory = fdopendir(9);
+    assert(directory && dirfd(directory) == 9 && telldir(directory) == (long)entries[2].inode);
+    struct dirent *entry = readdir(directory);
+    assert(entry && entry->d_ino == entries[3].inode);
+    assert(!closedir(directory) && !descriptor_live && closes == 1 && !allocations);
+}
+
 int main(void)
 {
     enumeration();
     failures();
+    descriptor_directory();
     puts("PASS_POSIX_DIRECTORY batches, cookies, mutations, types, errors and descriptor lifetime");
     return 0;
 }

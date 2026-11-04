@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/rdf+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RDF file</comment>
+  <acronym>RDF</acronym>
+  <expanded-acronym>Resource Description Framework</expanded-acronym>
+  <alias type="text/rdf"/>
+  <sub-class-of type="application/xml"/>
+  <glob pattern="*.rdf"/>
+  <glob pattern="*.rdfs"/>
+  <glob pattern="*.owl"/>
+</mime-type>

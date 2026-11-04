@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spectrum-d80">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Didaktik D40/D80 floppy disk image</comment>
+  <glob pattern="*.d80" weight="40"/>
+  <glob pattern="*.d40" weight="40"/>
+</mime-type>

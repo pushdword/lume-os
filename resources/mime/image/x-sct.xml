@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-sct">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Scitex CT</comment>
+  <acronym>CT</acronym>
+  <expanded-acronym>Continuous Tone</expanded-acronym>
+  <glob pattern="*.sct"/>
+</mime-type>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/tcl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Tcl script</comment>
+  <alias type="text/x-tcl"/>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.tcl"/>
+  <glob pattern="*.tk"/>
+</mime-type>

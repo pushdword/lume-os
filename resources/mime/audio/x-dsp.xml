@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-dsp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Dynamic Studio module audio</comment>
+  <glob pattern="*.dsm"/>
+  <glob pattern="*.dsp" weight="40"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.ms-htmlhelp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>CHM document</comment>
+  <acronym>CHM</acronym>
+  <expanded-acronym>Compiled Help Modules</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.chm"/>
+  <alias type="application/x-chm"/>
+</mime-type>

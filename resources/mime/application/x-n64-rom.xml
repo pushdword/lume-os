@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-n64-rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nintendo64 ROM</comment>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.n64"/>
+  <glob pattern="*.z64"/>
+  <glob pattern="*.v64"/>
+</mime-type>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-pw">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Pathetic Writer document</comment>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.pw"/>
+</mime-type>

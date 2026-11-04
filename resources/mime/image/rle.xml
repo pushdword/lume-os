@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/rle">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RLE bitmap image</comment>
+  <acronym>RLE</acronym>
+  <expanded-acronym>Run Length Encoded</expanded-acronym>
+  <glob pattern="*.rle"/>
+</mime-type>

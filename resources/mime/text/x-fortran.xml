@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-fortran">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Fortran source code</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.f"/>
+  <glob pattern="*.f90"/>
+  <glob pattern="*.f95"/>
+  <glob pattern="*.for"/>
+</mime-type>

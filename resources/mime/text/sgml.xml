@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/sgml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SGML document</comment>
+  <acronym>SGML</acronym>
+  <expanded-acronym>Standard Generalized Markup Language</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.sgml"/>
+  <glob pattern="*.sgm"/>
+</mime-type>

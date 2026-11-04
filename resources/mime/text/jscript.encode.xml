@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/jscript.encode">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Encoded JScript program</comment>
+  <sub-class-of type="application/x-executable"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.jse"/>
+</mime-type>

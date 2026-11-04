@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/3gpp2">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>3GPP2 multimedia file</comment>
+  <acronym>3GPP2</acronym>
+  <expanded-acronym>3rd Generation Partnership Project 2</expanded-acronym>
+  <glob pattern="*.3g2"/>
+  <glob pattern="*.3gp2"/>
+  <glob pattern="*.3gpp2"/>
+  <alias type="audio/3gpp2"/>
+</mime-type>

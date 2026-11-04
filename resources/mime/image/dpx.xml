@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/dpx">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DPX image</comment>
+  <acronym>DPX</acronym>
+  <expanded-acronym>Digital Moving Picture Exchange</expanded-acronym>
+</mime-type>

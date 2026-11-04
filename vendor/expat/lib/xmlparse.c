@@ -144,6 +144,7 @@
 
 #if ! defined(HAVE_GETRANDOM) && ! defined(HAVE_SYSCALL_GETRANDOM)             \
     && ! defined(HAVE_ARC4RANDOM_BUF) && ! defined(HAVE_ARC4RANDOM)            \
+    && ! defined(HAVE_GETENTROPY)                                           \
     && ! defined(XML_DEV_URANDOM) && ! defined(_WIN32)                         \
     && ! defined(XML_POOR_ENTROPY)
 #  error You do not have support for any sources of high quality entropy \
@@ -979,6 +980,10 @@ generate_hash_secret_salt(XML_Parser parser) {
 #elif defined(HAVE_ARC4RANDOM)
   writeRandomBytes_arc4random((void *)&entropy, sizeof(entropy));
   return ENTROPY_DEBUG("arc4random", entropy);
+#elif defined(HAVE_GETENTROPY)
+  if (getentropy(&entropy, sizeof(entropy)) != 0)
+    abort();
+  return ENTROPY_DEBUG("getentropy", entropy);
 #else
   /* Try high quality providers first .. */
 #  ifdef _WIN32

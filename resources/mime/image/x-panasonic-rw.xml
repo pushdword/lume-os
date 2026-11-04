@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-panasonic-rw">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Panasonic raw image</comment>
+  <sub-class-of type="image/x-dcraw"/>
+  <glob pattern="*.raw"/>
+  <alias type="image/x-panasonic-raw"/>
+</mime-type>

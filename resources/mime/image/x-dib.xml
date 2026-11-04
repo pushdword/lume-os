@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-dib">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DIB image</comment>
+  <acronym>DIB</acronym>
+  <expanded-acronym>Device Independent Bitmap</expanded-acronym>
+</mime-type>

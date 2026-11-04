@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/emf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>EMF image</comment>
+  <acronym>EMF</acronym>
+  <expanded-acronym>Enhanced MetaFile</expanded-acronym>
+  <glob pattern="*.emf"/>
+  <alias type="image/x-emf"/>
+  <alias type="application/x-emf"/>
+  <alias type="application/emf"/>
+</mime-type>

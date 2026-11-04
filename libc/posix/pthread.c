@@ -406,6 +406,132 @@ int pthread_cond_broadcast(pthread_cond_t *c)
     return 0;
 }
 
+int pthread_rwlockattr_init(pthread_rwlockattr_t *a)
+{
+    a->shared = PTHREAD_PROCESS_PRIVATE;
+    return 0;
+}
+
+int pthread_rwlockattr_destroy(pthread_rwlockattr_t *a)
+{
+    (void)a;
+    return 0;
+}
+
+int pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *a, int *shared)
+{
+    *shared = a->shared;
+    return 0;
+}
+
+int pthread_rwlockattr_setpshared(pthread_rwlockattr_t *a, int shared)
+{
+    if (shared == PTHREAD_PROCESS_SHARED)
+        return ENOTSUP;
+    if (shared != PTHREAD_PROCESS_PRIVATE)
+        return EINVAL;
+    a->shared = shared;
+    return 0;
+}
+
+int pthread_rwlock_init(pthread_rwlock_t *lock, const pthread_rwlockattr_t *a)
+{
+    if (a && a->shared != PTHREAD_PROCESS_PRIVATE)
+        return ENOTSUP;
+    *lock = (pthread_rwlock_t)PTHREAD_RWLOCK_INITIALIZER;
+    return 0;
+}
+
+int pthread_rwlock_destroy(pthread_rwlock_t *lock)
+{
+    int result = pthread_mutex_trylock(&lock->mutex);
+    if (result)
+        return result;
+    bool busy = lock->writer || lock->readers || lock->waiters;
+    pthread_mutex_unlock(&lock->mutex);
+    if (busy)
+        return EBUSY;
+    result = pthread_cond_destroy(&lock->changed);
+    return result ? result : pthread_mutex_destroy(&lock->mutex);
+}
+
+/* Readers may acquire the lock recursively while no writer owns it. */
+static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
+{
+    int result = pthread_mutex_lock(&lock->mutex);
+    if (result)
+        return result;
+    pthread_t self = pthread_self();
+    if (!try_only && lock->writer == self)
+        result = EDEADLK;
+    while (!result && (lock->writer || (writer && lock->readers)))
+    {
+        if (try_only)
+        {
+            result = EBUSY;
+            break;
+        }
+        ++lock->waiters;
+        result = pthread_cond_wait(&lock->changed, &lock->mutex);
+        --lock->waiters;
+        if (result == EINTR)
+            result = 0;
+    }
+    if (!result)
+    {
+        if (writer)
+            lock->writer = self;
+        else if (lock->readers == UINT_MAX)
+            result = EAGAIN;
+        else
+            ++lock->readers;
+    }
+    pthread_mutex_unlock(&lock->mutex);
+    return result;
+}
+
+int pthread_rwlock_rdlock(pthread_rwlock_t *lock)
+{
+    return rwlock_acquire(lock, false, false);
+}
+
+int pthread_rwlock_tryrdlock(pthread_rwlock_t *lock)
+{
+    return rwlock_acquire(lock, false, true);
+}
+
+int pthread_rwlock_wrlock(pthread_rwlock_t *lock)
+{
+    return rwlock_acquire(lock, true, false);
+}
+
+int pthread_rwlock_trywrlock(pthread_rwlock_t *lock)
+{
+    return rwlock_acquire(lock, true, true);
+}
+
+int pthread_rwlock_unlock(pthread_rwlock_t *lock)
+{
+    int result = pthread_mutex_lock(&lock->mutex);
+    if (result)
+        return result;
+    if (lock->writer)
+    {
+        if (lock->writer != pthread_self())
+            result = EPERM;
+        else
+            lock->writer = 0;
+    }
+    else if (lock->readers)
+        --lock->readers;
+    else
+        result = EPERM;
+    if (!result && !lock->readers && !lock->writer)
+        pthread_cond_broadcast(&lock->changed);
+    pthread_mutex_unlock(&lock->mutex);
+    return result;
+}
+
 int pthread_once(pthread_once_t *once, void (*function)(void))
 {
     uint32_t expected = 0;

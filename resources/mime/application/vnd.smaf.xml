@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.smaf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SMAF audio</comment>
+  <acronym>SMAF</acronym>
+  <expanded-acronym>Synthetic music Mobile Application Format</expanded-acronym>
+  <generic-icon name="audio-x-generic"/>
+  <glob pattern="*.mmf"/>
+  <glob pattern="*.smaf"/>
+  <alias type="application/x-smaf"/>
+</mime-type>

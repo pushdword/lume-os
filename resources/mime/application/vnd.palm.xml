@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.palm">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Palm OS database</comment>
+  <glob pattern="*.prc"/>
+  <glob pattern="*.pdb" weight="40"/>
+  <glob pattern="*.pqa"/>
+  <glob pattern="*.oprc"/>
+  <alias type="application/x-palm-database"/>
+</mime-type>

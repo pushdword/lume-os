@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/sdp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SDP multicast stream file</comment>
+  <acronym>SDP</acronym>
+  <expanded-acronym>Session Description Protocol</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <alias type="application/x-sdp"/>
+  <alias type="application/vnd.sdp"/>
+  <generic-icon name="video-x-generic"/>
+  <glob pattern="*.sdp"/>
+</mime-type>

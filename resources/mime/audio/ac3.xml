@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/ac3">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Dolby Digital audio</comment>
+  <glob pattern="*.ac3"/>
+</mime-type>

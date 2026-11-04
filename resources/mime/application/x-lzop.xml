@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lzop">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>LZO archive</comment>
+  <acronym>LZO</acronym>
+  <expanded-acronym>Lempel-Ziv-Oberhumer</expanded-acronym>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.lzo"/>
+</mime-type>

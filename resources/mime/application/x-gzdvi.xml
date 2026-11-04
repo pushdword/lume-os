@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-gzdvi">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TeX DVI document (gzip-compressed)</comment>
+  <sub-class-of type="application/gzip"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.dvi.gz"/>
+</mime-type>

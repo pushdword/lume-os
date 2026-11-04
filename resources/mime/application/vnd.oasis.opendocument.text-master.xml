@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.oasis.opendocument.text-master">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ODM document</comment>
+  <acronym>ODM</acronym>
+  <expanded-acronym>OpenDocument Master</expanded-acronym>
+  <sub-class-of type="application/zip"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.odm"/>
+</mime-type>

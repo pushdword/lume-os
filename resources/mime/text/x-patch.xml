@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-patch">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Differences between files</comment>
+  <alias type="text/x-diff"/>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.diff"/>
+  <glob pattern="*.patch"/>
+</mime-type>

@@ -240,11 +240,17 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     case LUME_SPAWN:
         return spawn(a, b, c, 0, 0, 0);
     case LUME_SPAWN_ACTIONS:
-        if (b != sizeof(struct lume_spawn_actions_request) || c)
+        if ((b != sizeof(struct lume_spawn_actions_request) &&
+             b != sizeof(struct lume_spawn_options_request)) ||
+            c)
             return -22;
         if (valid(a, b, 0))
             return -14;
-        return (int32_t)native(LUME_SYS_RUN_ACTIONS, a, 0, 0);
+        if (((const struct lume_spawn_actions_request *)(uintptr_t)a)->version !=
+            (b == sizeof(struct lume_spawn_options_request) ? LUME_SPAWN_OPTIONS_VERSION
+                                                            : LUME_SPAWN_VERSION))
+            return -22;
+        return (int32_t)native(LUME_SYS_RUN_ACTIONS, a, b, 0);
     case LUME_SPAWN_ENV:
     {
         if (valid(a, sizeof(struct lume_spawn_request), 0))
@@ -328,7 +334,9 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     case LUME_RMDIR:
         return (int32_t)native(LUME_SYS_FS, LUME_FS_COMPAT_REMOVE, a, 1);
     case LUME_RENAME:
-        return (int32_t)native(LUME_SYS_FS, LUME_FS_RENAME, a, b);
+        if (c & ~LUME_RENAME_NOREPLACE)
+            return -22;
+        return (int32_t)native(LUME_SYS_FS, c ? LUME_FS_RENAME : LUME_FS_REPLACE, a, b);
     case LUME_READDIR:
     {
         if (valid(b, sizeof(struct lume_directory_entry), 1))

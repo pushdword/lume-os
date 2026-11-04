@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lmdb">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>LMDB database</comment>
+  <acronym>LMDB</acronym>
+  <expanded-acronym>Lightning Memory-Mapped Database</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.mdb"/>
+  <glob pattern="*.lmdb"/>
+</mime-type>

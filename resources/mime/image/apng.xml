@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/apng">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Animated PNG image</comment>
+  <acronym>PNG</acronym>
+  <expanded-acronym>Portable Network Graphics</expanded-acronym>
+  <sub-class-of type="image/png"/>
+  <glob pattern="*.apng"/>
+  <glob pattern="*.png" weight="40"/>
+  <alias type="image/vnd.mozilla.apng"/>
+</mime-type>

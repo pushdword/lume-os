@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-pcapng">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PCAPNG packet capture</comment>
+  <acronym>PCAPNG</acronym>
+  <expanded-acronym>PCAP Next Generation</expanded-acronym>
+  <glob pattern="*.pcapng"/>
+  <glob pattern="*.scap"/>
+  <glob pattern="*.ntar"/>
+</mime-type>

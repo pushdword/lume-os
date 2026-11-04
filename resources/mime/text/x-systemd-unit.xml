@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-systemd-unit">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Systemd unit file</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.automount"/>
+  <glob pattern="*.device"/>
+  <glob pattern="*.mount"/>
+  <glob pattern="*.path"/>
+  <glob pattern="*.scope"/>
+  <glob pattern="*.service"/>
+  <glob pattern="*.slice"/>
+  <glob pattern="*.socket"/>
+  <glob pattern="*.swap"/>
+  <glob pattern="*.target"/>
+  <glob pattern="*.timer"/>
+</mime-type>

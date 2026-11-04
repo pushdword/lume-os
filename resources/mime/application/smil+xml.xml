@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/smil+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SMIL document</comment>
+  <acronym>SMIL</acronym>
+  <expanded-acronym>Synchronized Multimedia Integration Language</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <alias type="application/smil"/>
+  <generic-icon name="video-x-generic"/>
+  <glob pattern="*.smil"/>
+  <glob pattern="*.smi"/>
+  <glob pattern="*.sml"/>
+  <glob pattern="*.kino"/>
+</mime-type>

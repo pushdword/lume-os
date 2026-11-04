@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/x-flic">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>FLIC animation</comment>
+  <generic-icon name="image-x-generic"/>
+  <alias type="video/fli"/>
+  <alias type="video/x-fli"/>
+  <alias type="video/x-flc"/>
+  <glob pattern="*.fli"/>
+  <glob pattern="*.flc"/>
+</mime-type>

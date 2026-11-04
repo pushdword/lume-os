@@ -22,6 +22,7 @@ struct net_profiles
 };
 
 bool net_name(const char *);
+bool net_import_path(const char *, char *, size_t);
 bool net_profiles_valid(const struct net_profiles *);
 bool net_decode(struct net_profiles *, const uint8_t *, size_t);
 bool net_encode(const struct net_profiles *, uint8_t[NET_STORE_BYTES]);

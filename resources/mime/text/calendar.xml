@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/calendar">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>VCS/ICS calendar</comment>
+  <acronym>VCS/ICS</acronym>
+  <expanded-acronym>vCalendar/iCalendar</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <alias type="text/x-vcalendar"/>
+  <alias type="application/ics"/>
+  <generic-icon name="x-office-calendar"/>
+  <glob pattern="*.vcs"/>
+  <glob pattern="*.ics"/>
+  <glob pattern="*.ifb"/>
+  <glob pattern="*.icalendar"/>
+</mime-type>

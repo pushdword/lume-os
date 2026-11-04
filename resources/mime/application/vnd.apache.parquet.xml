@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.apache.parquet">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Apache Parquet file</comment>
+  <alias type="application/x-parquet"/>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.parquet"/>
+</mime-type>

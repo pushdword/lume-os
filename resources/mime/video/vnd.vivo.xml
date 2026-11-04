@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/vnd.vivo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Vivo video</comment>
+  <alias type="video/vivo"/>
+  <glob pattern="*.viv"/>
+  <glob pattern="*.vivo"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-gnuplot">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Gnuplot document</comment>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.gp"/>
+  <glob pattern="*.gplt"/>
+  <glob pattern="*.gnuplot"/>
+</mime-type>

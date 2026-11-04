@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-trash">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Backup file</comment>
+  <glob pattern="*~"/>
+  <glob pattern="*%"/>
+  <glob pattern="*.bak"/>
+  <glob pattern="*.old"/>
+  <glob pattern="*.sik"/>
+</mime-type>

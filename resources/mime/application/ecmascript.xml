@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/ecmascript">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ECMAScript program</comment>
+  <alias type="text/ecmascript"/>
+  <sub-class-of type="text/javascript"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.es"/>
+</mime-type>

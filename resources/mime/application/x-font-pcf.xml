@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-font-pcf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PCF font</comment>
+  <acronym>PCF</acronym>
+  <expanded-acronym>Portable Compiled Format</expanded-acronym>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.pcf"/>
+  <glob pattern="*.pcf.Z"/>
+  <glob pattern="*.pcf.gz"/>
+</mime-type>

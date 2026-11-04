@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-sed">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>sed script</comment>
+  <acronym>SED</acronym>
+  <expanded-acronym>Stream EDitor</expanded-acronym>
+  <sub-class-of type="application/x-executable"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.sed"/>
+</mime-type>

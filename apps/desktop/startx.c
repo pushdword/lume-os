@@ -140,7 +140,7 @@ static void terminate(pid_t *child)
     }
 }
 
-static int ready(pid_t *server, pid_t *manager, pid_t *terminal)
+static int ready(pid_t *server, pid_t *manager, pid_t *terminal, unsigned attempts)
 {
     pid_t probe = fork();
     if (!probe)
@@ -179,7 +179,7 @@ static int ready(pid_t *server, pid_t *manager, pid_t *terminal)
     if (probe < 0)
         return -1;
     int status = 0, result = -1;
-    for (unsigned i = 0; i < 600 && !stopping; ++i)
+    for (unsigned i = 0; i < attempts && !stopping; ++i)
     {
         if (exited(server, NULL))
             break;
@@ -209,10 +209,12 @@ static int ready(pid_t *server, pid_t *manager, pid_t *terminal)
 
 int main(int argc, char **argv)
 {
-    (void)argv;
-    if (argc != 1)
+    int xfwm = argc == 2 && !strcmp(argv[1], "xfwm4");
+    int xfce = (argc == 2 && !strcmp(argv[1], "xfce")) ||
+               (argc == 1 && access("/usr/bin/lume-xfce-session", X_OK) == 0);
+    if (argc != 1 && !(argc == 2 && (xfwm || xfce || !strcmp(argv[1], "icewm"))))
     {
-        fputs("Usage: startx\n", stderr);
+        fputs("Usage: startx [icewm|xfwm4|xfce]\n", stderr);
         return 2;
     }
     char cookie_path[128] = "";
@@ -242,19 +244,29 @@ int main(int argc, char **argv)
                            "-s",    "0",         NULL};
     puts("Starting X11 session...");
     server = launch("/usr/bin/Xlume", server_args, 1);
-    if (server < 0 || ready(&server, NULL, NULL))
+    if (server < 0 || ready(&server, NULL, NULL, 600))
     {
         fputs("startx: X11 server did not become ready\n", stderr);
         goto cleanup;
     }
     char *manager_args[] = {"icewm", "--notify", "--config=/etc/icewm/preferences", NULL};
-    manager = launch("/usr/bin/icewm", manager_args, 0);
+    char *xfwm_args[] = {"xfwm4", NULL};
+    char *xfce_args[] = {"lume-xfce-session", NULL};
+    if (xfwm || xfce)
+        manager_ready = 1;
+    manager = launch(xfce   ? "/usr/bin/lume-xfce-session"
+                     : xfwm ? "/usr/bin/xfwm4"
+                            : "/usr/bin/icewm",
+                     xfce   ? xfce_args
+                     : xfwm ? xfwm_args
+                            : manager_args,
+                     0);
     char *terminal_args[] = {"xterm",       "-title", "Lume terminal", "-fn", "9x15", "-geometry",
                              "72x24+40+40", "-e",     "/bin/sh",       NULL};
     terminal = launch("/usr/bin/xterm", terminal_args, 0);
     if (manager < 0 || terminal < 0)
         goto cleanup;
-    if (ready(&server, &manager, &terminal))
+    if (ready(&server, &manager, &terminal, xfce ? 6000 : xfwm ? 1800 : 600))
     {
         fputs("startx: desktop did not become ready\n", stderr);
         goto cleanup;

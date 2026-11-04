@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-fds-disk">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nintendo FDS disk image</comment>
+  <acronym>FDS</acronym>
+  <expanded-acronym>Famicom Disk System</expanded-acronym>
+  <glob pattern="*.fds"/>
+</mime-type>

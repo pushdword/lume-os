@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-dsl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DSSSL document</comment>
+  <acronym>DSSSL</acronym>
+  <expanded-acronym>Document Style Semantics and Specification Language</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.dsl"/>
+</mime-type>

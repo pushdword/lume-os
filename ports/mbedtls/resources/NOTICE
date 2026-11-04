@@ -1,0 +1,3 @@
+CA certificates extracted from the Mozilla trust store by curl.
+The trust store is distributed under the Mozilla Public License 2.0.
+Source: https://curl.se/ca/cacert-2026-10-20.pem

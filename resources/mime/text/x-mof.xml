@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-mof">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MOF file</comment>
+  <acronym>MOF</acronym>
+  <expanded-acronym>Windows Managed Object File</expanded-acronym>
+  <sub-class-of type="text/x-csrc"/>
+  <glob pattern="*.mof"/>
+</mime-type>

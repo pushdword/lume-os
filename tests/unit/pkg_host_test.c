@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #define LUME_PKG_HOST_TEST 1
 #include <errno.h>
 #include <stdbool.h>
@@ -10,6 +12,9 @@
 #include <windows.h>
 #else
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/syscall.h>
+#include <linux/fs.h>
 #endif
 
 static bool boot_staging;
@@ -27,7 +32,11 @@ static bool boot_staging;
 
 static int test_rename(const char *from, const char *to)
 {
+#ifdef _WIN32
     int result = rename(from, to);
+#else
+    int result = (int)syscall(SYS_renameat2, AT_FDCWD, from, AT_FDCWD, to, RENAME_NOREPLACE);
+#endif
     static unsigned count;
     const char *stop = getenv("PKG_TEST_EXIT_AFTER_RENAME");
     if (!result && stop && ++count == (unsigned)atoi(stop))

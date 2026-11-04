@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.nintendo.nitro.rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nintendo DS ROM</comment>
+  <acronym>DS</acronym>
+  <expanded-acronym>Dual Screen/Developers' System</expanded-acronym>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.nds"/>
+  <alias type="application/x-nintendo-ds-rom"/>
+</mime-type>

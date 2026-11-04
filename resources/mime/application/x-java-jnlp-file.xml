@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-java-jnlp-file">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>JNLP file</comment>
+  <acronym>JNLP</acronym>
+  <expanded-acronym>Java Network Launching Protocol</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.jnlp"/>
+</mime-type>

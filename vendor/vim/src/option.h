@@ -119,6 +119,9 @@ typedef enum {
 # ifdef __CYGWIN__
 #  define DFLT_FFS_VI	"unix,dos"	// Cygwin always needs file detection
 #  define DFLT_TEXTAUTO TRUE
+# elif defined(__lume__)
+#  define DFLT_FFS_VI "unix,dos"
+#  define DFLT_TEXTAUTO TRUE
 # else
 #  define DFLT_FFS_VI	""
 #  define DFLT_TEXTAUTO FALSE

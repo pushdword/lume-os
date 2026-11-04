@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/xslt+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XSLT stylesheet</comment>
+  <acronym>XSLT</acronym>
+  <expanded-acronym>eXtensible Stylesheet Language Transformation</expanded-acronym>
+  <generic-icon name="text-x-generic"/>
+  <glob pattern="*.xsl"/>
+  <glob pattern="*.xslt"/>
+  <sub-class-of type="application/xml"/>
+</mime-type>

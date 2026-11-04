@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lrzip-compressed-tar">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Tar archive (lrzip-compressed)</comment>
+  <generic-icon name="package-x-generic"/>
+  <sub-class-of type="application/x-lrzip"/>
+  <glob pattern="*.tar.lrz"/>
+  <glob pattern="*.tlrz"/>
+</mime-type>

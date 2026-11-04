@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-psflib">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PSFlib audio library</comment>
+  <acronym>PSFlib</acronym>
+  <expanded-acronym>Portable Sound Format Library</expanded-acronym>
+  <sub-class-of type="audio/x-psf"/>
+  <glob pattern="*.psflib"/>
+</mime-type>

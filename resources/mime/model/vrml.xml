@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="model/vrml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>VRML document</comment>
+  <acronym>VRML</acronym>
+  <expanded-acronym>Virtual Reality Modeling Language</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.vrm"/>
+  <glob pattern="*.vrml"/>
+  <glob pattern="*.wrl"/>
+</mime-type>

@@ -3,6 +3,22 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdio.h>
+#include <sys/time.h>
+
+int utimes(const char *path, const struct timeval times[2])
+{
+    (void)path;
+    (void)times;
+    errno = ENOTSUP;
+    return -1;
+}
+
+int remove(const char *path)
+{
+    int result = unlink(path);
+    return result < 0 && errno == EISDIR ? rmdir(path) : result;
+}
 
 int lstat(const char *path, struct stat *metadata)
 {

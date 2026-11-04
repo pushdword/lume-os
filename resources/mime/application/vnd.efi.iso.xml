@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.efi.iso">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Raw CD image</comment>
+  <sub-class-of type="application/vnd.efi.img"/>
+  <generic-icon name="media-optical"/>
+  <alias type="application/x-cd-image"/>
+  <alias type="application/x-iso9660-image"/>
+  <glob pattern="*.iso" weight="80"/>
+  <glob pattern="*.iso9660"/>
+</mime-type>

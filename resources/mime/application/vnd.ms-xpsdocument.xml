@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.ms-xpsdocument">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XPS document</comment>
+  <acronym>XPS</acronym>
+  <expanded-acronym>XML Paper Specification</expanded-acronym>
+  <sub-class-of type="application/zip"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.xps"/>
+  <alias type="application/xps"/>
+</mime-type>

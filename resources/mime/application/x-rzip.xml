@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-rzip">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Rzip archive</comment>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.rz"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/html">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>HTML document</comment>
+  <acronym>HTML</acronym>
+  <expanded-acronym>HyperText Markup Language</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.html" weight="80"/>
+  <glob pattern="*.htm" weight="80"/>
+</mime-type>

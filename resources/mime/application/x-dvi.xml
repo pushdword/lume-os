@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-dvi">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TeX DVI document</comment>
+  <acronym>DVI</acronym>
+  <expanded-acronym>Device independent file format</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.dvi"/>
+</mime-type>

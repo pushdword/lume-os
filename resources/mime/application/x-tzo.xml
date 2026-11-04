@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-tzo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Tar archive (LZO-compressed)</comment>
+  <sub-class-of type="application/x-lzop"/>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.tar.lzo"/>
+  <glob pattern="*.tzo"/>
+</mime-type>

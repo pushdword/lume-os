@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/andrew-inset">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ATK inset</comment>
+  <acronym>ATK</acronym>
+  <expanded-acronym>Andrew Toolkit</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.ez"/>
+</mime-type>

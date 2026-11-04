@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-ruby">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Ruby script</comment>
+  <sub-class-of type="application/x-executable"/>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.rb"/>
+  <alias type="text/x-ruby"/>
+</mime-type>

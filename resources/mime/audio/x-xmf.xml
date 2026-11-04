@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-xmf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XMF audio</comment>
+  <acronym>XMF</acronym>
+  <expanded-acronym>eXtensible Music Format</expanded-acronym>
+  <glob pattern="*.xmf"/>
+  <alias type="audio/xmf"/>
+</mime-type>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/xml-external-parsed-entity">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XML entities document</comment>
+  <acronym>XML</acronym>
+  <expanded-acronym>eXtensible Markup Language</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="text-html"/>
+  <glob pattern="*.ent"/>
+  <alias type="text/xml-external-parsed-entity"/>
+</mime-type>

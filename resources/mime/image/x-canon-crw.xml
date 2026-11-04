@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-canon-crw">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Canon CRW raw image</comment>
+  <acronym>CRW</acronym>
+  <expanded-acronym>Canon RaW</expanded-acronym>
+  <sub-class-of type="image/x-dcraw"/>
+  <glob pattern="*.crw"/>
+</mime-type>

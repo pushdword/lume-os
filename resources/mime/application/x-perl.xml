@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-perl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Perl script</comment>
+  <sub-class-of type="application/x-executable"/>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <alias type="text/x-perl"/>
+  <glob pattern="*.pl"/>
+  <glob pattern="*.PL"/>
+  <glob pattern="*.pm"/>
+  <glob pattern="*.al"/>
+  <glob pattern="*.perl"/>
+  <glob pattern="*.pod"/>
+  <glob pattern="*.t" weight="10"/>
+</mime-type>

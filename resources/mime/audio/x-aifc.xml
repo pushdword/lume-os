@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-aifc">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AIFC audio</comment>
+  <acronym>AIFC</acronym>
+  <expanded-acronym>Audio Interchange File format Compressed</expanded-acronym>
+  <sub-class-of type="application/x-iff"/>
+  <glob pattern="*.aifc"/>
+  <glob pattern="*.aiffc"/>
+  <alias type="audio/x-aiffc"/>
+</mime-type>

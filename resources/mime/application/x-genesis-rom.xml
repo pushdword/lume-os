@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-genesis-rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Genesis ROM</comment>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.gen"/>
+  <glob pattern="*.md" weight="10"/>
+  <glob pattern="*.68k"/>
+  <glob pattern="*.sgd"/>
+</mime-type>

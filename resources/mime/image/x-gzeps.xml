@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-gzeps">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>EPS image (gzip-compressed)</comment>
+  <sub-class-of type="application/gzip"/>
+  <glob pattern="*.eps.gz"/>
+  <glob pattern="*.epsi.gz"/>
+  <glob pattern="*.epsf.gz"/>
+</mime-type>

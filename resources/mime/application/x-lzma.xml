@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lzma">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>LZMA archive</comment>
+  <acronym>LZMA</acronym>
+  <expanded-acronym>Lempel-Ziv-Markov chain-Algorithm</expanded-acronym>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.lzma"/>
+</mime-type>

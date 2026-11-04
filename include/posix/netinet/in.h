@@ -38,7 +38,20 @@ struct sockaddr_in6
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17
 #define IP_TOS 1
+#define IP_TTL 2
+#define IP_MULTICAST_IF 32
+#define IP_MULTICAST_TTL 33
+#define IP_MULTICAST_LOOP 34
+#define IP_ADD_MEMBERSHIP 35
+#define IP_DROP_MEMBERSHIP 36
+#define IPV6_UNICAST_HOPS 16
+#define IPV6_MULTICAST_IF 17
+#define IPV6_MULTICAST_HOPS 18
+#define IPV6_MULTICAST_LOOP 19
+#define IPV6_JOIN_GROUP 20
+#define IPV6_LEAVE_GROUP 21
 #define IPV6_V6ONLY 26
+#define IPV6_TCLASS 67
 #define INET_ADDRSTRLEN 16
 #define INET6_ADDRSTRLEN 46
 
@@ -56,6 +69,54 @@ static inline uint32_t htonl(uint32_t v)
 #define ntohl htonl
 #define IPPORT_RESERVED 1024
 #define IPPROTO_IPV6 41
+#define IN_MULTICAST(address) (((uint32_t)(address) & UINT32_C(0xf0000000)) == UINT32_C(0xe0000000))
+#define IN6ADDR_ANY_INIT {{0}}
+#define IN6ADDR_LOOPBACK_INIT {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}}
+
+struct ip_mreq
+{
+    struct in_addr imr_multiaddr, imr_interface;
+};
+
+struct ipv6_mreq
+{
+    struct in6_addr ipv6mr_multiaddr;
+    unsigned ipv6mr_interface;
+};
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    extern const struct in6_addr in6addr_any, in6addr_loopback;
+#ifdef __cplusplus
+}
+#endif
+
+static inline int lume_in6_unspecified(const struct in6_addr *address)
+{
+    for (unsigned i = 0; i < 16; ++i)
+        if (address->s6_addr[i])
+            return 0;
+    return 1;
+}
+
+static inline int lume_in6_multicast_scope(const struct in6_addr *address, unsigned scope)
+{
+    return address->s6_addr[0] == 0xff && (address->s6_addr[1] & 15) == scope;
+}
+
+#define IN6_IS_ADDR_UNSPECIFIED(address) lume_in6_unspecified(address)
+#define IN6_IS_ADDR_LINKLOCAL(address)                                                             \
+    ((address)->s6_addr[0] == 0xfe && ((address)->s6_addr[1] & 0xc0) == 0x80)
+#define IN6_IS_ADDR_SITELOCAL(address)                                                             \
+    ((address)->s6_addr[0] == 0xfe && ((address)->s6_addr[1] & 0xc0) == 0xc0)
+#define IN6_IS_ADDR_MULTICAST(address) ((address)->s6_addr[0] == 0xff)
+#define IN6_IS_ADDR_MC_NODELOCAL(address) lume_in6_multicast_scope(address, 1)
+#define IN6_IS_ADDR_MC_LINKLOCAL(address) lume_in6_multicast_scope(address, 2)
+#define IN6_IS_ADDR_MC_SITELOCAL(address) lume_in6_multicast_scope(address, 5)
+#define IN6_IS_ADDR_MC_ORGLOCAL(address) lume_in6_multicast_scope(address, 8)
+#define IN6_IS_ADDR_MC_GLOBAL(address) lume_in6_multicast_scope(address, 14)
 
 static inline int lume_in6_v4mapped(const struct in6_addr *address)
 {

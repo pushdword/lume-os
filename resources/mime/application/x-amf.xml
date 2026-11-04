@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-amf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AMF 3D model</comment>
+  <acronym>AMF</acronym>
+  <expanded-acronym>Additive Manufacturing File</expanded-acronym>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.amf"/>
+</mime-type>

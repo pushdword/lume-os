@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-sony-sr2">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Sony SR2 raw image</comment>
+  <acronym>SR2</acronym>
+  <expanded-acronym>Sony Raw format 2</expanded-acronym>
+  <sub-class-of type="image/x-dcraw"/>
+  <sub-class-of type="image/tiff"/>
+  <glob pattern="*.sr2"/>
+</mime-type>

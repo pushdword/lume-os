@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-pico8-source">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PICO-8 editable code</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.p8"/>
+</mime-type>

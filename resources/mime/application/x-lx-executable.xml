@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lx-executable">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>32-bit DOS executable</comment>
+  <acronym>DOS</acronym>
+  <expanded-acronym>Disk Operating System</expanded-acronym>
+  <sub-class-of type="application/x-msdownload"/>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.exe" weight="10"/>
+  <glob pattern="*.386" weight="10"/>
+  <glob pattern="*.dll" weight="10"/>
+  <glob pattern="*.sys" weight="10"/>
+  <glob pattern="*.vxd" weight="10"/>
+</mime-type>

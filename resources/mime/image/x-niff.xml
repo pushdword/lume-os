@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-niff">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>NIFF image</comment>
+  <acronym>NIFF</acronym>
+  <expanded-acronym>Navy Image File Format</expanded-acronym>
+</mime-type>

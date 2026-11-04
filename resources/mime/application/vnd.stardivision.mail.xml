@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.stardivision.mail">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StarMail 5 email</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="emblem-mail"/>
+  <glob pattern="*.sdm"/>
+</mime-type>

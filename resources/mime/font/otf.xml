@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="font/otf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>OpenType font</comment>
+  <sub-class-of type="font/ttf"/>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.otf"/>
+  <alias type="application/x-font-otf"/>
+</mime-type>

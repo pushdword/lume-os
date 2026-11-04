@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-starmail">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StarMail 4 email</comment>
+  <generic-icon name="emblem-mail"/>
+  <glob pattern="*.smd" weight="10"/>
+</mime-type>

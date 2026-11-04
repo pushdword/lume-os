@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-starwriter">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StarWriter 3-4 document</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.sdw" weight="40"/>
+  <glob pattern="*.vor" weight="40"/>
+</mime-type>

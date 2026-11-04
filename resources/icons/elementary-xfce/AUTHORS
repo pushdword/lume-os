@@ -1,0 +1,102 @@
+The elementary icons are designed and developed by
+Danielle Foré <danielle@elementary.io> at https://github.com/elementary/icons.
+
+This variant - supporting all Desktop Environments, but developed for Xfce
+- is currently maintained by Simon Steinbeiß <simon@xfce.org>.
+It still holds many of the symlinks that upstream elementary dropped.
+
+These icons are free artwork; you can redistribute them and/or modify
+them under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3, or (at your option)
+any later version.
+
+This icon set is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with these icons; if not, see <https://www.gnu.org/licenses/>.
+
+------------------------------------------------------------------
+------------------------------------------------------------------
+
+While this package and icon set is GPL-3.0 licensed, additional elements
+were used from sources with other, GPL-3.0-compatible, licenses. The full
+text of these licenses can be found in the /licenses folder. The authors,
+licenses, links, and files which use additional elements are listed below.
+
+
+=== Apache 2.0 ===
+
+Crystal logo licensed under the Apache License, Version 2.0.
+Copyright © 2012 Manas Technology Solutions
+Files: text-x-crystal
+https://crystal-lang.org/media/
+https://www.apache.org/licenses/LICENSE-2.0
+
+Kotlin™ logo licensed under Apache License 2.0 by JetBrains
+Files: text-x-kotlin
+https://kotlinlang.org/docs/kotlin-brand-assets.html
+http://www.apache.org/licenses/LICENSE-2.0
+
+Scala logo licensed under the Apache License 2.0 by Lightbend, Inc.
+Files: text-x-scala
+https://github.com/lightbend/cloudflow/
+http://www.apache.org/licenses/LICENSE-2.0
+
+
+=== Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA-4.0)  ===
+
+Lisp logo licensed under CC-BY-SA 4.0 License by Jooja
+Jooja's SVG adapted from the PNG logo by Common-Lisp.Net maintainers
+Files: text-x-common-lisp
+https://common-lisp.net/
+https://commons.wikimedia.org/wiki/User:Jooja
+https://commons.wikimedia.org/wiki/File:Lisp_logo.svg
+https://creativecommons.org/licenses/by/4.0/
+
+Perl sillhoutte and Snap Store sources licensed under CC-BY-SA 4.0 by Yaru/Jupi007
+Files: application-x-perl
+https://github.com/ubuntu/yaru
+https://github.com/Jupi007
+https://creativecommons.org/licenses/by-sa/4.0/
+
+
+=== Creative Commons Attribution 4.0 International (CC-BY-4.0) ===
+
+Rust logo licensed under CC-BY-4.0 License by the Rust Foundation
+Files: text-rust
+https://foundation.rust-lang.org/policies/logo-policy-and-media-guide/
+https://creativecommons.org/licenses/by/4.0/
+
+
+=== GNU General Public License 3.0 ===
+
+VPN/Loading animation icons adapted from the Papirus (GPL3) icon theme
+originally from the Paper icon theme by Sam Hewitt.
+Files: nm-vpn-connecting*, nm-stage*-connecting
+https://icons.samuelhewitt.com/
+https://github.com/snwh/paper-icon-theme
+https://github.com/PapirusDevelopmentTeam/papirus-icon-theme
+https://www.gnu.org/licenses/gpl-3.0.en.html
+
+------------------------------------------------------------------
+------------------------------------------------------------------
+
+Previous versions of this icon theme used icons, or icon elements,
+from the following themes. These themes also helped inspire many
+of the icons in this set. While these icons and elements are no
+longer used, we'd like to credit these projects and thank the artists.
+
+The GNOME icon theme.
+You can visit the GNOME website here:
+https://www.gnome.org
+
+The Tango icon theme.
+You can find the Tango icon theme here:
+https://gitlab.freedesktop.org/tango/tango-icon-theme
+
+The Humanity icon theme.
+You can visit the Humanity website here:
+https://launchpad.net/ubuntu/+source/humanity-icon-theme

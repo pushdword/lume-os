@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-python">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Python script</comment>
+  <sub-class-of type="application/x-executable"/>
+  <sub-class-of type="text/x-cython"/>
+  <glob pattern="*.py" weight="60"/>
+  <glob pattern="*.wsgi" weight="60"/>
+</mime-type>

@@ -1,0 +1,12 @@
+geometry=700x420
+font_serif="fixed"
+font_sans_serif="fixed"
+font_cursive="fixed"
+font_fantasy="fixed"
+font_monospace="fixed"
+font_min_size=12
+start_page="about:splash"
+new_tab_page="about:blank"
+home="https://dillo-browser.org/"
+save_dir="/data/downloads"
+search_url="dd https://lite.duckduckgo.com/lite/?q=%s"

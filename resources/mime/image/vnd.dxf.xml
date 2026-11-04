@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.dxf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DXF vector image</comment>
+  <glob pattern="*.dxf"/>
+</mime-type>

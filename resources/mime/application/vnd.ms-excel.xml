@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.ms-excel">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Excel spreadsheet</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.xls"/>
+  <glob pattern="*.xlc"/>
+  <glob pattern="*.xll"/>
+  <glob pattern="*.xlm"/>
+  <glob pattern="*.xlw"/>
+  <glob pattern="*.xla"/>
+  <glob pattern="*.xlt"/>
+  <glob pattern="*.xld"/>
+  <alias type="application/msexcel"/>
+  <alias type="application/x-msexcel"/>
+  <alias type="zz-application/zz-winassoc-xls"/>
+</mime-type>

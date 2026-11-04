@@ -19,7 +19,8 @@ SECTIONS
         KEEP(*(SORT_BY_INIT_PRIORITY(.fini_array.*))) KEEP(*(.fini_array))
         __fini_array_end = .;
     } :data
-    .tdata : ALIGN(16) {
+    .got : { *(.got .got.*) } :data
+    .tdata : ALIGN(MAX(16, ALIGNOF(.tbss))) {
         __tls_start = .;
         *(.tdata .tdata.*)
         __tls_file_end = .;

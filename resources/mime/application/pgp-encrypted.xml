@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pgp-encrypted">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PGP/MIME-encrypted message header</comment>
+  <glob pattern="*.pgp"/>
+  <glob pattern="*.gpg"/>
+  <glob pattern="*.asc" weight="10"/>
+  <alias type="application/pgp"/>
+</mime-type>

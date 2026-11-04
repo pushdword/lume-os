@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x.sf3-log">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SF3 Log File</comment>
+  <acronym>SF3</acronym>
+  <expanded-acronym>Simple File Format Family</expanded-acronym>
+  <glob pattern="*.log.sf3"/>
+  <glob pattern="*.sf3"/>
+</mime-type>

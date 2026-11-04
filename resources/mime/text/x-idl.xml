@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-idl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>IDL document</comment>
+  <acronym>IDL</acronym>
+  <expanded-acronym>Interface Definition Language</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.idl"/>
+</mime-type>

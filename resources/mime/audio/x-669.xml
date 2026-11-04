@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-669">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Composer 669 audio</comment>
+  <glob pattern="*.669"/>
+  <glob pattern="*.uni"/>
+  <alias type="audio/x-669-mod"/>
+</mime-type>

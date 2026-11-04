@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/jxr">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>JPEG XR image</comment>
+  <acronym>XR</acronym>
+  <expanded-acronym>Extended Range</expanded-acronym>
+  <glob pattern="*.jxr"/>
+  <glob pattern="*.hdp"/>
+  <glob pattern="*.wdp"/>
+  <alias type="image/vnd.ms-photo"/>
+</mime-type>

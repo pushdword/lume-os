@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-compressed-iso">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Compressed CD image</comment>
+  <generic-icon name="media-optical"/>
+  <glob pattern="*.cso"/>
+</mime-type>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-tex">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TeX document</comment>
+  <sub-class-of type="text/plain"/>
+  <alias type="application/x-tex"/>
+  <glob pattern="*.tex"/>
+  <glob pattern="*.ltx"/>
+  <glob pattern="*.sty"/>
+  <glob pattern="*.cls"/>
+  <glob pattern="*.dtx"/>
+  <glob pattern="*.ins"/>
+  <glob pattern="*.latex"/>
+</mime-type>

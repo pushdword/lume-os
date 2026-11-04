@@ -11,6 +11,7 @@
 #undef LUME_ARG_BYTES
 #include "api.h"
 #include "fd.h"
+#include "lume/process.h"
 #include <assert.h>
 #include <stdio.h>
 #ifdef _WIN32
@@ -33,10 +34,18 @@ static int poll_result;
 static unsigned native_calls, io_calls, io_number;
 static uint64_t io_fd, io_buffer, io_bytes;
 static int64_t io_result;
+static unsigned rename_calls, rename_selector;
 
 int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
     ++native_calls;
+    if (number == LUME_SYS_FS && (a == LUME_FS_RENAME || a == LUME_FS_REPLACE))
+    {
+        assert(b == 1 && c == 2);
+        ++rename_calls;
+        rename_selector = (unsigned)a;
+        return 0;
+    }
     if (number == LUME_SYS_READ || number == LUME_SYS_WRITE)
     {
         ++io_calls;
@@ -202,6 +211,11 @@ int main(void)
 #else
     assert(!munmap(idle, sizeof(*idle)));
 #endif
+    assert(lume_syscall(LUME_RENAME, 1, 2, 0) == 0 && rename_calls == 1 &&
+           rename_selector == LUME_FS_REPLACE);
+    assert(lume_syscall(LUME_RENAME, 1, 2, LUME_RENAME_NOREPLACE) == 0 && rename_calls == 2 &&
+           rename_selector == LUME_FS_RENAME);
+    assert(lume_syscall(LUME_RENAME, 1, 2, 2) == -22 && rename_calls == 2);
     puts(
         "PASS_COMMON_ABI direct I/O, seek bounds, signed offsets, overflow, access and event FD waits");
     return 0;

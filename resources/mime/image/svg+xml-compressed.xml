@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/svg+xml-compressed">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Compressed SVG image</comment>
+  <acronym>SVG</acronym>
+  <expanded-acronym>Scalable Vector Graphics</expanded-acronym>
+  <sub-class-of type="application/gzip"/>
+  <glob pattern="*.svgz"/>
+  <glob pattern="*.svg.gz"/>
+</mime-type>

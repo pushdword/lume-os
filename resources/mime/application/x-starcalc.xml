@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-starcalc">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StarCalc 3-4 spreadsheet</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.sdc" weight="40"/>
+</mime-type>

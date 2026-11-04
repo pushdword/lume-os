@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-aiff">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AIFF/Amiga/Mac audio</comment>
+  <acronym>AIFF</acronym>
+  <expanded-acronym>Audio Interchange File Format</expanded-acronym>
+  <sub-class-of type="application/x-iff"/>
+  <glob pattern="*.aiff"/>
+  <glob pattern="*.aif"/>
+</mime-type>

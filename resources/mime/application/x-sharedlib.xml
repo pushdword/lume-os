@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-sharedlib">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Shared library</comment>
+  <glob pattern="*.so"/>
+  <glob weight="60" pattern="*.so.[0-9]*"/>
+</mime-type>

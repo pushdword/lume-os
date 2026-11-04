@@ -74,7 +74,7 @@ ssize_t writev(int fd, const struct iovec *vectors, int count)
 
 int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct timeval *timeout)
 {
-    if (maximum < 0 || maximum > LUME_FD_LIMIT ||
+    if (maximum < 0 || maximum > FD_SETSIZE ||
         (timeout && (timeout->tv_sec < 0 || timeout->tv_usec < 0 || timeout->tv_usec >= 1000000)))
     {
         errno = EINVAL;
@@ -85,10 +85,17 @@ int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct ti
     for (int i = 0; i < maximum; ++i)
         if ((reads && FD_ISSET(i, reads)) || (writes && FD_ISSET(i, writes)) ||
             (errors && FD_ISSET(i, errors)))
+        {
+            if (i >= LUME_FD_LIMIT)
+            {
+                errno = EBADF;
+                return -1;
+            }
             p[count++] = (struct pollfd){.fd = i,
                                          .events = (reads && FD_ISSET(i, reads) ? POLLIN : 0) |
                                                    (writes && FD_ISSET(i, writes) ? POLLOUT : 0) |
                                                    (errors && FD_ISSET(i, errors) ? POLLPRI : 0)};
+        }
     int64_t ms = timeout ? (int64_t)timeout->tv_sec * 1000 + (timeout->tv_usec + 999) / 1000 : -1;
     int ready;
     do

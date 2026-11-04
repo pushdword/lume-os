@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-lha">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>LHA archive</comment>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.lha"/>
+  <glob pattern="*.lzh"/>
+  <alias type="application/x-lzh-compressed"/>
+</mime-type>

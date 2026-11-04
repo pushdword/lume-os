@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/XKBlib.h>
 #include <X11/Xlibint.h>
@@ -190,6 +191,70 @@ static int control(Display *display, int argc, char **argv)
 {
     if (argc < 2)
         return -1;
+    if (argc == 5 && !strcmp(argv[1], "pixel"))
+    {
+        Window window =
+            !strcmp(argv[2], "root") ? DefaultRootWindow(display) : strtoul(argv[2], NULL, 0);
+        int x = atoi(argv[3]), y = atoi(argv[4]);
+        XWindowAttributes attributes;
+        if (!XGetWindowAttributes(display, window, &attributes) || x < 0 || y < 0 ||
+            x >= attributes.width || y >= attributes.height)
+            return 1;
+        XImage *sample = XGetImage(display, window, x, y, 1, 1, AllPlanes, ZPixmap);
+        if (!sample)
+            return 1;
+        unsigned long pixel = XGetPixel(sample, 0, 0);
+        unsigned long masks[] = {sample->red_mask, sample->green_mask, sample->blue_mask};
+        unsigned colors[3];
+        for (unsigned index = 0; index < 3; ++index)
+        {
+            unsigned long mask = masks[index];
+            unsigned shift = 0;
+            while (mask && !(mask & 1))
+            {
+                mask >>= 1;
+                ++shift;
+            }
+            colors[index] = mask ? (unsigned)(((pixel >> shift) & mask) * 255 / mask) : 0;
+        }
+        report("X11_PIXEL x=%d y=%d rgb=%u,%u,%u\n", x, y, colors[0], colors[1], colors[2]);
+        XDestroyImage(sample);
+        return 0;
+    }
+    if (argc == 3 && !strcmp(argv[1], "expose"))
+    {
+        Window window = strtoul(argv[2], NULL, 0);
+        XClearArea(display, window, 0, 0, 0, 0, True);
+        XSync(display, False);
+        return 0;
+    }
+    if (argc == 3 && !strcmp(argv[1], "pixels"))
+    {
+        Window window = strtoul(argv[2], NULL, 0);
+        XWindowAttributes attributes;
+        if (!XGetWindowAttributes(display, window, &attributes))
+            return 1;
+        XImage *image = XGetImage(display, window, 0, 0, attributes.width, attributes.height,
+                                  AllPlanes, ZPixmap);
+        if (!image)
+            return 1;
+        unsigned light = 0, dark = 0;
+        for (int y = 0; y < image->height; ++y)
+            for (int x = 0; x < image->width; ++x)
+            {
+                unsigned long pixel = XGetPixel(image, x, y);
+                light += (pixel & image->red_mask) >= image->red_mask * 3 / 4 &&
+                         (pixel & image->green_mask) >= image->green_mask * 3 / 4 &&
+                         (pixel & image->blue_mask) >= image->blue_mask * 3 / 4;
+                dark += (pixel & image->red_mask) <= image->red_mask / 8 &&
+                        (pixel & image->green_mask) <= image->green_mask / 8 &&
+                        (pixel & image->blue_mask) <= image->blue_mask / 8;
+            }
+        report("X11_PIXELS window=%lu width=%d height=%d light=%u dark=%u\n", window, image->width,
+               image->height, light, dark);
+        XDestroyImage(image);
+        return 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "keymap"))
     {
         const char *names[] = {"Control_L",  "Alt_L",           "t", "dead_acute", "a",
@@ -477,6 +542,16 @@ int main(int argc, char **argv)
     report("X11_POINTER x=%d y=%d mask=%u\n", root_x, root_y, pointer_mask);
     report("X11_DISPLAY width=%d height=%d depth=%d\n", DisplayWidth(display, 0),
            DisplayHeight(display, 0), DefaultDepth(display, 0));
+    Atom desktop_type;
+    int desktop_format;
+    unsigned long desktop_count, desktop_remaining;
+    unsigned char *desktop_data = NULL;
+    if (XGetWindowProperty(display, root, XInternAtom(display, "_NET_SHOWING_DESKTOP", False), 0, 1,
+                           False, XA_CARDINAL, &desktop_type, &desktop_format, &desktop_count,
+                           &desktop_remaining, &desktop_data) == Success &&
+        desktop_type == XA_CARDINAL && desktop_format == 32 && desktop_count == 1)
+        report("X11_DESKTOP showing=%lu\n", *(unsigned long *)desktop_data);
+    XFree(desktop_data);
     const char *extensions[] = {"RENDER", "SHAPE", "Composite", "DAMAGE", "XFIXES", "MIT-SHM"};
     for (unsigned i = 0; i < sizeof(extensions) / sizeof(*extensions); ++i)
     {
@@ -503,6 +578,21 @@ int main(int argc, char **argv)
         XGetWindowAttributes(display, window, &attributes);
         XTranslateCoordinates(display, window, root, 0, 0, &x, &y, &child);
         XFetchName(display, window, &name);
+        unsigned char *utf8 = NULL;
+        Atom title_type;
+        int title_format;
+        unsigned long title_bytes, title_remaining;
+        Atom utf8_type = XInternAtom(display, "UTF8_STRING", False);
+        if (XGetWindowProperty(display, window, XInternAtom(display, "_NET_WM_NAME", False), 0,
+                               4096, False, utf8_type, &title_type, &title_format, &title_bytes,
+                               &title_remaining, &utf8) == Success &&
+            title_type == utf8_type && title_format == 8 && !title_remaining && utf8)
+        {
+            XFree(name);
+            name = (char *)utf8;
+            utf8 = NULL;
+        }
+        XFree(utf8);
         report("X11_WINDOW id=%lu name=%s x=%d y=%d width=%d height=%d mapped=%d focus=%d\n",
                window, name ? name : "", x, y, attributes.width, attributes.height,
                attributes.map_state, window == focus);

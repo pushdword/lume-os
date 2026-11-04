@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/x-anim">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ANIM animation</comment>
+  <glob pattern="*.anim[1-9j]"/>
+</mime-type>

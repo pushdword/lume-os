@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-c++src">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>C++ source code</comment>
+  <sub-class-of type="text/x-objc++src"/>
+  <glob pattern="*.cpp"/>
+  <glob pattern="*.cxx"/>
+  <glob pattern="*.cc"/>
+  <glob pattern="*.C" case-sensitive="true"/>
+  <glob pattern="*.c++"/>
+</mime-type>

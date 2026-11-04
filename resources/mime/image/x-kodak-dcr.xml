@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-kodak-dcr">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Kodak DCR raw image</comment>
+  <acronym>DCR</acronym>
+  <expanded-acronym>Digital Camera Raw</expanded-acronym>
+  <sub-class-of type="image/x-dcraw"/>
+  <sub-class-of type="image/tiff"/>
+  <glob pattern="*.dcr"/>
+</mime-type>

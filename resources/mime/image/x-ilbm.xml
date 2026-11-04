@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-ilbm">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ILBM image</comment>
+  <acronym>ILBM</acronym>
+  <expanded-acronym>InterLeaved BitMap</expanded-acronym>
+  <sub-class-of type="application/x-iff"/>
+  <glob pattern="*.iff"/>
+  <glob pattern="*.ilbm"/>
+  <glob pattern="*.lbm"/>
+  <alias type="image/x-iff"/>
+</mime-type>

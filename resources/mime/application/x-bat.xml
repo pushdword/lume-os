@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-bat">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DOS/Windows batch file</comment>
+  <sub-class-of type="text/plain"/>
+  <alias type="application/bat"/>
+  <alias type="application/x-msdos-program"/>
+  <alias type="text/x-msdos-batch"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.bat"/>
+  <glob pattern="*.cmd"/>
+</mime-type>

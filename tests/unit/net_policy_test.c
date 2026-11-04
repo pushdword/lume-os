@@ -16,6 +16,12 @@ static unsigned checks;
 
 int main(void)
 {
+    char path[64];
+    T(net_import_path("new", path, sizeof(path)));
+    T(!strcmp(path, "/data/system/wifi-new.cfg"));
+    T(!net_import_path("../bad", path, sizeof(path)));
+    T(!net_import_path("abcdefghijklmnop", path, sizeof(path)));
+    T(!net_import_path("new", path, 8));
     unsigned char legacy[104] = {'L', 'W', 'N', '1', 4, 8};
     memcpy(legacy + 8, "IEEE", 4);
     memcpy(legacy + 40, "password", 8);

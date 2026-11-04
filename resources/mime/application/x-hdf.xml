@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-hdf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>HDF document</comment>
+  <acronym>HDF</acronym>
+  <expanded-acronym>Hierarchical Data Format</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.hdf"/>
+  <glob pattern="*.hdf4"/>
+  <glob pattern="*.h4"/>
+  <glob pattern="*.hdf5"/>
+  <glob pattern="*.h5"/>
+</mime-type>

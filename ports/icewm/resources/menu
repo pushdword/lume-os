@@ -1,1 +1,3 @@
 prog "Terminal" xterm /usr/bin/xterm -fn 9x15 -e /bin/sh
+prog "Browser" browser browser
+prog "Rede" network network

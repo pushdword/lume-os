@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pgp-keys">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PGP keys</comment>
+  <acronym>PGP</acronym>
+  <expanded-acronym>Pretty Good Privacy</expanded-acronym>
+  <glob pattern="*.skr"/>
+  <glob pattern="*.pkr"/>
+  <glob pattern="*.asc" weight="10"/>
+  <glob pattern="*.pgp"/>
+  <glob pattern="*.gpg"/>
+  <glob pattern="*.key"/>
+</mime-type>

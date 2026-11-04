@@ -5,4 +5,7 @@
 #ifndef SSIZE_MAX
 #define SSIZE_MAX __PTRDIFF_MAX__
 #endif
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#define NGROUPS_MAX 8
+#endif
 #endif

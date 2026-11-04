@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.rn-realmedia">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RealMedia document</comment>
+  <generic-icon name="video-x-generic"/>
+  <glob pattern="*.rm"/>
+  <glob pattern="*.rmj"/>
+  <glob pattern="*.rmm"/>
+  <glob pattern="*.rms"/>
+  <glob pattern="*.rmx"/>
+  <glob pattern="*.rmvb"/>
+  <alias type="application/vnd.rn-realmedia-vbr"/>
+</mime-type>

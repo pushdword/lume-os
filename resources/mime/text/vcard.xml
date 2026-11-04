@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/vcard">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Electronic business card</comment>
+  <alias type="text/directory"/>
+  <alias type="text/x-vcard"/>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.vcard"/>
+  <glob pattern="*.vcf"/>
+  <glob pattern="*.vct"/>
+  <glob pattern="*.gcrd"/>
+</mime-type>

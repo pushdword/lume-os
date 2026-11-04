@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-csrc">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>C source code</comment>
+  <sub-class-of type="text/x-c++src"/>
+  <sub-class-of type="text/x-objcsrc"/>
+  <alias type="text/x-c"/>
+  <glob pattern="*.c" case-sensitive="true"/>
+</mime-type>

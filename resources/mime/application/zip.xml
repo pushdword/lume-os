@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/zip">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Zip archive</comment>
+  <alias type="application/x-zip-compressed"/>
+  <alias type="application/x-zip"/>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.zip"/>
+  <glob pattern="*.zipx"/>
+</mime-type>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/javascript">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>JavaScript program</comment>
+  <alias type="application/x-javascript"/>
+  <alias type="application/javascript"/>
+  <alias type="text/jscript"/>
+  <sub-class-of type="application/typescript"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.cjs"/>
+  <glob pattern="*.js"/>
+  <glob pattern="*.jsm"/>
+  <glob pattern="*.mjs"/>
+</mime-type>

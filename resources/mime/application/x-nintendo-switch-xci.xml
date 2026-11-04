@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-nintendo-switch-xci">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nintendo Switch encrypted ROM</comment>
+  <alias type="application/x-nx-xci"/>
+  <glob pattern="*.xci"/>
+</mime-type>

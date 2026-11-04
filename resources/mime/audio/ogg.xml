@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/ogg">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Ogg audio</comment>
+  <sub-class-of type="application/ogg"/>
+  <glob pattern="*.oga"/>
+  <glob pattern="*.ogg"/>
+  <glob pattern="*.opus"/>
+  <alias type="audio/x-ogg"/>
+</mime-type>

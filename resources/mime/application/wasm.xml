@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/wasm">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>WASM binary module</comment>
+  <acronym>WASM</acronym>
+  <expanded-acronym>Web Assembly</expanded-acronym>
+  <glob pattern="*.wasm"/>
+</mime-type>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spss-por">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SPSS portable data file</comment>
+  <acronym>SPSS</acronym>
+  <expanded-acronym>Statistical Package for the Social Sciences</expanded-acronym>
+  <glob pattern="*.por"/>
+</mime-type>

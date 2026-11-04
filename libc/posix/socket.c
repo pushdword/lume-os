@@ -17,6 +17,10 @@
 #include <string.h>
 #include <net/if.h>
 #include "lume/net_abi.h"
+#include "lume/net_commands.h"
+
+const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
+const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 
 struct if_nameindex *if_nameindex(void)
 {
@@ -164,7 +168,12 @@ int bind(int fd, const struct sockaddr *address, socklen_t bytes)
 {
     char path[108];
     struct lume_socket_request r;
-    return address_request(fd, address, bytes, &r, path) ? -1 : socket_call(LUME_SOCKET_BIND, &r);
+    if (address_request(fd, address, bytes, &r, path))
+        return -1;
+    int result = socket_call(LUME_SOCKET_BIND, &r);
+    if (result < 0 && r.family == AF_UNIX && errno == EEXIST)
+        errno = EADDRINUSE;
+    return result;
 }
 
 int listen(int fd, int backlog)
@@ -353,16 +362,23 @@ ssize_t sendmsg(int fd, const struct msghdr *message, int flags)
         return writev(fd, message->msg_iov, (int)message->msg_iovlen);
     const struct cmsghdr *c = CMSG_FIRSTHDR(message);
     if (!c || c->cmsg_level != SOL_SOCKET || c->cmsg_type != SCM_RIGHTS ||
-        c->cmsg_len != CMSG_LEN(sizeof(int)) || message->msg_controllen > CMSG_SPACE(sizeof(int)) ||
-        message->msg_iovlen != 1 || message->msg_iov[0].iov_len != 1)
+        c->cmsg_len != CMSG_LEN(sizeof(int)) || message->msg_controllen > CMSG_SPACE(sizeof(int)))
     {
         errno = EOPNOTSUPP;
         return -1;
     }
     int passed;
     memcpy(&passed, CMSG_DATA(c), sizeof(passed));
+    size_t first = 0;
+    while (first < message->msg_iovlen && !message->msg_iov[first].iov_len)
+        ++first;
+    if (first == message->msg_iovlen)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     struct lume_socket_request r = {
-        .fd = fd, .other = passed, .count = 1, .buffer = (uintptr_t)message->msg_iov[0].iov_base};
+        .fd = fd, .other = passed, .count = 1, .buffer = (uintptr_t)message->msg_iov[first].iov_base};
     int result;
     do
     {
@@ -488,7 +504,22 @@ int getaddrinfo(const char *host, const char *service, const struct addrinfo *hi
     else if (!strcmp(host, "localhost"))
         address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     else if (inet_pton(AF_INET, host, &address.sin_addr) != 1)
-        return EAI_NONAME;
+    {
+        size_t length = strlen(host);
+        struct lume_net_request request = {0};
+        if ((hints && (hints->ai_flags & AI_NUMERICHOST)) || !length ||
+            length >= sizeof(request.argument))
+            return EAI_NONAME;
+        memcpy(request.argument, host, length + 1);
+        if (native_call(LUME_SYS_NET, LUME_NET_DNS, (uintptr_t)&request, sizeof(request)) < 0)
+            return EAI_AGAIN;
+        char *end = memchr(request.output, '\n', sizeof(request.output));
+        if (!end)
+            return EAI_AGAIN;
+        *end = 0;
+        if (inet_pton(AF_INET, request.output, &address.sin_addr) != 1)
+            return EAI_AGAIN;
+    }
     struct addrinfo *r = calloc(1, sizeof(*r) + sizeof(address));
     if (!r)
         return EAI_MEMORY;
@@ -553,10 +584,24 @@ struct servent *getservbyname(const char *name, const char *protocol)
 
 int getpeereid(int fd, uid_t *uid, gid_t *gid)
 {
-    (void)fd;
-    (void)uid;
-    (void)gid;
-    return unsupported();
+    if (!uid || !gid)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    struct lume_socket_credentials credentials;
+    struct lume_socket_request request = {
+        .fd = fd, .buffer = (uintptr_t)&credentials, .count = sizeof(credentials)};
+    if (socket_call(LUME_SOCKET_CREDENTIALS, &request))
+        return -1;
+    if (credentials.version != LUME_SOCKET_VERSION || credentials.bytes != sizeof(credentials))
+    {
+        errno = EIO;
+        return -1;
+    }
+    *uid = credentials.uid;
+    *gid = credentials.gid;
+    return 0;
 }
 
 static _Thread_local int host_error;
@@ -570,6 +615,18 @@ int *__lume_h_errno(void)
     return &host_error;
 }
 
+char *inet_ntoa(struct in_addr address)
+{
+    static _Thread_local char text[INET_ADDRSTRLEN];
+    return inet_ntop(AF_INET, &address, text, sizeof(text)) ? text : NULL;
+}
+
+in_addr_t inet_addr(const char *text)
+{
+    struct in_addr address;
+    return text && inet_pton(AF_INET, text, &address) == 1 ? address.s_addr : INADDR_NONE;
+}
+
 struct hostent *gethostbyname(const char *name)
 {
     if (!name || strlen(name) >= sizeof(host_name))
@@ -581,8 +638,15 @@ struct hostent *gethostbyname(const char *name)
         host_address.s_addr = htonl(INADDR_LOOPBACK);
     else if (inet_pton(AF_INET, name, &host_address) != 1)
     {
-        host_error = HOST_NOT_FOUND;
-        return NULL;
+        struct addrinfo *address = NULL;
+        int result = getaddrinfo(name, NULL, NULL, &address);
+        if (result)
+        {
+            host_error = result == EAI_AGAIN ? TRY_AGAIN : HOST_NOT_FOUND;
+            return NULL;
+        }
+        host_address = ((struct sockaddr_in *)address->ai_addr)->sin_addr;
+        freeaddrinfo(address);
     }
     strcpy(host_name, name);
     host_addresses[0] = (char *)&host_address;

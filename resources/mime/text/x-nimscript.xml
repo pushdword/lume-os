@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-nimscript">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nimscript source code</comment>
+  <sub-class-of type="text/x-nim"/>
+  <glob pattern="*.nims"/>
+  <glob pattern="*.nimble"/>
+</mime-type>

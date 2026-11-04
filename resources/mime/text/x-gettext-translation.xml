@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-gettext-translation">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Translation file</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.po"/>
+  <alias type="text/x-po"/>
+  <alias type="application/x-gettext"/>
+</mime-type>

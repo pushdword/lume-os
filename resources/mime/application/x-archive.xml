@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-archive">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AR archive</comment>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.a"/>
+  <glob pattern="*.ar"/>
+  <glob pattern="*.lib"/>
+</mime-type>

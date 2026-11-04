@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-asp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ASP page</comment>
+  <acronym>ASP</acronym>
+  <expanded-acronym>Active Server Page</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.asp"/>
+</mime-type>

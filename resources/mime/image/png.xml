@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/png">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PNG image</comment>
+  <acronym>PNG</acronym>
+  <expanded-acronym>Portable Network Graphics</expanded-acronym>
+  <glob pattern="*.png"/>
+</mime-type>

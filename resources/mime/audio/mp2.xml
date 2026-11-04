@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/mp2">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MP2 audio</comment>
+  <alias type="audio/x-mp2"/>
+  <glob pattern="*.mp2"/>
+</mime-type>

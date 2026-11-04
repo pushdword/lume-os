@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="font/ttf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TrueType font</comment>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.ttf"/>
+  <alias type="application/x-font-ttf"/>
+</mime-type>

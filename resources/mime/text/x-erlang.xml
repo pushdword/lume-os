@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-erlang">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Erlang source code</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.erl"/>
+</mime-type>

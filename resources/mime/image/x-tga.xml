@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-tga">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TGA image</comment>
+  <acronym>TGA</acronym>
+  <expanded-acronym>Truevision Graphics Adapter</expanded-acronym>
+  <glob pattern="*.tga"/>
+  <glob pattern="*.icb"/>
+  <glob pattern="*.tpic"/>
+  <glob pattern="*.vda"/>
+  <glob pattern="*.vst"/>
+  <alias type="application/tga"/>
+  <alias type="application/x-targa"/>
+  <alias type="application/x-tga"/>
+  <alias type="image/targa"/>
+  <alias type="image/tga"/>
+  <alias type="image/x-icb"/>
+  <alias type="image/x-targa"/>
+</mime-type>

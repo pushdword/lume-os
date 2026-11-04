@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-tar">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Tar archive</comment>
+  <generic-icon name="package-x-generic"/>
+  <alias type="application/x-gtar"/>
+  <glob pattern="*.tar"/>
+  <glob pattern="*.gtar"/>
+  <glob pattern="*.gem"/>
+</mime-type>

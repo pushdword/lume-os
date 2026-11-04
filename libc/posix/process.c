@@ -9,11 +9,18 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include "lume/spawn.h"
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#define SPAWN_FD_LIMIT 32
+#else
+#define SPAWN_FD_LIMIT 16
+#endif
 
 struct __posix_spawnattr
 {
     short flags;
+    sigset_t defaults, mask;
 };
 
 struct __posix_spawn_file_actions
@@ -102,6 +109,8 @@ pid_t wait(int *status)
 
 int posix_spawnattr_init(posix_spawnattr_t *attribute)
 {
+    if (!attribute)
+        return EINVAL;
     *attribute = calloc(1, sizeof(**attribute));
     return *attribute ? 0 : ENOMEM;
 }
@@ -117,7 +126,12 @@ int posix_spawnattr_setflags(posix_spawnattr_t *attribute, short flags)
 {
     if (!attribute || !*attribute)
         return EINVAL;
-    if (flags)
+    unsigned supported = 0;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    supported = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSID |
+                POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+    if ((unsigned)(unsigned short)flags & ~supported)
         return ENOTSUP;
     (*attribute)->flags = flags;
     return 0;
@@ -133,6 +147,8 @@ int posix_spawnattr_getflags(const posix_spawnattr_t *attribute, short *flags)
 
 int posix_spawn_file_actions_init(posix_spawn_file_actions_t *actions)
 {
+    if (!actions)
+        return EINVAL;
     *actions = calloc(1, sizeof(**actions));
     return *actions ? 0 : ENOMEM;
 }
@@ -150,7 +166,8 @@ int posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *actions)
 
 int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *actions, int source, int target)
 {
-    if (!actions || !*actions || source < 0 || target < 0 || source >= 16 || target >= 16)
+    if (!actions || !*actions || source < 0 || target < 0 || source >= SPAWN_FD_LIMIT ||
+        target >= SPAWN_FD_LIMIT)
         return EINVAL;
     if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
         return ENOMEM;
@@ -161,7 +178,7 @@ int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *actions, int so
 
 int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *actions, int fd)
 {
-    if (!actions || !*actions || fd < 0 || fd >= 16)
+    if (!actions || !*actions || fd < 0 || fd >= SPAWN_FD_LIMIT)
         return EINVAL;
     if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
         return ENOMEM;
@@ -174,7 +191,7 @@ int posix_spawn_file_actions_addopen(posix_spawn_file_actions_t *actions, int fd
                                      int flags, mode_t mode)
 {
     (void)mode;
-    if (!actions || !*actions || fd < 0 || fd >= 16 || !path)
+    if (!actions || !*actions || fd < 0 || fd >= SPAWN_FD_LIMIT || !path)
         return EINVAL;
     unsigned allowed = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
     if (((unsigned)flags & ~allowed) || (flags & O_ACCMODE) > O_RDWR)
@@ -204,11 +221,71 @@ int posix_spawn_file_actions_addopen(posix_spawn_file_actions_t *actions, int fd
     return 0;
 }
 
+int posix_spawn_file_actions_addchdir(posix_spawn_file_actions_t *actions, const char *path)
+{
+    if (!actions || !*actions || !path)
+        return EINVAL;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if ((*actions)->count == LUME_SPAWN_ACTION_MAX)
+        return ENOMEM;
+    size_t bytes = strlen(path) + 1;
+    if (bytes > 128)
+        return ENAMETOOLONG;
+    char *copy = malloc(bytes);
+    if (!copy)
+        return ENOMEM;
+    memcpy(copy, path, bytes);
+    unsigned i = (*actions)->count++;
+    (*actions)->paths[i] = copy;
+    (*actions)->action[i] =
+        (struct lume_spawn_action){.path = (uintptr_t)copy, .operation = LUME_SPAWN_CHDIR};
+    return 0;
+#else
+    return ENOTSUP;
+#endif
+}
+
+int posix_spawn_file_actions_addchdir_np(posix_spawn_file_actions_t *actions, const char *path)
+{
+    return posix_spawn_file_actions_addchdir(actions, path);
+}
+
+int posix_spawnattr_setsigdefault(posix_spawnattr_t *attribute, const sigset_t *mask)
+{
+    if (!attribute || !*attribute || !mask)
+        return EINVAL;
+    (*attribute)->defaults = *mask;
+    return 0;
+}
+
+int posix_spawnattr_getsigdefault(const posix_spawnattr_t *attribute, sigset_t *mask)
+{
+    if (!attribute || !*attribute || !mask)
+        return EINVAL;
+    *mask = (*attribute)->defaults;
+    return 0;
+}
+
+int posix_spawnattr_setsigmask(posix_spawnattr_t *attribute, const sigset_t *mask)
+{
+    if (!attribute || !*attribute || !mask)
+        return EINVAL;
+    (*attribute)->mask = *mask;
+    return 0;
+}
+
+int posix_spawnattr_getsigmask(const posix_spawnattr_t *attribute, sigset_t *mask)
+{
+    if (!attribute || !*attribute || !mask)
+        return EINVAL;
+    *mask = (*attribute)->mask;
+    return 0;
+}
+
 int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *actions,
                 const posix_spawnattr_t *attribute, char *const argv[], char *const envp[])
 {
-    if (!pid || !path || !argv || (actions && !*actions) ||
-        (attribute && (!*attribute || (*attribute)->flags)))
+    if (!pid || !path || !argv || (actions && !*actions) || (attribute && !*attribute))
         return EINVAL;
     unsigned argc = 0, envc = 0;
     while (argc < LUME_ARGS && argv[argc])
@@ -218,6 +295,41 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
     if (argv[argc] || (envp && envp[envc]))
         return E2BIG;
     int result;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    char *fallback[] = {(char *)path, NULL};
+    short flags = attribute ? (*attribute)->flags : 0;
+    struct lume_spawn_options_request request = {
+        .base = {.path = (uintptr_t)path,
+                 .argv = (uintptr_t)(argc ? argv : fallback),
+                 .envp = (uintptr_t)envp,
+                 .argc = argc ? argc : 1,
+                 .envc = envc,
+                 .actions = actions ? (uintptr_t)(*actions)->action : 0,
+                 .count = actions ? (*actions)->count : 0,
+                 .version = LUME_SPAWN_VERSION}};
+    if (flags & POSIX_SPAWN_SETSIGDEF)
+        request.flags |= LUME_SPAWN_SIGDEFAULT;
+    if (flags & POSIX_SPAWN_SETSIGMASK)
+        request.flags |= LUME_SPAWN_SIGMASK;
+    if (flags & POSIX_SPAWN_SETSID)
+        request.flags |= LUME_SPAWN_SETSID;
+    if (flags & POSIX_SPAWN_CLOEXEC_DEFAULT)
+        request.flags |= LUME_SPAWN_CLOEXEC_DEFAULT;
+    if (attribute)
+    {
+        request.signal_default = (*attribute)->defaults;
+        request.signal_mask = (*attribute)->mask;
+    }
+    bool extended = flags != 0;
+    for (unsigned i = 0; i < request.base.count; ++i)
+        extended |= (*actions)->action[i].operation == LUME_SPAWN_CHDIR;
+    if (extended)
+        request.base.version = LUME_SPAWN_OPTIONS_VERSION;
+    result = lume_syscall(LUME_SPAWN_ACTIONS, (uint32_t)(uintptr_t)&request,
+                         extended ? sizeof(request) : sizeof(request.base), 0);
+#else
+    if (attribute && (*attribute)->flags)
+        return ENOTSUP;
     if (actions && (*actions)->count)
     {
         char *fallback[] = {(char *)path, NULL};
@@ -235,6 +347,7 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
     else
         result =
             app_spawn_env(path, argc, (const char *const *)argv, envc, (const char *const *)envp);
+#endif
     if (result < 0)
         return lume_errno_from_syscall((unsigned)-result);
     *pid = result;

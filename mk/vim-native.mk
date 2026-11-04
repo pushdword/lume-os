@@ -14,7 +14,8 @@ $(NATIVE_POSIX_OBJECTS): CPPFLAGS += -Iports/standalone -Ivendor/posix-glob
 $(NATIVE_POSIX_OBJECTS) $(OUT)/obj/tests/integration/native_terminal.c.o: CPPFLAGS += -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 $(VIM_NATIVE_OBJECTS) $(NATIVE_POSIX_OBJECTS): | headers
 $(OUT)/vim.elf: $(VIM_NATIVE_OBJECTS) $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
-	$(LD) $(ARM_LD_FLAGS) --wrap=setlocale $^ $(ARM_LD_LIBS) -o "$@"
+	$(file >$@.rsp,$(ARM_LD_FLAGS) --wrap=setlocale $^ $(ARM_LD_LIBS))
+	$(LD) @"$@.rsp" -o "$@"
 $(OUT)/vi.elf: $(OUT)/vim.elf
 	cp "$<" "$@"
 $(OUT)/native-terminal.elf: $(OUT)/obj/tests/integration/native_terminal.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)

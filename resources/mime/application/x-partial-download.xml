@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-partial-download">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Partially downloaded file</comment>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.wkdownload"/>
+  <glob pattern="*.crdownload"/>
+  <glob pattern="*.part"/>
+</mime-type>

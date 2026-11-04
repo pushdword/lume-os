@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-c++hdr">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>C++ header</comment>
+  <sub-class-of type="text/x-chdr"/>
+  <glob pattern="*.hh"/>
+  <glob pattern="*.hp"/>
+  <glob pattern="*.hpp"/>
+  <glob pattern="*.h++"/>
+  <glob pattern="*.hxx"/>
+</mime-type>

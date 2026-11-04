@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-minipsf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MiniPSF audio</comment>
+  <acronym>MiniPSF</acronym>
+  <expanded-acronym>Miniature Portable Sound Format</expanded-acronym>
+  <sub-class-of type="audio/x-psf"/>
+  <glob pattern="*.minipsf"/>
+</mime-type>

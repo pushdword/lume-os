@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-coff">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Windows object code</comment>
+  <glob pattern="*.o" weight="40"/>
+  <glob pattern="*.obj"/>
+</mime-type>

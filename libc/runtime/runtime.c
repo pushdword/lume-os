@@ -417,6 +417,12 @@ int rename(const char *a, const char *b)
     return result(lume_syscall(LUME_RENAME, (uint32_t)(uintptr_t)a, (uint32_t)(uintptr_t)b, 0));
 }
 
+int lume_rename_noreplace(const char *a, const char *b)
+{
+    return result(lume_syscall(LUME_RENAME, (uint32_t)(uintptr_t)a, (uint32_t)(uintptr_t)b,
+                               LUME_RENAME_NOREPLACE));
+}
+
 int mkdir(const char *path, mode_t mode)
 {
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-dar">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DAR archive</comment>
+  <acronym>DAR</acronym>
+  <expanded-acronym>Disk ARchive</expanded-acronym>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.dar"/>
+</mime-type>

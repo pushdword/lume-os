@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-xbitmap">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XBM image</comment>
+  <acronym>XBM</acronym>
+  <expanded-acronym>X BitMap</expanded-acronym>
+  <glob pattern="*.xbm"/>
+</mime-type>

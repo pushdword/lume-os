@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-xpixmap">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XPM image</comment>
+  <acronym>XPM</acronym>
+  <expanded-acronym>X PixMap</expanded-acronym>
+  <glob pattern="*.xpm"/>
+  <alias type="image/x-xpm"/>
+</mime-type>

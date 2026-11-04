@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/cgm">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>CGM image</comment>
+  <acronym>CGM</acronym>
+  <expanded-acronym>Computer Graphics Metafile</expanded-acronym>
+  <glob pattern="*.cgm"/>
+</mime-type>

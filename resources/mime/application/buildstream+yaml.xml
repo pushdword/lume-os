@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/buildstream+yaml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>BuildStream element</comment>
+  <sub-class-of type="application/yaml"/>
+  <glob pattern="*.bst"/>
+</mime-type>

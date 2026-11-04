@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-portable-pixmap">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PPM image</comment>
+  <acronym>PPM</acronym>
+  <expanded-acronym>Portable PixMap</expanded-acronym>
+  <sub-class-of type="image/x-portable-anymap"/>
+  <glob pattern="*.ppm"/>
+</mime-type>

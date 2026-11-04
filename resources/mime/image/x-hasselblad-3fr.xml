@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-hasselblad-3fr">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Hasselblad 3FR raw image</comment>
+  <sub-class-of type="image/x-dcraw"/>
+  <sub-class-of type="image/tiff"/>
+  <glob pattern="*.3fr"/>
+</mime-type>

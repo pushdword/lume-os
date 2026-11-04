@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.emusic-emusic_package">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>eMusic download package</comment>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.emp"/>
+</mime-type>

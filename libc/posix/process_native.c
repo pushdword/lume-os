@@ -12,6 +12,10 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include "fd.h"
+#include <limits.h>
+#include <fcntl.h>
+
+_Static_assert(NGROUPS_MAX == LUME_GROUP_MAX, "supplementary group limit");
 
 extern char **environ;
 
@@ -20,6 +24,35 @@ pid_t fork(void)
     fflush(stdout);
     fflush(stderr);
     return native_result(native_call(LUME_SYS_FORK, 0, 0, 0));
+}
+
+int daemon(int keep_directory, int keep_descriptors)
+{
+    pid_t child = fork();
+    if (child < 0)
+        return -1;
+    if (child)
+        _exit(0);
+    if (setsid() < 0 || (!keep_directory && chdir("/")))
+        return -1;
+    if (!keep_descriptors)
+    {
+        int descriptor = open("/dev/null", O_RDWR);
+        if (descriptor < 0)
+            return -1;
+        for (int target = 0; target < 3; ++target)
+            if (dup2(descriptor, target) < 0)
+            {
+                int saved = errno;
+                if (descriptor > 2)
+                    close(descriptor);
+                errno = saved;
+                return -1;
+            }
+        if (descriptor > 2 && close(descriptor))
+            return -1;
+    }
+    return 0;
 }
 
 int execve(const char *path, char *const argv[], char *const envp[])

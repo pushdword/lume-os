@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/mathml+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MathML document</comment>
+  <acronym>MathML</acronym>
+  <expanded-acronym>Mathematical Markup Language</expanded-acronym>
+  <alias type="text/mathml"/>
+  <sub-class-of type="application/xml"/>
+  <glob pattern="*.mml"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-fishscript">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Fish shell script</comment>
+  <sub-class-of type="application/x-executable"/>
+  <sub-class-of type="text/plain"/>
+  <alias type="text/x-fish"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.fish"/>
+</mime-type>

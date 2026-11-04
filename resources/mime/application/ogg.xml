@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/ogg">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Ogg multimedia file</comment>
+  <generic-icon name="video-x-generic"/>
+  <alias type="application/x-ogg"/>
+  <glob pattern="*.ogx"/>
+</mime-type>

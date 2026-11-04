@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-php">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PHP script</comment>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.php"/>
+  <glob pattern="*.php3"/>
+  <glob pattern="*.php4"/>
+  <glob pattern="*.php5"/>
+  <glob pattern="*.phps"/>
+</mime-type>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-eps">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>EPS image</comment>
+  <acronym>EPS</acronym>
+  <expanded-acronym>Encapsulated PostScript</expanded-acronym>
+  <sub-class-of type="application/postscript"/>
+  <glob pattern="*.eps"/>
+  <glob pattern="*.epsi"/>
+  <glob pattern="*.epsf"/>
+</mime-type>

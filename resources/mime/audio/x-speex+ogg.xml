@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-speex+ogg">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Ogg Speex audio</comment>
+  <sub-class-of type="audio/ogg"/>
+  <glob pattern="*.oga"/>
+  <glob pattern="*.ogg"/>
+  <glob pattern="*.spx"/>
+</mime-type>

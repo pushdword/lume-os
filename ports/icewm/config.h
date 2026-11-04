@@ -22,6 +22,8 @@
 #define PACKAGE_VERSION "4.1.0"
 #define PACKAGE_STRING "Lume X11 libraries"
 #define CONFIG_COREFONTS 1
+#define LUME_UTF8_COREFONTS 1
+#define LUME_NATIVE_CLOCK 1
 #define CONFIG_SHAPE 1
 #define CONFIG_XPM 1
 #define CONFIG_LIBPNG 1
@@ -58,4 +60,4 @@
 #define ICEHELPIDX ""
 #define NEED_TIME_H 1
 #define NEED_SYS_SELECT_H 1
-#define SELECT_TYPE_ARG234 (fd_set*)
+#define SELECT_TYPE_ARG234 (fd_set *)

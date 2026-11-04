@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-ldif">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>LDIF address book</comment>
+  <acronym>LDIF</acronym>
+  <expanded-acronym>LDAP Data Interchange Format</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="x-office-address-book"/>
+  <glob pattern="*.ldif"/>
+</mime-type>

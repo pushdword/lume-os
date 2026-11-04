@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.hp-pcl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PCL file</comment>
+  <acronym>PCL</acronym>
+  <expanded-acronym>HP Printer Control Language</expanded-acronym>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.pcl"/>
+</mime-type>

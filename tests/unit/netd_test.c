@@ -21,7 +21,7 @@ static struct
     bool exists;
     unsigned size;
     uint8_t data[NET_STORE_BYTES];
-} files[3];
+} files[4];
 
 static struct
 {
@@ -46,6 +46,25 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
         return (int64_t)milliseconds;
     if (number == LUME_SYS_GETPID)
         return 3;
+    if (number == LUME_SYS_FILE_MODE)
+    {
+        const struct lume_file_mode_request *request = (void *)(uintptr_t)b;
+        T(c == sizeof(*request) && request->bytes == sizeof(*request));
+        T(request->version == LUME_FILE_MODE_VERSION && request->mode == 0600);
+        if (a == LUME_FILE_MODE_OPEN)
+            return call(LUME_SYS_OPEN, request->path, request->flags, 0);
+        T(a == LUME_FILE_MODE_FD && request->fd >= 3 && request->fd < 8);
+        T(descriptors[request->fd].used);
+        return 0;
+    }
+    if (number == LUME_SYS_UNLINK)
+    {
+        T(!strcmp((const char *)(uintptr_t)a, "/data/system/wifi-new.cfg"));
+        if (!files[3].exists)
+            return -LUME_ENOENT;
+        files[3].exists = false;
+        return 0;
+    }
     if (number == LUME_SYS_OPEN)
     {
         int index = -1;
@@ -54,6 +73,8 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
                 index = (int)i;
         if (!strcmp((const char *)(uintptr_t)a, "/data/system/wifi.cfg"))
             index = 2;
+        if (!strcmp((const char *)(uintptr_t)a, "/data/system/wifi-new.cfg"))
+            index = 3;
         if (index < 0)
             return -LUME_ENOENT;
         if (!files[index].exists && !(b & LUME_O_CREAT))
@@ -376,6 +397,21 @@ int main(void)
     ethernet_step(657003);
     ethernet_step(657253);
     T(ethernet_dhcps == 4 && ethernet[0].online && ethernet_address);
+    T(load());
+    unsigned previous_profiles = profiles.count;
+    cmd(NETD_IMPORT_FILE, "new");
+    T(status.result == -LUME_EIO && profiles.count == previous_profiles);
+    files[3] = files[2];
+    files[3].data[8] = 'N';
+    cmd(NETD_IMPORT_FILE, "new");
+    T(!status.result && profiles.count == previous_profiles + 1 && find("new") >= 0);
+    T(!files[3].exists);
+    T(profiles.profile[find("new")].ssid[0] == 'N');
+    T(files[2].data[8] == 'I');
+    T(load() && profiles.count == previous_profiles + 1 && find("new") >= 0);
+    T(profiles.profile[find("new")].ssid[0] == 'N');
+    cmd(NETD_IMPORT_FILE, "../bad");
+    T(status.result == -LUME_EINVAL && profiles.count == previous_profiles + 1);
     printf("PASS_NET_USERSPACE_MANAGER checks=%u\n", checks);
     return 0;
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/cbor">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>CBOR Data</comment>
+  <acronym>CBOR</acronym>
+  <expanded-acronym>Concise Binary Object Representation</expanded-acronym>
+  <glob pattern="*.cbor"/>
+</mime-type>

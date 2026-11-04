@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-shared-library-la">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Libtool shared library</comment>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.la"/>
+</mime-type>

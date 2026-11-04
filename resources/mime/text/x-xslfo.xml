@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-xslfo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>XSL FO file</comment>
+  <acronym>XSL FO</acronym>
+  <expanded-acronym>XSL Formatting Objects</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <glob pattern="*.fo"/>
+  <glob pattern="*.xslfo"/>
+</mime-type>

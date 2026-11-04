@@ -2,6 +2,7 @@
  * retry. Drivers and the network stack expose the operations it uses. */
 #include "../../include/internal/lume/app_support.h"
 #include "lume/service.h"
+#include "lume/file_mode.h"
 #include "net_policy.h"
 static struct net_profiles profiles;
 static struct lume_net_service_status status;
@@ -64,8 +65,23 @@ static bool store(void)
     int next = store_slot == 0 ? 1 : 0, fd = -1;
     if (ok)
     {
-        fd = (int)open(stores[next], LUME_O_WRONLY | LUME_O_CREAT | LUME_O_TRUNC);
+        struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
+                                                 .bytes = sizeof(request),
+                                                 .path = (uintptr_t)stores[next],
+                                                 .mode = 0600,
+                                                 .flags =
+                                                     LUME_O_WRONLY | LUME_O_CREAT | LUME_O_TRUNC};
+        fd = (int)call(LUME_SYS_FILE_MODE, LUME_FILE_MODE_OPEN, (uintptr_t)&request,
+                       sizeof(request));
         ok = fd >= 0;
+        if (ok)
+        {
+            request.path = 0;
+            request.fd = fd;
+            request.flags = 0;
+            ok = call(LUME_SYS_FILE_MODE, LUME_FILE_MODE_FD, (uintptr_t)&request,
+                      sizeof(request)) == 0;
+        }
     }
     unsigned done = 0;
     while (ok && done < sizeof(b))
@@ -94,13 +110,18 @@ static bool store(void)
     return ok;
 }
 
-static bool import(struct net_profile *p, const char *name)
+static bool import_file(struct net_profile *p, const char *name, const char *path)
 {
     uint8_t legacy[104];
-    bool ok = load_file("/data/system/wifi.cfg", legacy, sizeof(legacy)) == 0 &&
-              net_legacy(p, legacy, sizeof(legacy), name);
+    bool ok =
+        load_file(path, legacy, sizeof(legacy)) == 0 && net_legacy(p, legacy, sizeof(legacy), name);
     net_wipe(legacy, sizeof(legacy));
     return ok;
+}
+
+static bool import(struct net_profile *p, const char *name)
+{
+    return import_file(p, name, "/data/system/wifi.cfg");
 }
 
 static bool load(void)
@@ -280,7 +301,7 @@ static void command(const struct lume_service_message *m)
     int result = 0;
     bool change = false;
     struct net_profiles before = profiles;
-    if (m->version != 1 || m->command < NETD_IMPORT || m->command > NETD_RELOAD)
+    if (m->version != 1 || m->command < NETD_IMPORT || m->command > NETD_IMPORT_FILE)
         result = -LUME_EINVAL;
     for (unsigned i = 0; i < sizeof(m->reserved); ++i)
         if (m->reserved[i])
@@ -289,6 +310,7 @@ static void command(const struct lume_service_message *m)
         switch (m->command)
         {
         case NETD_IMPORT:
+        case NETD_IMPORT_FILE:
         {
             if (!net_name(m->name))
             {
@@ -305,7 +327,17 @@ static void command(const struct lume_service_message *m)
                 }
                 n = (int)profiles.count++;
             }
-            if (!import(&profiles.profile[n], m->name))
+            char path[64];
+            bool imported = m->command == NETD_IMPORT
+                                ? import(&profiles.profile[n], m->name)
+                                : (net_import_path(m->name, path, sizeof(path)) &&
+                                   import_file(&profiles.profile[n], m->name, path));
+            if (m->command == NETD_IMPORT_FILE)
+            {
+                int64_t removed = call(LUME_SYS_UNLINK, (uintptr_t)path, 0, 0);
+                imported = imported && !removed;
+            }
+            if (!imported)
             {
                 result = -LUME_EIO;
                 break;

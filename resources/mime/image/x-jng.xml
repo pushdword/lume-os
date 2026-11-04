@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-jng">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>JNG image</comment>
+  <acronym>JNG</acronym>
+  <expanded-acronym>JPEG Network Graphics</expanded-acronym>
+  <glob pattern="*.jng"/>
+</mime-type>

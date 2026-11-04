@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/qoi">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Quite OK Image Format</comment>
+  <glob pattern="*.qoi"/>
+</mime-type>

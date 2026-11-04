@@ -144,6 +144,31 @@ IceLockAuthFile (
 	long	dead
 )
 {
+#ifdef __lume__
+    char lock_name[1025];
+    if (strlen (file_name) > 1022 || timeout < 0)
+        return IceAuthLockError;
+    snprintf (lock_name, sizeof(lock_name), "%s-l", file_name);
+    if (dead == 0)
+        unlink (lock_name);
+    /* Exclusive creation provides local locking without hard links. */
+    while (retries-- > 0)
+    {
+        int fd = open (lock_name, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+        if (fd >= 0)
+        {
+            if (close (fd) == 0)
+                return IceAuthLockSuccess;
+            unlink (lock_name);
+            return IceAuthLockError;
+        }
+        if (errno != EEXIST)
+            return IceAuthLockError;
+        if (retries > 0)
+            sleep ((unsigned) timeout);
+    }
+    return IceAuthLockTimeout;
+#else
     char	creat_name[1025], link_name[1025];
     struct stat	statb;
     time_t	now;
@@ -207,6 +232,7 @@ IceLockAuthFile (
     }
 
     return (IceAuthLockTimeout);
+#endif
 }
 
 

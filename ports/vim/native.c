@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <unistd.h>
 
 extern int vim_main(int, char **);
 extern char *__real_setlocale(int, const char *);
@@ -26,6 +27,9 @@ char *__wrap_setlocale(int category, const char *name)
 
 int main(int argc, char **argv)
 {
+    if (!getenv("VIMRUNTIME") && access("/usr/share/vim/vim92/defaults.vim", R_OK) &&
+        !access("/data/share/vim/vim92/defaults.vim", R_OK))
+        setenv("VIMRUNTIME", "/data/share/vim/vim92", 0);
     if (!getenv("LANG"))
         setenv("LANG", "C.UTF-8", 0);
     (void)setlocale(LC_ALL, "");

@@ -6,6 +6,9 @@ extern "C"
 {
 #endif
     int32_t lume_syscall(uint32_t, uint32_t, uint32_t, uint32_t);
+    /* LUME_RENAME accepts this flag to preserve an existing destination. */
+#define LUME_RENAME_NOREPLACE 1u
+    int lume_rename_noreplace(const char *, const char *);
     void app_puts(const char *);
     void app_number(uint32_t);
     unsigned app_length(const char *);

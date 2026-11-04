@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.hp-hpgl">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>HPGL file</comment>
+  <acronym>HPGL</acronym>
+  <expanded-acronym>HP Graphics Language</expanded-acronym>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.hpgl"/>
+</mime-type>

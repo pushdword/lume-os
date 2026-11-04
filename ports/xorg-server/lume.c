@@ -37,6 +37,7 @@ from The Open Group.
 #include "xkbsrv.h"
 #include "lume/abi.h"
 #include "lume/graphics.h"
+#include "lume/gpu.h"
 #include "lume/syscall_native.h"
 #include <errno.h>
 #include <stdint.h>
@@ -47,6 +48,7 @@ from The Open Group.
 static struct lume_graphics_request framebuffer_info;
 static uint32_t *pixels;
 static int input_fd = -1;
+static int gpu_fd = -1;
 static DeviceIntPtr keyboard, pointer_device;
 static DamagePtr damage;
 static CloseScreenProcPtr close_screen;
@@ -56,6 +58,7 @@ static unsigned buttons;
 static ValuatorMask *motion;
 static CARD32 last_present;
 static Bool present_valid;
+static CopyWindowProcPtr copy_window;
 
 int FakeScreenFps = 60;
 
@@ -71,6 +74,76 @@ static int graphics(unsigned action, struct lume_graphics_request *request)
     request->version = LUME_GRAPHICS_VERSION;
     request->bytes = sizeof(*request);
     return (int)lume_native_call(LUME_SYS_GRAPHICS, action, (uintptr_t)request, sizeof(*request));
+}
+
+static int gpu(unsigned action, struct lume_gpu_request *request)
+{
+    request->version = LUME_GPU_VERSION;
+    request->bytes = sizeof(*request);
+    return (int)lume_native_call(LUME_SYS_GPU, action, (uintptr_t)request, sizeof(*request));
+}
+
+static void gpu_close(void)
+{
+    if (gpu_fd >= 0)
+        close(gpu_fd);
+    gpu_fd = -1;
+}
+
+static void copy_screen_window(WindowPtr window, DDXPointRec previous, RegionPtr source)
+{
+    ScreenPtr screen = window->drawable.pScreen;
+    PixmapPtr pixmap = screen->GetWindowPixmap(window);
+    if (gpu_fd < 0 || pixmap != screen->GetScreenPixmap(screen))
+    {
+        copy_window(window, previous, source);
+        return;
+    }
+    int dx = previous.x - window->drawable.x, dy = previous.y - window->drawable.y;
+    RegionRec destination;
+    RegionNull(&destination);
+    RegionCopy(&destination, source);
+    RegionTranslate(&destination, -dx, -dy);
+    RegionIntersect(&destination, &destination, &window->borderClip);
+    int count = RegionNumRects(&destination);
+    BoxPtr boxes = RegionRects(&destination);
+    uint64_t area = 0;
+    struct lume_gpu_rect rectangles[LUME_GPU_RECTS];
+    Bool supported = count > 0 && count <= LUME_GPU_RECTS;
+    for (int i = 0; supported && i < count; ++i)
+    {
+        BoxPtr box = boxes + i;
+        int sx = box->x1 + dx, sy = box->y1 + dy;
+        if (box->x1 < 0 || box->y1 < 0 || sx < 0 || sy < 0 ||
+            box->x2 > (int)framebuffer_info.width || box->y2 > (int)framebuffer_info.height ||
+            box->x2 + dx > (int)framebuffer_info.width ||
+            box->y2 + dy > (int)framebuffer_info.height)
+        {
+            supported = FALSE;
+            break;
+        }
+        unsigned width = box->x2 - box->x1, height = box->y2 - box->y1;
+        rectangles[i] = (struct lume_gpu_rect){sx, sy, box->x1, box->y1, width, height};
+        area += (uint64_t)width * height;
+    }
+    if (!supported || area < 65536)
+    {
+        RegionUninit(&destination);
+        copy_window(window, previous, source);
+        return;
+    }
+    struct lume_gpu_request request = {
+        .fd = gpu_fd, .count = count, .rectangles = (uintptr_t)rectangles};
+    int result = gpu(LUME_GPU_COPY, &request);
+    RegionUninit(&destination);
+    if (result == -LUME_EAGAIN)
+    {
+        copy_window(window, previous, source);
+        return;
+    }
+    if (result)
+        FatalError("GPU window copy failed (%d)\n", result);
+    RegionTranslate(source, -dx, -dy);
 }
 
 static void present(unsigned x, unsigned y, unsigned width, unsigned height)
@@ -145,6 +218,7 @@ static Bool screen_resources(ScreenPtr screen)
 
 static Bool screen_close(ScreenPtr screen)
 {
+    gpu_close();
     RemoveBlockAndWakeupHandlers(flush_screen, wake_screen, screen);
     if (damage)
     {
@@ -194,14 +268,36 @@ static Bool screen_init(ScreenPtr screen, int argc, char **argv)
     if (framebuffer_info.format != LUME_GRAPHICS_XRGB8888 ||
         framebuffer_info.pitch != framebuffer_info.width * 4)
         FatalError("Unsupported framebuffer format\n");
-    pixels = calloc(framebuffer_info.height, framebuffer_info.pitch);
-    if (!pixels)
+    size_t pixel_bytes = (size_t)framebuffer_info.height * framebuffer_info.pitch;
+    if (posix_memalign((void **)&pixels, 4096, (pixel_bytes + 4095) & ~(size_t)4095))
         FatalError("Cannot allocate screen pixels\n");
+    memset(pixels, 0, pixel_bytes);
+    struct lume_gpu_request gpu_info = {.fd = -1};
+    if (!gpu(LUME_GPU_QUERY, &gpu_info) && (gpu_info.capabilities & LUME_GPU_COPY_OVERLAP))
+    {
+        struct lume_gpu_request binding = {.fd = -1,
+                                           .pixels = (uintptr_t)pixels,
+                                           .width = framebuffer_info.width,
+                                           .height = framebuffer_info.height,
+                                           .pitch = framebuffer_info.pitch};
+        result = gpu(LUME_GPU_BIND, &binding);
+        if (!result)
+        {
+            gpu_fd = binding.fd;
+            ErrorF("GPU: V3D 7.1 rectangle copies enabled\n");
+        }
+        else
+            ErrorF("GPU: surface unavailable (%d)\n", result);
+    }
     miSetVisualTypesAndMasks(24, TrueColorMask, 8, TrueColor, 0xff0000, 0xff00, 0xff);
     miSetPixmapDepths();
     if (!fbScreenInit(screen, pixels, framebuffer_info.width, framebuffer_info.height, 96, 96,
                       framebuffer_info.width, 32) ||
-        !fbPictureInit(screen, NULL, 0) || !DamageSetup(screen))
+        !fbPictureInit(screen, NULL, 0))
+        return FALSE;
+    copy_window = screen->CopyWindow;
+    screen->CopyWindow = copy_screen_window;
+    if (!DamageSetup(screen))
         return FALSE;
     screen->blackPixel = 0;
     screen->whitePixel = 0xffffff;
@@ -369,6 +465,7 @@ void CloseInput(void)
 void ddxGiveUp(enum ExitCode code)
 {
     (void)code;
+    gpu_close();
     if (input_fd >= 0)
         close(input_fd);
     input_fd = -1;

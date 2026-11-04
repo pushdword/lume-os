@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.quark.quarkxpress">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>QuarkXPress document</comment>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.qwd"/>
+  <glob pattern="*.qwt"/>
+  <glob pattern="*.qxb"/>
+  <glob pattern="*.qxd"/>
+  <glob pattern="*.qxl"/>
+  <glob pattern="*.qxp"/>
+  <glob pattern="*.qxt"/>
+</mime-type>

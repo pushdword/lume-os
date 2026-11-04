@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/appinstaller">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Windows app store installer</comment>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.appinstaller"/>
+</mime-type>

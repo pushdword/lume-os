@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/x-ogm+ogg">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>OGM video</comment>
+  <sub-class-of type="video/ogg"/>
+  <alias type="video/x-ogm"/>
+  <glob pattern="*.ogm"/>
+</mime-type>

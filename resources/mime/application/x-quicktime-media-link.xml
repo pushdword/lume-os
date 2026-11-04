@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-quicktime-media-link">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>QuickTime playlist</comment>
+  <generic-icon name="video-x-generic"/>
+  <sub-class-of type="video/quicktime"/>
+  <alias type="application/x-quicktimeplayer"/>
+  <glob pattern="*.qtl"/>
+</mime-type>

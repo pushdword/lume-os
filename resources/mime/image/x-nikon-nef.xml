@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-nikon-nef">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Nikon NEF raw image</comment>
+  <acronym>NEF</acronym>
+  <expanded-acronym>Nikon Electronic Format</expanded-acronym>
+  <sub-class-of type="image/x-dcraw"/>
+  <sub-class-of type="image/tiff"/>
+  <glob pattern="*.nef"/>
+</mime-type>

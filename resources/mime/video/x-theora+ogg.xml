@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/x-theora+ogg">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Ogg Theora video</comment>
+  <sub-class-of type="video/ogg"/>
+  <alias type="video/x-theora"/>
+  <glob pattern="*.ogg"/>
+</mime-type>

@@ -13,7 +13,7 @@
  * recommending the use of clock_gettime instead.
  */
 static inline timeval timeofday() {
-    timeval tv;
+    timeval tv = {};
     gettimeofday(&tv, nullptr);
     return tv;
 }
@@ -21,7 +21,7 @@ static inline timeval timeofday() {
 /*
  * Convert timespec to timeval.
  */
-#if _POSIX_TIMERS >= 200112L
+#if defined(LUME_NATIVE_CLOCK) || _POSIX_TIMERS >= 200112L
 static inline timeval fromspec(timespec ts) {
     return (timeval) { ts.tv_sec, ts.tv_nsec / 1000L };
 }
@@ -31,7 +31,7 @@ static inline timeval fromspec(timespec ts) {
  * Give real wall clock time in seconds + microseconds.
  */
 timeval walltime() {
-#if _POSIX_TIMERS >= 200112L
+#if defined(LUME_NATIVE_CLOCK) || _POSIX_TIMERS >= 200112L
     timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
         return fromspec(ts);
@@ -44,7 +44,7 @@ timeval walltime() {
  * This makes it possible to be in sync with the X11 event time stamps.
  */
 timeval monotime() {
-#if _POSIX_TIMERS >= 200112L && defined(_POSIX_MONOTONIC_CLOCK)
+#if defined(LUME_NATIVE_CLOCK) || (_POSIX_TIMERS >= 200112L && defined(_POSIX_MONOTONIC_CLOCK))
     timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
         return fromspec(ts);

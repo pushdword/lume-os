@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/hej2k">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>JPEG 2000 image encapsulated in HEIF</comment>
+  <glob pattern="*.hej2"/>
+</mime-type>

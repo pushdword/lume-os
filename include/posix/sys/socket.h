@@ -31,10 +31,13 @@ extern "C"
 #define PF_UNIX AF_UNIX
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
+#define SOCK_SEQPACKET 5
+#define SOMAXCONN 32
 #define SOL_SOCKET 1
 #define SO_REUSEADDR 2
 #define SO_TYPE 3
 #define SO_ERROR 4
+#define SO_BROADCAST 6
 #define SO_KEEPALIVE 9
 #define SHUT_RD 0
 #define SHUT_WR 1
@@ -50,6 +53,7 @@ extern "C"
     int getsockopt(int, int, int, void *, socklen_t *);
     int getsockname(int, struct sockaddr *, socklen_t *);
     int getpeername(int, struct sockaddr *, socklen_t *);
+    int getpeereid(int, uid_t *, gid_t *);
     int shutdown(int, int);
     ssize_t recv(int, void *, size_t, int);
     ssize_t send(int, const void *, size_t, int);

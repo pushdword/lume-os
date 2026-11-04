@@ -45,21 +45,25 @@ static bool overlap(uint64_t a, uint64_t size, uint64_t b, uint64_t count)
     return a < b + count && b < a + size;
 }
 
-static bool ram(uint64_t address, uint64_t size)
+static bool ram_region(uint64_t address, uint64_t size)
 {
     bool found = false;
     for (unsigned i = 0; i < tree.ram_count; ++i)
         if (address >= tree.ram[i].base && size <= tree.ram[i].size &&
             address - tree.ram[i].base <= tree.ram[i].size - size)
             found = true;
-    if (!found || overlap(address, size, device_tree, tree.size) ||
-        overlap(address, size, (uintptr_t)__image_start,
-                (uintptr_t)__image_end - (uintptr_t)__image_start))
+    if (!found || overlap(address, size, device_tree, tree.size))
         return false;
     for (unsigned i = 0; i < tree.reserved_count; ++i)
         if (overlap(address, size, tree.reserved[i].base, tree.reserved[i].size))
             return false;
     return true;
+}
+
+static bool ram(uint64_t address, uint64_t size)
+{
+    return ram_region(address, size) && !overlap(address, size, (uintptr_t)__image_start,
+                                                 (uintptr_t)__image_end - (uintptr_t)__image_start);
 }
 
 static bool prepare(void *context, const struct lrec_image *kernel, const struct lrec_image *root)
@@ -109,7 +113,9 @@ _Noreturn void lrec_main(uint64_t dtb)
                 (uintptr_t)__image_end - (uintptr_t)__image_start) ||
         !lume_fdt_read((const void *)(uintptr_t)dtb, 0x200000, &tree) || !tree.pi5)
         failure("FDT");
-    if (!ram(LREC_KERNEL_ADDRESS, LREC_KERNEL_LIMIT))
+    /* The entry replaces the loader stack before clearing the kernel BSS. */
+    if (!ram(LREC_KERNEL_ADDRESS, LREC_KERNEL_LIMIT) ||
+        !ram_region(LREC_KERNEL_ADDRESS, LREC_KERNEL_MEMORY_LIMIT))
         failure("KERNEL RAM");
     if (!ram(LREC_KERNEL_STAGE, 2 * LREC_KERNEL_LIMIT) ||
         !ram(LREC_ROOT_STAGE, 2 * LREC_ROOT_LIMIT))
@@ -117,7 +123,7 @@ _Noreturn void lrec_main(uint64_t dtb)
     uint64_t root_size = tree.initrd_end - tree.initrd_start;
     if (root_size &&
         (!ram(tree.initrd_start, root_size) ||
-         overlap(tree.initrd_start, root_size, LREC_KERNEL_ADDRESS, LREC_KERNEL_LIMIT) ||
+         overlap(tree.initrd_start, root_size, LREC_KERNEL_ADDRESS, LREC_KERNEL_MEMORY_LIMIT) ||
          overlap(tree.initrd_start, root_size, LREC_KERNEL_STAGE, 2 * LREC_KERNEL_LIMIT) ||
          overlap(tree.initrd_start, root_size, LREC_ROOT_STAGE, 2 * LREC_ROOT_LIMIT)))
         failure("INITRD RAM");

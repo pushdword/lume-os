@@ -74,6 +74,43 @@ DIR *opendir(const char *path)
     return directory;
 }
 
+DIR *fdopendir(int fd)
+{
+    if (fd < 0)
+    {
+        errno = EBADF;
+        return NULL;
+    }
+    struct lume_native_stat metadata = {0};
+    int64_t result = directory_call(LUME_SYS_STAT, (unsigned)fd, (uintptr_t)&metadata, 0);
+    if (result < 0 || metadata.kind != LUME_NODE_DIR)
+    {
+        errno = result < 0 ? lume_errno_from_syscall((unsigned)-result) : ENOTDIR;
+        return NULL;
+    }
+    struct lume_fd_request request = {
+        .version = LUME_FD_VERSION, .bytes = sizeof(request), .fd = fd};
+    result = directory_call(LUME_SYS_FD, LUME_FD_GETMODE, (uintptr_t)&request, sizeof(request));
+    if (result < 0 || (result & 3) == LUME_O_WRONLY)
+    {
+        errno = result < 0 ? lume_errno_from_syscall((unsigned)-result) : EBADF;
+        return NULL;
+    }
+    result = directory_call(LUME_SYS_SEEK, (unsigned)fd, 0, LUME_NATIVE_SEEK_CUR);
+    if (result < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-result);
+        return NULL;
+    }
+    DIR *directory = calloc(1, sizeof(*directory));
+    if (directory)
+    {
+        directory->fd = fd;
+        directory->position = (uint64_t)result;
+    }
+    return directory;
+}
+
 int dirfd(DIR *directory)
 {
     if (!directory)
@@ -200,6 +237,13 @@ void rewinddir(DIR *directory)
 }
 
 #else
+DIR *fdopendir(int fd)
+{
+    (void)fd;
+    errno = ENOTSUP;
+    return NULL;
+}
+
 DIR *opendir(const char *path)
 {
     struct stat metadata;

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-sami">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SAMI subtitles</comment>
+  <acronym>SAMI</acronym>
+  <expanded-acronym>Synchronized Accessible Media Interchange</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-generic"/>
+  <glob pattern="*.smi"/>
+  <glob pattern="*.sami"/>
+</mime-type>

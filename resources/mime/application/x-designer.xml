@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-designer">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Qt Designer interface document</comment>
+  <generic-icon name="x-office-document"/>
+  <sub-class-of type="application/xml"/>
+  <glob pattern="*.ui"/>
+</mime-type>

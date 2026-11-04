@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/msword">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Word document</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.doc"/>
+  <alias type="application/vnd.ms-word"/>
+  <alias type="application/x-msword"/>
+  <alias type="zz-application/zz-winassoc-doc"/>
+</mime-type>

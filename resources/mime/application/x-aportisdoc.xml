@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-aportisdoc">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AportisDoc document</comment>
+  <sub-class-of type="application/vnd.palm"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.pdb" weight="30"/>
+  <glob pattern="*.pdc"/>
+</mime-type>

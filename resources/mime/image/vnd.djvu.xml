@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.djvu">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DjVu image</comment>
+  <alias type="image/x-djvu"/>
+  <alias type="image/x.djvu"/>
+  <glob pattern="*.djvu"/>
+  <glob pattern="*.djv"/>
+</mime-type>

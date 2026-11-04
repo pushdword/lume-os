@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="font/woff2">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>WOFF2 font</comment>
+  <acronym>WOFF2</acronym>
+  <expanded-acronym>Web Open Font Format 2.0</expanded-acronym>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.woff2"/>
+</mime-type>

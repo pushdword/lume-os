@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/AMR-WB">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AMR-WB audio</comment>
+  <acronym>AMR-WB</acronym>
+  <expanded-acronym>Adaptive Multi-Rate Wideband</expanded-acronym>
+  <glob pattern="*.awb"/>
+  <alias type="audio/amr-wb-encrypted"/>
+</mime-type>

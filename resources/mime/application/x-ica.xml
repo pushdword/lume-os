@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-ica">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Citrix ICA settings file</comment>
+  <acronym>ICA</acronym>
+  <expanded-acronym>Independent Computing Architecture</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-generic"/>
+  <glob pattern="*.ica"/>
+</mime-type>

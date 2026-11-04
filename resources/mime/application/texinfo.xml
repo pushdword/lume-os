@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/texinfo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TeXInfo document</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.texi"/>
+  <glob pattern="*.texinfo"/>
+  <alias type="text/x-texinfo"/>
+</mime-type>

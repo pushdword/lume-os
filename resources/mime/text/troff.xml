@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/troff">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Troff document</comment>
+  <sub-class-of type="text/plain"/>
+  <alias type="application/x-troff"/>
+  <alias type="text/x-troff"/>
+  <glob pattern="*.tr"/>
+  <glob pattern="*.roff"/>
+  <glob weight="10" pattern="*.t"/>
+</mime-type>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/csv">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>CSV document</comment>
+  <acronym>CSV</acronym>
+  <expanded-acronym>Comma Separated Values</expanded-acronym>
+  <alias type="text/x-comma-separated-values"/>
+  <alias type="text/x-csv"/>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.csv"/>
+</mime-type>

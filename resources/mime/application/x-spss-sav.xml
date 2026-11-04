@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spss-sav">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SPSS data file</comment>
+  <acronym>SPSS</acronym>
+  <expanded-acronym>Statistical Package for the Social Sciences</expanded-acronym>
+  <alias type="application/x-spss-savefile"/>
+  <glob pattern="*.sav"/>
+  <glob pattern="*.zsav"/>
+</mime-type>

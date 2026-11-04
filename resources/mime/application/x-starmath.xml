@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-starmath">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StarMath 3-4 formula</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.smf" weight="40"/>
+</mime-type>

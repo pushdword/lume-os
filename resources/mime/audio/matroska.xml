@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/matroska">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Matroska audio</comment>
+  <glob pattern="*.mka"/>
+  <sub-class-of type="application/x-matroska"/>
+  <alias type="audio/x-matroska"/>
+</mime-type>

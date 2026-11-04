@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pkcs7-mime">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PKCS#7 file</comment>
+  <acronym>PKCS</acronym>
+  <expanded-acronym>Public-Key Cryptography Standards</expanded-acronym>
+  <glob pattern="*.der"/>
+  <glob pattern="*.p7c"/>
+  <glob pattern="*.p7m"/>
+  <glob pattern="*.p7z"/>
+  <glob pattern="*.pem"/>
+</mime-type>

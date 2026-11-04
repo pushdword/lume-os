@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/x-ms-asx">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Microsoft ASX playlist</comment>
+  <alias type="video/x-ms-wvx"/>
+  <alias type="video/x-ms-wax"/>
+  <alias type="video/x-ms-wmx"/>
+  <alias type="application/x-ms-asx"/>
+  <glob pattern="*.asx"/>
+  <glob pattern="*.wax"/>
+  <glob pattern="*.wvx"/>
+  <glob pattern="*.wmx"/>
+</mime-type>

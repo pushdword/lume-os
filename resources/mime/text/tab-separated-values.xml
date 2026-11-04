@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/tab-separated-values">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TSV document</comment>
+  <acronym>TSV</acronym>
+  <expanded-acronym>Tab Separated Values</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="x-office-spreadsheet"/>
+  <glob pattern="*.tsv"/>
+</mime-type>

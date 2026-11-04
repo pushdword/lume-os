@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/dicom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>DICOM image</comment>
+  <acronym>DICOM</acronym>
+  <expanded-acronym>Digital Imaging and Communications in Medicine</expanded-acronym>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="dicomdir"/>
+  <glob pattern="*.dcm"/>
+</mime-type>

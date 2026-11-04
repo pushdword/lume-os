@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-netcdf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Unidata NetCDF document</comment>
+  <acronym>NetCDF</acronym>
+  <expanded-acronym>Network Common Data Form</expanded-acronym>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.cdf"/>
+  <glob pattern="*.nc"/>
+</mime-type>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-font-speedo">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Speedo font</comment>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.spd"/>
+</mime-type>

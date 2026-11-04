@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-nes-rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>NES ROM</comment>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.nes"/>
+  <glob pattern="*.nez"/>
+  <glob pattern="*.unf"/>
+  <glob pattern="*.unif"/>
+</mime-type>

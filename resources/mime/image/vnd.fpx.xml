@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.fpx">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>FlashPix image</comment>
+  <sub-class-of type="application/x-ole-storage"/>
+  <glob pattern="*.fpx"/>
+  <alias type="image/x-fpx"/>
+</mime-type>

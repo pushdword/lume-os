@@ -46,7 +46,7 @@ bool lrec_kernel_valid(const void *data, size_t bytes)
         return false;
     uint32_t target = (word(p) & UINT32_C(0x03ffffff)) * 4;
     if (target < 64 || target >= bytes || word(p + 16) < bytes ||
-        word(p + 16) > LREC_KERNEL_LIMIT || word(p + 24) != 8)
+        word(p + 16) > LREC_KERNEL_MEMORY_LIMIT || word(p + 24) != 8)
         return false;
     const unsigned fields[] = {8, 12, 20, 28, 32, 36, 40, 44, 48, 52, 60};
     for (unsigned i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i)

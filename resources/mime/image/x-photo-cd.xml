@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-photo-cd">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PCD image</comment>
+  <acronym>PCD</acronym>
+  <expanded-acronym>PhotoCD</expanded-acronym>
+  <generic-icon name="media-optical"/>
+  <glob pattern="*.pcd"/>
+</mime-type>

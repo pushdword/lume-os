@@ -8,6 +8,9 @@
 #include "ystring.h"
 #include "ylocale.h"
 #include "ybidi.h"
+#ifdef LUME_UTF8_COREFONTS
+#include "utf8font.h"
+#endif
 
 class YCoreFont : public YFontBase {
 public:
@@ -131,7 +134,11 @@ YCoreFont::~YCoreFont() {
 }
 
 int YCoreFont::textWidth(const char *str, int len) const {
+#ifdef LUME_UTF8_COREFONTS
+    return LumeCoreText(str, len).width(fFont);
+#else
     return XTextWidth(fFont, str, len);
+#endif
 }
 
 int YCoreFont::textWidth(wchar_t* wstr, int len) const {
@@ -163,6 +170,9 @@ void YCoreFont::drawGlyphs(Graphics& g, int x, int y,
                            const char* str, int len, int limit) {
     XSetFont(xapp->display(), g.handleX(), fFont->fid);
 
+#ifdef LUME_UTF8_COREFONTS
+    LumeCoreText(str, len).draw(fFont, g, x, y, limit, showEllipsis);
+#else
     int tw;
     if (limit == 0 || (tw = textWidth(str, len)) <= limit) {
         XDrawString(xapp->display(), g.drawable(), g.handleX(),
@@ -200,6 +210,7 @@ void YCoreFont::drawGlyphs(Graphics& g, int x, int y,
             }
         }
     }
+#endif
 }
 
 /******************************************************************************/

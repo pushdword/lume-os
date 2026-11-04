@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/spdx+json">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>SPDX SBOM document</comment>
+  <acronym>SPDX SBOM</acronym>
+  <expanded-acronym>Software Package Data Exchange Software Bill Of Materials</expanded-acronym>
+  <sub-class-of type="application/json"/>
+  <glob pattern="*.spdx.json"/>
+</mime-type>

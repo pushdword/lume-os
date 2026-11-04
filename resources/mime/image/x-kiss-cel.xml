@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-kiss-cel">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>KiSS cel</comment>
+  <acronym>KiSS</acronym>
+  <expanded-acronym>Kisekae Set System</expanded-acronym>
+  <glob pattern="*.cel"/>
+  <glob pattern="*.kcf"/>
+</mime-type>

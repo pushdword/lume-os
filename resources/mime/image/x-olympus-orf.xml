@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/x-olympus-orf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Olympus ORF raw image</comment>
+  <acronym>ORF</acronym>
+  <expanded-acronym>Olympus Raw Format</expanded-acronym>
+  <sub-class-of type="image/x-dcraw"/>
+  <glob pattern="*.orf"/>
+</mime-type>

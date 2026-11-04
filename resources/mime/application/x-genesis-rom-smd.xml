@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-genesis-rom-smd">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Genesis ROM (SMD dump)</comment>
+  <acronym>SMD</acronym>
+  <expanded-acronym>Super Magic Drive</expanded-acronym>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.smd"/>
+</mime-type>

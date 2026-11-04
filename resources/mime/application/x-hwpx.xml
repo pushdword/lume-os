@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-hwpx">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Hancom HWPX document</comment>
+  <generic-icon name="x-office-document"/>
+  <glob pattern="*.hwpx"/>
+  <sub-class-of type="application/zip"/>
+  <alias type="application/hwp+zip"/>
+  <alias type="application/vnd.hancom.hwpx"/>
+  <alias type="application/x-hwp+zip"/>
+</mime-type>

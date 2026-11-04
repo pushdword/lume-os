@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/AMR">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AMR audio</comment>
+  <acronym>AMR</acronym>
+  <expanded-acronym>Adaptive Multi-Rate</expanded-acronym>
+  <glob pattern="*.amr"/>
+  <alias type="audio/amr-encrypted"/>
+</mime-type>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-troff-mm">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Troff MM input document</comment>
+  <sub-class-of type="text/troff"/>
+  <glob pattern="*.mm"/>
+</mime-type>

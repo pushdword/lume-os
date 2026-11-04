@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.adobe.flash.movie">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Shockwave Flash file</comment>
+  <alias type="application/x-shockwave-flash"/>
+  <alias type="application/futuresplash"/>
+  <generic-icon name="video-x-generic"/>
+  <glob pattern="*.swf"/>
+  <glob pattern="*.spl"/>
+</mime-type>

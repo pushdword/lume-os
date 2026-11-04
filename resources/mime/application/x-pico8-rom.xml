@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-pico8-rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>PICO-8 binary code</comment>
+  <sub-class-of type="application/x-executable"/>
+  <glob pattern="*.p8.rom"/>
+</mime-type>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/midi">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MIDI audio</comment>
+  <acronym>MIDI</acronym>
+  <expanded-acronym>Musical Instrument Digital Interface</expanded-acronym>
+  <alias type="audio/x-midi"/>
+  <glob pattern="*.mid"/>
+  <glob pattern="*.midi"/>
+  <glob pattern="*.kar"/>
+</mime-type>

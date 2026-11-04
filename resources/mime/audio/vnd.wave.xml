@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="audio/vnd.wave">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>WAV audio</comment>
+  <alias type="audio/wav"/>
+  <alias type="audio/x-wav"/>
+  <sub-class-of type="application/x-riff"/>
+  <glob pattern="*.wav"/>
+</mime-type>

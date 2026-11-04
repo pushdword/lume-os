@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-font-linux-psf">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Linux PSF console font</comment>
+  <acronym>PSF</acronym>
+  <expanded-acronym>PC Screen Font</expanded-acronym>
+  <generic-icon name="font-x-generic"/>
+  <glob pattern="*.psf"/>
+</mime-type>

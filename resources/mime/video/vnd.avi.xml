@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/vnd.avi">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>AVI video</comment>
+  <acronym>AVI</acronym>
+  <expanded-acronym>Audio Video Interleave</expanded-acronym>
+  <alias type="video/x-avi"/>
+  <alias type="video/avi"/>
+  <alias type="video/divx"/>
+  <alias type="video/msvideo"/>
+  <alias type="video/vnd.divx"/>
+  <alias type="video/x-msvideo"/>
+  <glob pattern="*.avi"/>
+  <glob pattern="*.avf"/>
+  <glob pattern="*.divx"/>
+</mime-type>

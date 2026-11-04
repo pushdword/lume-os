@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.adobe.photoshop">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Photoshop image</comment>
+  <glob pattern="*.psd"/>
+  <alias type="image/psd"/>
+  <alias type="image/x-psd"/>
+  <alias type="image/photoshop"/>
+  <alias type="image/x-photoshop"/>
+  <alias type="application/photoshop"/>
+  <alias type="application/x-photoshop"/>
+</mime-type>

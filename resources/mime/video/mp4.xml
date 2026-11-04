@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/mp4">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>MPEG-4 video</comment>
+  <alias type="video/mp4v-es"/>
+  <glob pattern="*.mp4"/>
+  <glob pattern="*.m4v"/>
+  <glob pattern="*.f4v"/>
+  <glob pattern="*.lrv"/>
+  <glob pattern="*.lrf" weight="60"/>
+  <alias type="video/x-m4v"/>
+</mime-type>

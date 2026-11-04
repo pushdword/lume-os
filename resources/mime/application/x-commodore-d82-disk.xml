@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-commodore-d82-disk">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Commodore 8250 floppy disk image</comment>
+  <generic-icon name="application-x-executable"/>
+  <glob pattern="*.d82"/>
+</mime-type>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-ufraw">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>UFRaw ID image</comment>
+  <acronym>UFRaw</acronym>
+  <expanded-acronym>Unidentified Flying Raw</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="image-x-generic"/>
+  <glob pattern="*.ufraw"/>
+</mime-type>

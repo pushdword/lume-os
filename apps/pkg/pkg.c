@@ -1,4 +1,6 @@
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 #include "pkg_format.h"
 #include "sha256.h"
 #include "lume/io.h"
@@ -15,11 +17,13 @@
 
 #ifdef LUME_PKG_HOST_TEST
 #define PATH_BYTES 512u
+#define lume_rename_noreplace rename
 #ifdef _WIN32
 #define fsync _commit
 #define mkdir(path, mode) _mkdir(path)
 #endif
 #else
+#include "api.h"
 #define PATH_BYTES 128u
 #endif
 
@@ -550,7 +554,7 @@ static int rollback(void)
         if (txn_path(backup, "old", i) || path_join(path, root, previous.file[i].path))
             return -1;
         int found = exists(backup);
-        if (found < 0 || (found && (exists(path) != 0 || rename(backup, path))))
+        if (found < 0 || (found && (exists(path) != 0 || lume_rename_noreplace(backup, path))))
             return fail("cannot restore a package backup");
     }
     if (check_files(&previous) || receipt_path(path, incoming.identity.name))
@@ -752,15 +756,15 @@ static int apply_package(const char *archive, const struct pkg_catalog_entry *se
         goto prepare_failed;
     for (unsigned i = 0; i < previous.identity.files; ++i)
         if (path_join(path, root, previous.file[i].path) || txn_path(destination, "old", i) ||
-            rename(path, destination))
+            lume_rename_noreplace(path, destination))
             goto commit_failed;
     for (unsigned i = 0; i < incoming.identity.files; ++i)
         if (txn_path(path, "new", i) || path_join(destination, root, incoming.file[i].path) ||
-            rename(path, destination))
+            lume_rename_noreplace(path, destination))
             goto commit_failed;
     if (check_files(&incoming) || receipt_path(destination, incoming.identity.name) ||
         remove_if_exists(destination) || state_path(path, "txn/receipt") ||
-        rename(path, destination) || state_path(path, "txn/committed") ||
+        lume_rename_noreplace(path, destination) || state_path(path, "txn/committed") ||
         create(path, "committed\n", 10))
         goto commit_failed;
     if (cleanup())
@@ -990,8 +994,9 @@ static int update(const char *source, const char *digest_text)
         result = -1;
     if (close(fd))
         result = -1;
-    if (result || remove_if_exists(saved) || (exists(active) == 1 && rename(active, saved)) ||
-        rename(temporary, active))
+    if (result || remove_if_exists(saved) ||
+        (exists(active) == 1 && lume_rename_noreplace(active, saved)) ||
+        lume_rename_noreplace(temporary, active))
         goto failed;
     puts("pkg: catalog SHA256 verified");
     return 0;
@@ -1028,7 +1033,8 @@ static int adopt(const char *source, const char *digest_text)
     if (state_path(temporary, "adopt.new") || receipt_path(destination, incoming.identity.name) ||
         remove_if_exists(temporary) || create(temporary, &incoming, manifest_bytes(&incoming)) ||
         read_manifest(temporary, &other, false) ||
-        memcmp(&incoming, &other, manifest_bytes(&incoming)) || rename(temporary, destination))
+        memcmp(&incoming, &other, manifest_bytes(&incoming)) ||
+        lume_rename_noreplace(temporary, destination))
     {
         if (!state_path(temporary, "adopt.new"))
             (void)remove_if_exists(temporary);

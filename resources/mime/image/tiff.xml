@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/tiff">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TIFF image</comment>
+  <acronym>TIFF</acronym>
+  <expanded-acronym>Tagged Image File Format</expanded-acronym>
+  <glob pattern="*.tif"/>
+  <glob pattern="*.tiff"/>
+</mime-type>

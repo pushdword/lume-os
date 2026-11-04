@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spectrum-mgt">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ZX Spectrum/SAM Coupé MGT floppy disk image</comment>
+  <acronym>MGT</acronym>
+  <expanded-acronym>Miles Gordon Technology</expanded-acronym>
+  <glob pattern="*.mgt"/>
+</mime-type>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-stuffit">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>StuffIt archive</comment>
+  <generic-icon name="package-x-generic"/>
+  <alias type="application/stuffit"/>
+  <alias type="application/x-sit"/>
+  <glob pattern="*.sit"/>
+</mime-type>

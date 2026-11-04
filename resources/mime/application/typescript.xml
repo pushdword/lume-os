@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/typescript">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>TypeScript program</comment>
+  <sub-class-of type="application/x-executable"/>
+  <sub-class-of type="text/plain"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.cts"/>
+  <glob pattern="*.mts" weight="40"/>
+  <glob pattern="*.ts" weight="40"/>
+</mime-type>

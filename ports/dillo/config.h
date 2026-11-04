@@ -1,0 +1,37 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+#define ENABLE_GIF 1
+#define ENABLE_PNG 1
+#define ENABLE_JPEG 1
+#define ENABLE_SVG 1
+#define ENABLE_TLS 1
+#define ENABLE_CONTROL_SOCKET 1
+#define HAVE_MBEDTLS 1
+#define HAVE_PNG_H 1
+#define HAVE_FCNTL_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_SETSOCKOPT 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDIO_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_STRING_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_SYS_UIO_H 1
+#define HAVE_UNISTD_H 1
+#define STDC_HEADERS 1
+#define SIZEOF_CHAR 1
+#define SIZEOF_SHORT 2
+#define SIZEOF_INT 4
+#define SIZEOF_LONG __SIZEOF_LONG__
+#define SIZEOF_VOID_P __SIZEOF_POINTER__
+#define inbuf_t char
+#include "paths.h"
+#define DILLO_DOCDIR ""
+#define DILLO_LIBDIR "/usr/lib/dillo"
+#define CA_CERTS_DIR ""
+#define CUR_WORKING_DIR ""
+#define EXEEXT ""
+#define VERSION "3.3.0"
+#define PACKAGE "dillo"
+#define PACKAGE_VERSION "3.3.0"

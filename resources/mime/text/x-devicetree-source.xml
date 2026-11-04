@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-devicetree-source">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Devicetree source code</comment>
+  <acronym>DTS</acronym>
+  <expanded-acronym>Device Tree Source</expanded-acronym>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.dts"/>
+  <glob pattern="*.dtsi"/>
+</mime-type>

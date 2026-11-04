@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/3gpp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>3GPP multimedia file</comment>
+  <acronym>3GPP</acronym>
+  <expanded-acronym>3rd Generation Partnership Project</expanded-acronym>
+  <sub-class-of type="video/mp4"/>
+  <glob pattern="*.3gp"/>
+  <glob pattern="*.3gpp"/>
+  <glob pattern="*.3ga"/>
+  <alias type="video/3gp"/>
+  <alias type="audio/3gpp"/>
+  <alias type="video/3gpp-encrypted"/>
+  <alias type="audio/3gpp-encrypted"/>
+  <alias type="audio/x-rn-3gpp-amr"/>
+  <alias type="audio/x-rn-3gpp-amr-encrypted"/>
+  <alias type="audio/x-rn-3gpp-amr-wb"/>
+  <alias type="audio/x-rn-3gpp-amr-wb-encrypted"/>
+</mime-type>

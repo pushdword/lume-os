@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/pkcs7-signature">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Detached S/MIME signature</comment>
+  <acronym>S/MIME</acronym>
+  <expanded-acronym>Secure/Multipurpose Internet Mail Extensions</expanded-acronym>
+  <glob pattern="*.der"/>
+  <glob pattern="*.p7s"/>
+  <glob pattern="*.pem"/>
+</mime-type>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/x-spectrum-z80">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>ZX Spectrum Z80 snapshot</comment>
+  <glob pattern="*.z80"/>
+</mime-type>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.rar">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RAR archive</comment>
+  <acronym>RAR</acronym>
+  <expanded-acronym>Roshal ARchive</expanded-acronym>
+  <alias type="application/x-rar"/>
+  <alias type="application/x-rar-compressed"/>
+  <generic-icon name="package-x-generic"/>
+  <glob pattern="*.rar"/>
+</mime-type>

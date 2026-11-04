@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/x-nawk">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>New (BWK) AWK script</comment>
+  <acronym>New (BWK) AWK</acronym>
+  <expanded-acronym>New (Brian Wilson Kernighan) [Alfred Vaino] Aho, [Peter Jay] Weinberger and [Brian Wilson] Kernighan [language]</expanded-acronym>
+  <sub-class-of type="text/x-awk"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.awk"/>
+</mime-type>

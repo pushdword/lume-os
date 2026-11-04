@@ -42,6 +42,14 @@ int sigprocmask(int operation, const sigset_t *set, sigset_t *old)
     return 0;
 }
 
+int pthread_sigmask(int operation, const sigset_t *set, sigset_t *old)
+{
+    int saved = errno;
+    int result = sigprocmask(operation, set, old) < 0 ? errno : 0;
+    errno = saved;
+    return result;
+}
+
 sighandler_t signal(int number, sighandler_t handler)
 {
     struct sigaction action = {.sa_handler = handler, .sa_flags = SA_RESTART}, old;

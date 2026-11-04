@@ -35,6 +35,9 @@ DESKTOP ?= 1
 endif
 DESKTOP ?= 0
 include mk/desktop.mk
+include mk/desktop-apps.mk
+include mk/gtk-base.mk
+include mk/xfce.mk
 ifeq ($(DESKTOP),1)
 all: desktop
 endif
@@ -71,6 +74,9 @@ $(OUT)/amd64-runtime.elf: $(OUT)/obj/tests/integration/amd64_runtime.c.o $(ARM_C
 $(OUT)/obj/tests/integration/amd64_runtime.c.o: | headers
 endif
 $(OUT)/tests/pthread-probe.elf: tests/integration/pthread_probe.c $(ARM_COMMON_OBJECTS) | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iinclude/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
+$(OUT)/tests/rename-probe.elf: tests/integration/native_rename.c $(ARM_COMMON_OBJECTS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iinclude/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
 $(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(ARM_APP_OBJECTS): | headers

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.nintendo.snes.rom">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Super NES ROM</comment>
+  <generic-icon name="application-x-executable"/>
+  <alias type="application/x-snes-rom"/>
+  <glob pattern="*.sfc"/>
+  <glob pattern="*.smc"/>
+</mime-type>

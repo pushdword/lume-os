@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="video/x-ms-wmv">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Windows Media video</comment>
+  <sub-class-of type="application/vnd.ms-asf"/>
+  <glob pattern="*.wmv"/>
+</mime-type>

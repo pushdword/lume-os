@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="application/vnd.cyclonedx+xml">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>CycloneDX BOM document</comment>
+  <acronym>BOM</acronym>
+  <expanded-acronym>Bill Of Materials</expanded-acronym>
+  <sub-class-of type="application/xml"/>
+  <glob pattern="*.cdx.xml"/>
+</mime-type>

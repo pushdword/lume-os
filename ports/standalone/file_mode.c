@@ -18,12 +18,12 @@ static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t
 
 int chmod(const char *path, mode_t mode)
 {
-    return change_mode(path, -1, mode, 0, 0);
+    return change_mode(path, -1, mode & ~(mode_t)S_IFMT, 0, 0);
 }
 
 int fchmod(int fd, mode_t mode)
 {
-    return change_mode(NULL, fd, mode, 0, 0);
+    return change_mode(NULL, fd, mode & ~(mode_t)S_IFMT, 0, 0);
 }
 
 static int change_owner(const char *path, int fd, uid_t uid, gid_t gid)

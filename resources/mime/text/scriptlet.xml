@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/scriptlet">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>Windows scriptlet</comment>
+  <sub-class-of type="application/xml"/>
+  <generic-icon name="text-x-script"/>
+  <glob pattern="*.sct" weight="40"/>
+  <glob pattern="*.wsc" weight="40"/>
+</mime-type>

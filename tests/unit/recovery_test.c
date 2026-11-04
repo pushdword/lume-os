@@ -150,6 +150,11 @@ int main(int argc, char **argv)
     image[18] = 0x40;
     assert(lrec_kernel_valid(image, sizeof(image)));
     image[16] = 1;
+    assert(lrec_kernel_valid(image, sizeof(image)));
+    image[16] = 0;
+    image[18] = 0x60;
+    assert(lrec_kernel_valid(image, sizeof(image)));
+    image[16] = 1;
     assert(!lrec_kernel_valid(image, sizeof(image)));
     kernel(image);
     request("B K 00400001 00000000 00000000", " ERR SIZE ");

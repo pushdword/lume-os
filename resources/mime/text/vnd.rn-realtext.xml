@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/vnd.rn-realtext">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>RealText document</comment>
+  <sub-class-of type="text/plain"/>
+  <glob pattern="*.rt"/>
+</mime-type>

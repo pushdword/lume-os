@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="image/vnd.wap.wbmp">
+  <!--Created automatically by update-mime-database. DO NOT EDIT!-->
+  <comment>WBMP image</comment>
+  <acronym>WBMP</acronym>
+  <expanded-acronym>WAP bitmap</expanded-acronym>
+  <glob pattern="*.wbmp"/>
+</mime-type>
