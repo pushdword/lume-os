@@ -98,10 +98,10 @@ $(OUT)/busybox.elf: $(BB_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
 $(OUT)/htop.elf: $(HTOP_OBJECTS) $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(ARM_COMMON_OBJECTS))
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
-$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c $(I686_BUILTINS) | headers
+$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c $(I686_BUILTINS) | headers
+$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 $(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/net/%.c apps/net/network_tool.h include/internal/lume/app_support.h arch/$(ARCH)/start_bare.S libc/string/memory.c $(I686_BUILTINS) | headers
@@ -122,6 +122,8 @@ $(PKG_OBJECTS): | headers
 SERVICE_OBJECTS := $(OUT)/obj/services/svcd/service.c.o $(OUT)/obj/services/svcd/platform.c.o
 $(SERVICE_OBJECTS): CPPFLAGS += -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/utils -Iapps/shell -Iapps/diagnostics -Iservices/svcd -Iapps/pkg -Iinclude/posix
 $(SERVICE_OBJECTS): | headers
+$(SERVICE_OBJECTS): services/svcd/service_platform.h $(KERNEL)/include/abi/native/lume/supervision.h
+$(OUT)/obj/services/svcd/service.c.o: services/svcd/service_loop.h
 all pkg: $(OUT)/pkg.elf
 all: $(OUT)/service.elf $(OUT)/svcd.elf
 $(OUT)/service.elf: $(SERVICE_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
@@ -189,9 +191,13 @@ endif
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 endif
 .PHONY: check-update check-network-tools check-services
-check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE)
+check-services: $(OUT)/tests/service$(HOSTEXE) $(OUT)/tests/supervision$(HOSTEXE) $(OUT)/tests/service-loop$(HOSTEXE)
 	env "$(OUT)/tests/service$(HOSTEXE)"
 	env "$(OUT)/tests/supervision$(HOSTEXE)"
+	env "$(OUT)/tests/service-loop$(HOSTEXE)"
+$(OUT)/tests/service-loop$(HOSTEXE): tests/unit/service_loop_test.c services/svcd/service_loop.h services/svcd/service_platform.h $(KERNEL)/include/abi/native/lume/supervision.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iservices/svcd -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
 $(OUT)/tests/service$(HOSTEXE): tests/unit/service_test.c services/svcd/service_config.h services/svcd/service_policy.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Iapps/utils -Iapps/shell -Iapps/diagnostics -Iservices/svcd -Iapps/pkg -I"$(KERNEL)/include/abi/native" "$<" -o "$@"

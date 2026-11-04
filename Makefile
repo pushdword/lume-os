@@ -253,15 +253,22 @@ check: $(OUT)/tests/net-client$(HOSTEXE) $(OUT)/tests/net-policy$(HOSTEXE) $(OUT
 $(OUT)/tests/image$(HOSTEXE): tests/image.cpp tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
-$(OUT)/tests/net-client$(HOSTEXE): tests/unit/net_client_test.c apps/net/net_client.h apps/net/net_service_client.h include/internal/lume/app_support.h
+$(OUT)/tests/net-client$(HOSTEXE): tests/unit/net_client_test.c apps/net/net_client.h apps/net/net_service_client.h include/internal/lume/app_support.h $(KERNEL)/include/abi/native/lume/service.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -fno-builtin -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
 $(OUT)/tests/net-policy$(HOSTEXE): tests/unit/net_policy_test.c services/netd/net_policy.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $^ -o "$@"
-$(OUT)/tests/netd$(HOSTEXE): tests/unit/netd_test.c services/netd/net_policy.c services/netd/netd.c services/netd/net_policy.h
+$(OUT)/tests/netd$(HOSTEXE): tests/unit/netd_test.c services/netd/net_policy.c services/netd/netd.c services/netd/net_policy.h $(KERNEL)/include/abi/native/lume/service.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/abi/native" $(filter %netd_test.c %net_policy.c,$^) -o "$@"
+.PHONY: check-vector-io
+check: check-vector-io
+check-vector-io: $(OUT)/tests/vector-io$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/vector-io$(HOSTEXE): tests/unit/vector_io_test.c libc/posix/vector_io.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG "$<" -o "$@"
 clean:
 	rm -rf -- "$(OUT)"
 -include $(addsuffix .d,$(COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(SSH_OBJECTS) $(APP_OBJECTS) $(OUT)/obj/apps/shell/sshshell.c.o)

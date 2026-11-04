@@ -6,4 +6,5 @@
 int service_call(unsigned, struct lume_supervision_request *);
 uint64_t service_now(void);
 void service_sleep(unsigned);
+int service_wait(uint64_t, uint64_t);
 #endif

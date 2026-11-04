@@ -18,7 +18,10 @@ static int service_send(unsigned command, const char *name)
         for (unsigned i = 0; i < n; ++i)
             m.name[i] = name[i];
     }
-    int64_t seq = call(LUME_SYS_SERVICE, LUME_SERVICE_SEND, (uintptr_t)&m, sizeof(m));
+    int64_t seq = call(LUME_SYS_SERVICE, LUME_SERVICE_SUBMIT, (uintptr_t)&m, sizeof(m));
+    bool tracked = seq != -LUME_EINVAL && seq != -LUME_ENOSYS;
+    if (!tracked)
+        seq = call(LUME_SYS_SERVICE, LUME_SERVICE_SEND, (uintptr_t)&m, sizeof(m));
     if (seq < 0)
     {
         net_text("net: service busy or unavailable\n");
@@ -27,11 +30,30 @@ static int service_send(unsigned command, const char *name)
     uint64_t until = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) + 90000;
     do
     {
-        if (service_get() < 0)
-            return 1;
-        if (net_service.acknowledged == (uint64_t)seq)
+        int result;
+        bool ready;
+        if (tracked)
         {
-            if (net_service.result)
+            struct lume_service_result completion = {.version = LUME_SERVICE_VERSION,
+                                                     .bytes = sizeof(completion),
+                                                     .sequence = (uint64_t)seq};
+            int status = (int)call(LUME_SYS_SERVICE, LUME_SERVICE_RESULT, (uintptr_t)&completion,
+                                   sizeof(completion));
+            if (status && status != -LUME_EAGAIN)
+                return 1;
+            ready = !status;
+            result = completion.result;
+        }
+        else
+        {
+            if (service_get() < 0)
+                return 1;
+            ready = net_service.acknowledged == (uint64_t)seq;
+            result = net_service.result;
+        }
+        if (ready)
+        {
+            if (result)
             {
                 net_text("net: command failed\n");
                 return 1;
@@ -39,8 +61,37 @@ static int service_send(unsigned command, const char *name)
             net_text("net: command applied\n");
             return 0;
         }
-        (void)call(LUME_SYS_SLEEP, 50, 0, 0);
-    } while ((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) < until);
+        if (tracked)
+        {
+            uint64_t now = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+            if (now >= until)
+                break;
+            struct lume_service_wait wait = {.version = LUME_SERVICE_VERSION,
+                                             .bytes = sizeof(wait),
+                                             .sequence = (uint64_t)seq,
+                                             .timeout_ms = until - now};
+            int status =
+                (int)call(LUME_SYS_SERVICE, LUME_SERVICE_WAIT, (uintptr_t)&wait, sizeof(wait));
+            if (status < 0)
+            {
+                struct lume_service_result cancel = {.version = LUME_SERVICE_VERSION,
+                                                     .bytes = sizeof(cancel),
+                                                     .sequence = (uint64_t)seq};
+                (void)call(LUME_SYS_SERVICE, LUME_SERVICE_CANCEL, (uintptr_t)&cancel,
+                           sizeof(cancel));
+                net_text("net: command wait interrupted\n");
+                return 1;
+            }
+        }
+        else
+            (void)call(LUME_SYS_SLEEP, 50, 0, 0);
+    } while (tracked || (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) < until);
+    if (tracked)
+    {
+        struct lume_service_result cancel = {
+            .version = LUME_SERVICE_VERSION, .bytes = sizeof(cancel), .sequence = (uint64_t)seq};
+        (void)call(LUME_SYS_SERVICE, LUME_SERVICE_CANCEL, (uintptr_t)&cancel, sizeof(cancel));
+    }
     net_text("net: command acknowledgement timed out\n");
     return 1;
 }

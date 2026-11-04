@@ -568,6 +568,41 @@ static void step(uint64_t now)
         failed((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0));
 }
 
+static int manager_step(bool loaded)
+{
+    unsigned handled;
+    for (handled = 0; handled < 8; ++handled)
+    {
+        struct lume_service_message message = {0};
+        int result =
+            (int)call(LUME_SYS_SERVICE, LUME_SERVICE_RECEIVE, (uintptr_t)&message, sizeof(message));
+        if (result == -LUME_EAGAIN)
+            break;
+        if (result)
+            return result;
+        command(&message);
+        publish();
+    }
+    uint64_t now = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+    ethernet_step(now);
+    if (loaded || profiles.generation)
+        step(now);
+    publish();
+    if (handled == 8)
+        (void)call(LUME_SYS_SLEEP, 0, 0, 0);
+    else
+    {
+        struct lume_service_wait wait = {
+            .version = LUME_SERVICE_VERSION, .bytes = sizeof(wait), .timeout_ms = 250};
+        int result = (int)call(LUME_SYS_SERVICE, LUME_SERVICE_WAIT, (uintptr_t)&wait, sizeof(wait));
+        if (result == -LUME_EINVAL || result == -LUME_ENOSYS)
+            (void)call(LUME_SYS_SLEEP, 250, 0, 0);
+        else if (result < 0 && result != -4)
+            return result;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     /* An independent client can drop the link without changing manager intent.
@@ -598,14 +633,10 @@ int main(int argc, char **argv)
         puts("net: persistent profiles loaded\n");
     for (;;)
     {
-        struct lume_service_message m = {0};
-        if (!call(LUME_SYS_SERVICE, LUME_SERVICE_RECEIVE, (uintptr_t)&m, sizeof(m)))
-            command(&m);
-        uint64_t now = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
-        ethernet_step(now);
-        if (loaded || profiles.generation)
-            step(now);
-        publish();
-        (void)call(LUME_SYS_SLEEP, 250, 0, 0);
+        if (manager_step(loaded))
+        {
+            puts("net: control channel unavailable\n");
+            return 1;
+        }
     }
 }

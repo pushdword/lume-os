@@ -295,6 +295,8 @@ static void respond(struct lume_supervision_request *request)
     request->count = 1;
 }
 
+#include "service_loop.h"
+
 static int daemon_main(void)
 {
     struct lume_supervision_request request = {.version = LUME_SUPERVISION_VERSION};
@@ -318,20 +320,12 @@ static int daemon_main(void)
         }
     for (;;)
     {
-        tick();
-        request = (struct lume_supervision_request){.version = LUME_SUPERVISION_VERSION};
-        result = service_call(LUME_SV_RECEIVE, &request);
-        if (!result)
-        {
-            respond(&request);
-            (void)service_call(LUME_SV_REPLY, &request);
-        }
-        else if (result != -EAGAIN)
+        result = service_step();
+        if (result)
         {
             fprintf(stderr, "svcd: control channel failed (%d)\n", result);
             return 1;
         }
-        service_sleep(100);
     }
 }
 
@@ -361,17 +355,11 @@ int main(int argc, char **argv)
     int result = service_call(LUME_SV_SUBMIT, &request);
     if (!result)
     {
-        uint64_t started = service_now();
-        while ((result = service_call(LUME_SV_RESULT, &request)) == -EAGAIN)
+        result = service_result_wait(&request);
+        if (result == -ETIMEDOUT)
         {
-            if (service_now() - started >= 30000)
-            {
-                (void)service_call(LUME_SV_CANCEL, &request);
-                fputs("service: request timed out. Check status before retrying a change.\n",
-                      stderr);
-                return 1;
-            }
-            service_sleep(50);
+            fputs("service: request timed out. Check status before retrying a change.\n", stderr);
+            return 1;
         }
         if (!result)
             result = request.result;

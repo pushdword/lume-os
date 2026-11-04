@@ -18,3 +18,12 @@ void service_sleep(unsigned milliseconds)
 {
     (void)native(LUME_SYS_SLEEP, milliseconds, 0, 0);
 }
+
+int service_wait(uint64_t sequence, uint64_t timeout)
+{
+    struct lume_supervision_wait request = {.version = LUME_SUPERVISION_VERSION,
+                                            .bytes = sizeof(request),
+                                            .sequence = sequence,
+                                            .timeout_ms = timeout};
+    return (int)native(LUME_SYS_SUPERVISE, LUME_SV_WAIT, (uintptr_t)&request, sizeof(request));
+}

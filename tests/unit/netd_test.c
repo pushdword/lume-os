@@ -15,6 +15,9 @@ static bool connection_pending, dhcp_pending;
 static bool ethernet_present, ethernet_admin, ethernet_link, ethernet_address;
 static bool ethernet_pending, ethernet_fail;
 static unsigned ethernet_dhcps;
+static bool test_loop, old_wait;
+static unsigned pending_commands, receives, acknowledgements, event_waits, sleeps;
+static uint64_t command_sequence, published_sequence;
 
 static struct
 {
@@ -136,9 +139,41 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
         return n;
     }
     if (number == LUME_SYS_SERVICE)
-        return a == LUME_SERVICE_RECEIVE ? -LUME_EAGAIN : 0;
+    {
+        if (!test_loop)
+            return a == LUME_SERVICE_RECEIVE ? -LUME_EAGAIN : 0;
+        if (a == LUME_SERVICE_RECEIVE)
+        {
+            ++receives;
+            if (!pending_commands)
+                return -LUME_EAGAIN;
+            --pending_commands;
+            *(struct lume_service_message *)(uintptr_t)b = (struct lume_service_message){
+                .version = 1, .sequence = ++command_sequence, .command = NETD_PAUSE};
+            return 0;
+        }
+        if (a == LUME_SERVICE_PUBLISH)
+        {
+            struct lume_net_service_status *published = (void *)(uintptr_t)b;
+            if (published->acknowledged != published_sequence)
+            {
+                T(published->acknowledged == published_sequence + 1);
+                published_sequence = published->acknowledged;
+                ++acknowledgements;
+            }
+            return 0;
+        }
+        T(a == LUME_SERVICE_WAIT);
+        struct lume_service_wait *wait = (void *)(uintptr_t)b;
+        T(wait->version == 1 && wait->bytes == sizeof(*wait) && !wait->sequence &&
+          wait->timeout_ms == 250);
+        ++event_waits;
+        return old_wait ? -LUME_EINVAL : 0;
+    }
     if (number == LUME_SYS_SLEEP)
     {
+        if (test_loop)
+            ++sleeps;
         milliseconds += a;
         return 0;
     }
@@ -412,6 +447,17 @@ int main(void)
     T(profiles.profile[find("new")].ssid[0] == 'N');
     cmd(NETD_IMPORT_FILE, "../bad");
     T(status.result == -LUME_EINVAL && profiles.count == previous_profiles + 1);
+    test_loop = true;
+    ethernet_present = false;
+    profiles.generation = 0;
+    status.acknowledged = 0;
+    pending_commands = 11;
+    T(!manager_step(false) && pending_commands == 3 && receives == 8 && acknowledgements == 8 &&
+      sleeps == 1 && !event_waits);
+    T(!manager_step(false) && !pending_commands && receives == 12 && acknowledgements == 11 &&
+      sleeps == 1 && event_waits == 1);
+    old_wait = true;
+    T(!manager_step(false) && sleeps == 2 && event_waits == 2);
     printf("PASS_NET_USERSPACE_MANAGER checks=%u\n", checks);
     return 0;
 }

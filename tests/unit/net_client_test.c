@@ -13,6 +13,10 @@ static uint64_t sequence;
 static char actual_output[4096];
 static unsigned output_bytes, write_calls;
 static bool bad_statistics;
+static uint64_t milliseconds;
+static bool old_service, completion_pending, wait_timeout, late_completion;
+static int completion_error, wait_error;
+static unsigned event_waits, sleeps, cancellations;
 
 #define T(x)                                                                                       \
     do                                                                                             \
@@ -28,6 +32,8 @@ static bool bad_statistics;
 int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
 {
     (void)c;
+    if (number == LUME_SYS_CLOCK)
+        return (int64_t)milliseconds;
     if (number == LUME_SYS_NETCTL)
     {
         struct lume_net_control *r = (void *)(uintptr_t)b;
@@ -67,13 +73,55 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
                 (struct lume_net_service_status){.version = 1, .acknowledged = sequence};
             return 0;
         }
+        if (a == LUME_SERVICE_SUBMIT)
+        {
+            if (old_service)
+                return -LUME_EINVAL;
+            struct lume_service_message *m = (void *)(uintptr_t)b;
+            ++service_calls;
+            service_command_id = m->command;
+            completion_pending = true;
+            return (int64_t)++sequence;
+        }
+        if (a == LUME_SERVICE_RESULT)
+        {
+            struct lume_service_result *result = (void *)(uintptr_t)b;
+            T(result->version == 1 && result->bytes == sizeof(*result) &&
+              result->sequence == sequence);
+            if (completion_pending)
+                return -LUME_EAGAIN;
+            result->result = completion_error;
+            return 0;
+        }
+        if (a == LUME_SERVICE_WAIT)
+        {
+            struct lume_service_wait *wait = (void *)(uintptr_t)b;
+            T(wait->sequence == sequence && wait->timeout_ms == 90000 && !wait->flags);
+            ++event_waits;
+            if (wait_error)
+                return wait_error;
+            if (wait_timeout)
+                milliseconds += wait->timeout_ms;
+            else
+            {
+                completion_pending = false;
+                if (late_completion)
+                    milliseconds += wait->timeout_ms + 1;
+            }
+            return wait_timeout ? 0 : 1;
+        }
+        if (a == LUME_SERVICE_CANCEL)
+        {
+            ++cancellations;
+            completion_pending = false;
+            return 0;
+        }
         if (a == LUME_SERVICE_SEND)
         {
             struct lume_service_message *m = (void *)(uintptr_t)b;
             ++service_calls;
             service_command_id = m->command;
-            sequence = m->sequence;
-            return 0;
+            return (int64_t)++sequence;
         }
     }
     if (number == LUME_SYS_WRITE)
@@ -89,7 +137,11 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
         return (int64_t)c;
     }
     if (number == LUME_SYS_SLEEP)
+    {
+        ++sleeps;
+        milliseconds += a;
         return 0;
+    }
     return -LUME_ENOSYS;
 }
 
@@ -131,6 +183,21 @@ int main(void)
     T(service_calls == 1 && service_command_id == NETD_PAUSE);
     T(run("up", "wlan0") == 0 && admin_index == 1);
     T(service_calls == 2 && service_command_id == NETD_RECONNECT);
+    T(event_waits == 2 && !sleeps);
+    old_service = true;
+    T(run("up", "wlan0") == 0 && event_waits == 2);
+    old_service = false;
+    completion_error = -LUME_EIO;
+    T(run("up", "wlan0") == 1 && strstr(net_output, "command failed"));
+    completion_error = 0;
+    wait_error = -4;
+    T(run("up", "wlan0") == 1 && cancellations == 1 && strstr(net_output, "interrupted"));
+    wait_error = 0;
+    wait_timeout = true;
+    T(run("up", "wlan0") == 1 && cancellations == 2 && strstr(net_output, "timed out"));
+    wait_timeout = false;
+    late_completion = true;
+    T(run("up", "wlan0") == 0 && cancellations == 2 && strstr(net_output, "command applied"));
     printf("PASS_NET_CLIENT checks=%u\n", checks);
     return 0;
 }

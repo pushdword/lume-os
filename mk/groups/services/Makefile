@@ -18,7 +18,7 @@ $(OUT)/service: $(OBJECTS) $(SDK)/lib/crt0.o $(SDK)/lib/liblume.a $(SDK)/lib/lib
 	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld $(SDK)/lib/crt0.o $(OBJECTS) --start-group $(SDK)/lib/liblume.a $(SDK)/lib/libc.a --end-group -o $@
 $(OUT)/svcd: $(OUT)/service
 	cp $< $@
-$(OUT)/service.o: $(OS_ROOT)/services/svcd/service.c $(OS_ROOT)/services/svcd/service_policy.h $(OS_ROOT)/services/svcd/service_config.h $(OS_ROOT)/services/svcd/service_platform.h
+$(OUT)/service.o: $(OS_ROOT)/services/svcd/service.c $(OS_ROOT)/services/svcd/service_policy.h $(OS_ROOT)/services/svcd/service_config.h $(OS_ROOT)/services/svcd/service_platform.h $(OS_ROOT)/services/svcd/service_loop.h
 	mkdir -p $(OUT)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 $(OUT)/service_platform.o: $(OS_ROOT)/services/svcd/platform.c $(OS_ROOT)/services/svcd/service_platform.h
