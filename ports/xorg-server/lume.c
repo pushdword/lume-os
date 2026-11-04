@@ -126,7 +126,7 @@ static void copy_screen_window(WindowPtr window, DDXPointRec previous, RegionPtr
         rectangles[i] = (struct lume_gpu_rect){sx, sy, box->x1, box->y1, width, height};
         area += (uint64_t)width * height;
     }
-    if (!supported || area < 65536)
+    if (!supported || area < (uint64_t)count * 65536)
     {
         RegionUninit(&destination);
         copy_window(window, previous, source);
@@ -200,6 +200,8 @@ static void wake_screen(void *data, int result)
 {
     (void)data;
     (void)result;
+    if (!InputThreadEnable && motion && InputCheckPending())
+        ProcessInputEvents();
 }
 
 static Bool screen_resources(ScreenPtr screen)
@@ -361,7 +363,7 @@ static void input_ready(int fd, int ready, void *data)
     (void)ready;
     (void)data;
     struct lume_input_event events[32];
-    for (;;)
+    for (unsigned batch = 0; batch < 4; ++batch)
     {
         ssize_t bytes = read(fd, events, sizeof(events));
         if (bytes < 0 && errno == EAGAIN)
