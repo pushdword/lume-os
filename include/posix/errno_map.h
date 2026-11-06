@@ -9,6 +9,7 @@ extern "C"
 #endif
     int lume_errno_from_syscall(unsigned);
     int32_t lume_posix_syscall(uint32_t, uint32_t, uint32_t, uint32_t);
+    int32_t lume_posix_app_call(uint32_t, uintptr_t, uintptr_t, uintptr_t);
     int lume_posix_open(const char *, unsigned);
     int lume_posix_close(int);
     int lume_posix_read(int, void *, unsigned);

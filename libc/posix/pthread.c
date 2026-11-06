@@ -4,31 +4,144 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <stdlib.h>
+
+#include "absolute_time.h"
 
 extern int64_t lume_thread_call(unsigned, struct lume_thread_request *);
+extern void native_cxx_thread_finalize(void) __attribute__((weak));
 static _Thread_local pthread_t identity;
-static _Thread_local void *key_values[16];
-static _Thread_local unsigned key_generations[16];
+static _Thread_local struct __lume_cleanup_record *cleanup_stack;
+static pthread_t fork_identity, fork_native_identity;
 
-static struct
+static pthread_t native_thread(pthread_t thread)
 {
-    unsigned generation;
-    bool used;
-    void (*destroy)(void *);
-} keys[16];
+    return fork_identity && thread == fork_identity ? fork_native_identity : thread;
+}
 
+void lume_pthread_fork_child(void)
+{
+    int64_t native = lume_thread_call(LUME_THREAD_SELF, NULL);
+    if (native < 0)
+        return;
+    if (!identity)
+        identity = (pthread_t)native;
+    fork_identity = identity;
+    fork_native_identity = (pthread_t)native;
+}
+
+void __lume_cleanup_push(struct __lume_cleanup_record *record, void (*routine)(void *),
+                         void *argument)
+{
+    *record = (struct __lume_cleanup_record){
+        .previous = cleanup_stack, .routine = routine, .argument = argument};
+    cleanup_stack = record;
+}
+
+void __lume_cleanup_pop(struct __lume_cleanup_record *record, int execute)
+{
+    if (cleanup_stack != record)
+        __builtin_trap();
+    cleanup_stack = record->previous;
+    if (execute)
+        record->routine(record->argument);
+}
+
+struct thread_key
+{
+    struct thread_key *next;
+    pthread_key_t key;
+    void (*destroy)(void *);
+};
+
+struct thread_value
+{
+    struct thread_value *next, *all_next;
+    struct thread_value **owner;
+    pthread_key_t key;
+    unsigned destructor_pass;
+    void *value;
+};
+
+static struct thread_key *keys;
+static pthread_key_t key_sequence;
+static struct thread_value *all_values;
+static _Thread_local struct thread_value *key_values;
+static _Thread_local unsigned destructor_pass;
 static pthread_mutex_t key_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct thread_start
 {
-    unsigned used, detached, finished;
+    struct thread_start *next;
+    bool detached, finished;
     pthread_t tid;
     void *(*function)(void *);
     void *argument;
-} starts[8];
+} *starts;
 
 static pthread_mutex_t start_lock = PTHREAD_MUTEX_INITIALIZER;
 static _Thread_local struct thread_start *current_start;
+
+static struct stack_attribute
+{
+    struct stack_attribute *next;
+    const pthread_attr_t *attribute;
+    void *base;
+} *stack_attributes;
+
+static pthread_mutex_t attribute_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void release_stack_attribute(const pthread_attr_t *attribute)
+{
+    pthread_mutex_lock(&attribute_lock);
+    struct stack_attribute **position = &stack_attributes;
+    while (*position && (*position)->attribute != attribute)
+        position = &(*position)->next;
+    struct stack_attribute *entry = *position;
+    if (entry)
+        *position = entry->next;
+    pthread_mutex_unlock(&attribute_lock);
+    free(entry);
+}
+
+static struct thread_key *find_key(pthread_key_t key)
+{
+    for (struct thread_key *entry = keys; entry; entry = entry->next)
+        if (entry->key == key)
+            return entry;
+    return NULL;
+}
+
+static void unlink_value(struct thread_value *entry)
+{
+    struct thread_value **position = entry->owner;
+    while (*position != entry)
+        position = &(*position)->next;
+    *position = entry->next;
+    position = &all_values;
+    while (*position != entry)
+        position = &(*position)->all_next;
+    *position = entry->all_next;
+}
+
+static void free_values(struct thread_value *entry)
+{
+    while (entry)
+    {
+        struct thread_value *next = entry->next;
+        free(entry);
+        entry = next;
+    }
+}
+
+static void remove_start(struct thread_start *start)
+{
+    struct thread_start **entry = &starts;
+    while (*entry && *entry != start)
+        entry = &(*entry)->next;
+    if (*entry)
+        *entry = start->next;
+}
 
 /* Each thread can hold read locks on 64 distinct objects. Recursion shares an entry.
  * An exhausted table returns EAGAIN without allocating or blocking. */
@@ -37,6 +150,47 @@ static _Thread_local struct rwlock_read_hold
     pthread_rwlock_t *lock;
     unsigned depth;
 } rwlock_read_holds[64];
+
+static struct rwlock_writer_wait
+{
+    struct rwlock_writer_wait *next;
+    pthread_rwlock_t *lock;
+} *rwlock_writers;
+
+static pthread_mutex_t writer_queue_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void queue_writer(struct rwlock_writer_wait *waiter, pthread_rwlock_t *lock)
+{
+    *waiter = (struct rwlock_writer_wait){.lock = lock};
+    pthread_mutex_lock(&writer_queue_lock);
+    struct rwlock_writer_wait **position = &rwlock_writers;
+    while (*position)
+        position = &(*position)->next;
+    *position = waiter;
+    pthread_mutex_unlock(&writer_queue_lock);
+}
+
+static bool first_writer(const struct rwlock_writer_wait *waiter)
+{
+    pthread_mutex_lock(&writer_queue_lock);
+    const struct rwlock_writer_wait *position = rwlock_writers;
+    while (position && position->lock != waiter->lock)
+        position = position->next;
+    bool first = position == waiter;
+    pthread_mutex_unlock(&writer_queue_lock);
+    return first;
+}
+
+static void unqueue_writer(struct rwlock_writer_wait *waiter)
+{
+    pthread_mutex_lock(&writer_queue_lock);
+    struct rwlock_writer_wait **position = &rwlock_writers;
+    while (*position && *position != waiter)
+        position = &(*position)->next;
+    if (*position)
+        *position = waiter->next;
+    pthread_mutex_unlock(&writer_queue_lock);
+}
 
 static int wait_word(uint32_t *word, uint32_t value, uint64_t timeout)
 {
@@ -64,55 +218,99 @@ int pthread_equal(pthread_t a, pthread_t b)
     return a == b;
 }
 
-_Noreturn void pthread_exit(void *value)
+static _Noreturn void finish_thread(void *value, bool execute_cleanup)
 {
-    for (unsigned pass = 0; pass < PTHREAD_DESTRUCTOR_ITERATIONS; ++pass)
-        for (unsigned i = 0; i < 16; ++i)
+    if (execute_cleanup)
+        while (cleanup_stack)
+            __lume_cleanup_pop(cleanup_stack, 1);
+    else
+        cleanup_stack = NULL;
+    if (native_cxx_thread_finalize)
+        native_cxx_thread_finalize();
+    for (destructor_pass = 1; destructor_pass <= PTHREAD_DESTRUCTOR_ITERATIONS; ++destructor_pass)
+        for (;;)
         {
             pthread_mutex_lock(&key_lock);
-            void (*destroy)(void *) =
-                keys[i].used && keys[i].generation == key_generations[i] ? keys[i].destroy : NULL;
-            void *p = key_values[i];
-            key_values[i] = NULL;
+            struct thread_value *entry = key_values;
+            while (entry && entry->destructor_pass >= destructor_pass)
+                entry = entry->next;
+            if (!entry)
+            {
+                pthread_mutex_unlock(&key_lock);
+                break;
+            }
+            entry->destructor_pass = destructor_pass;
+            struct thread_key *key = find_key(entry->key);
+            void (*destroy)(void *) = key ? key->destroy : NULL;
+            void *p = entry->value;
+            entry->value = NULL;
             pthread_mutex_unlock(&key_lock);
             if (p && destroy)
                 destroy(p);
         }
+    pthread_mutex_lock(&key_lock);
+    struct thread_value *released_values = NULL;
+    while (key_values)
+    {
+        struct thread_value *entry = key_values;
+        unlink_value(entry);
+        entry->next = released_values;
+        released_values = entry;
+    }
+    pthread_mutex_unlock(&key_lock);
+    free_values(released_values);
+    struct thread_start *released = NULL;
     pthread_mutex_lock(&start_lock);
     if (current_start)
     {
-        current_start->finished = 1;
+        current_start->finished = true;
         if (current_start->detached)
-            current_start->used = 0;
+        {
+            remove_start(current_start);
+            released = current_start;
+        }
     }
+    current_start = NULL;
     pthread_mutex_unlock(&start_lock);
+    free(released);
     struct lume_thread_request r = {.value = (uintptr_t)value};
     (void)lume_thread_call(LUME_THREAD_EXIT, &r);
     for (;;)
         ;
 }
 
+_Noreturn void pthread_exit(void *value)
+{
+    finish_thread(value, true);
+}
+
 static _Noreturn void trampoline(void *argument)
 {
     current_start = argument;
-    pthread_exit(current_start->function(current_start->argument));
+    void *value = current_start->function(current_start->argument);
+    finish_thread(value, false);
 }
 
 int pthread_attr_init(pthread_attr_t *a)
 {
-    *a = (pthread_attr_t){.stacksize = 128 * 1024, .guardsize = 4096};
+    if (!a)
+        return EINVAL;
+    release_stack_attribute(a);
+    *a = (pthread_attr_t){.stacksize = LUME_PTHREAD_STACK_DEFAULT, .guardsize = 4096};
     return 0;
 }
 
 int pthread_attr_destroy(pthread_attr_t *a)
 {
-    (void)a;
+    if (!a)
+        return EINVAL;
+    release_stack_attribute(a);
     return 0;
 }
 
 int pthread_attr_setstacksize(pthread_attr_t *a, size_t n)
 {
-    if (n < PTHREAD_STACK_MIN || n > 768 * 1024)
+    if (n < PTHREAD_STACK_MIN || n > LUME_PTHREAD_STACK_MAX)
         return EINVAL;
     a->stacksize = n;
     return 0;
@@ -122,6 +320,102 @@ int pthread_attr_getstacksize(const pthread_attr_t *a, size_t *n)
 {
     *n = a->stacksize;
     return 0;
+}
+
+int pthread_attr_getstack(const pthread_attr_t *a, void **base, size_t *bytes)
+{
+    if (!a || !base || !bytes)
+        return EINVAL;
+    *base = NULL;
+    *bytes = a->stacksize;
+    pthread_mutex_lock(&attribute_lock);
+    for (const struct stack_attribute *entry = stack_attributes; entry; entry = entry->next)
+        if (entry->attribute == a)
+        {
+            *base = entry->base;
+            break;
+        }
+    pthread_mutex_unlock(&attribute_lock);
+    return 0;
+}
+
+int pthread_attr_setstack(pthread_attr_t *a, void *base, size_t bytes)
+{
+    (void)a;
+    (void)base;
+    (void)bytes;
+    return ENOTSUP;
+}
+
+int pthread_getattr_np(pthread_t thread, pthread_attr_t *a)
+{
+    if (!a)
+        return EINVAL;
+    struct lume_thread_request request = {.tid = native_thread(thread)};
+    int64_t result = lume_thread_call(LUME_THREAD_STACK, &request);
+    if (result < 0)
+        return (int)-result;
+    struct stack_attribute *entry = malloc(sizeof(*entry));
+    if (!entry)
+        return ENOMEM;
+    release_stack_attribute(a);
+    *a = (pthread_attr_t){.stacksize = (size_t)request.stack_bytes,
+                          .guardsize = (size_t)request.argument,
+                          .detachstate =
+                              request.value ? PTHREAD_CREATE_DETACHED : PTHREAD_CREATE_JOINABLE};
+    *entry = (struct stack_attribute){.attribute = a, .base = (void *)(uintptr_t)request.address};
+    pthread_mutex_lock(&attribute_lock);
+    entry->next = stack_attributes;
+    stack_attributes = entry;
+    pthread_mutex_unlock(&attribute_lock);
+    return 0;
+}
+
+int pthread_getname_np(pthread_t thread, char *name, size_t bytes)
+{
+    if (!name || !bytes)
+        return EINVAL;
+    struct lume_thread_request request = {
+        .tid = native_thread(thread), .address = (uintptr_t)name, .stack_bytes = bytes};
+    int64_t result = lume_thread_call(LUME_THREAD_NAME, &request);
+    return result < 0 ? (int)-result : 0;
+}
+
+int pthread_setname_np(pthread_t thread, const char *name)
+{
+    if (!name)
+        return EINVAL;
+    size_t bytes = strnlen(name, 16);
+    if (bytes == 16)
+        return ERANGE;
+    struct lume_thread_request request = {
+        .tid = native_thread(thread), .address = (uintptr_t)name, .stack_bytes = bytes + 1, .value = 1};
+    int64_t result = lume_thread_call(LUME_THREAD_NAME, &request);
+    return result < 0 ? (int)-result : 0;
+}
+
+int pthread_getschedparam(pthread_t thread, int *policy, struct sched_param *parameters)
+{
+    if (!policy || !parameters)
+        return EINVAL;
+    struct lume_thread_request request = {.tid = native_thread(thread)};
+    int64_t result = lume_thread_call(LUME_THREAD_STACK, &request);
+    if (result < 0)
+        return (int)-result;
+    *policy = SCHED_OTHER;
+    *parameters = (struct sched_param){.sched_priority = 0};
+    return 0;
+}
+
+int pthread_setschedparam(pthread_t thread, int policy, const struct sched_param *parameters)
+{
+    if (!parameters)
+        return EINVAL;
+    if (policy != SCHED_OTHER || parameters->sched_priority)
+        return ENOTSUP;
+    int actual_policy;
+    struct sched_param actual;
+    return pthread_getschedparam(thread, &actual_policy, &actual);
 }
 
 int pthread_attr_setdetachstate(pthread_attr_t *a, int n)
@@ -160,31 +454,36 @@ int pthread_create(pthread_t *out, const pthread_attr_t *a, void *(*run)(void *)
     pthread_attr_init(&defaults);
     if (!a)
         a = &defaults;
-    pthread_mutex_lock(&start_lock);
-    struct thread_start *s = NULL;
-    for (unsigned i = 0; i < 8; ++i)
-        if (!__atomic_load_n(&starts[i].used, __ATOMIC_ACQUIRE))
-        {
-            s = &starts[i];
-            *s = (struct thread_start){.used = 1, .function = run, .argument = argument};
-            break;
-        }
+    if (a->stacksize < PTHREAD_STACK_MIN || a->stacksize > LUME_PTHREAD_STACK_MAX ||
+        (a->detachstate != PTHREAD_CREATE_JOINABLE && a->detachstate != PTHREAD_CREATE_DETACHED))
+        return EINVAL;
+    if (a->guardsize != 4096)
+        return ENOTSUP;
+    void *supplied_stack;
+    size_t supplied_bytes;
+    int attributes = pthread_attr_getstack(a, &supplied_stack, &supplied_bytes);
+    if (attributes || supplied_stack)
+        return attributes ? attributes : ENOTSUP;
+    struct thread_start *s = malloc(sizeof(*s));
     if (!s)
-    {
-        pthread_mutex_unlock(&start_lock);
         return EAGAIN;
-    }
+    *s = (struct thread_start){.function = run, .argument = argument};
+    pthread_mutex_lock(&start_lock);
+    s->next = starts;
+    starts = s;
     struct lume_thread_request r = {
         .entry = (uintptr_t)trampoline, .argument = (uintptr_t)s, .stack_bytes = a->stacksize};
     int64_t tid = lume_thread_call(LUME_THREAD_CREATE, &r);
     if (tid < 0)
-        s->used = 0;
+        remove_start(s);
     else
     {
         s->tid = (pthread_t)tid;
         *out = s->tid;
     }
     pthread_mutex_unlock(&start_lock);
+    if (tid < 0)
+        free(s);
     if (tid >= 0 && a->detachstate == PTHREAD_CREATE_DETACHED)
         return pthread_detach((pthread_t)tid);
     return tid < 0 ? (int)-tid : 0;
@@ -194,34 +493,50 @@ int pthread_join(pthread_t thread, void **value)
 {
     if (pthread_equal(thread, pthread_self()))
         return EDEADLK;
-    struct lume_thread_request r = {.tid = thread};
-    int64_t result = lume_thread_call(LUME_THREAD_JOIN, &r);
+    struct lume_thread_request r = {.tid = native_thread(thread)};
+    int64_t result;
+    do
+    {
+        result = lume_thread_call(LUME_THREAD_JOIN, &r);
+    } while (result == -EINTR);
     if (result < 0)
         return (int)-result;
     if (value)
         *value = (void *)(uintptr_t)r.value;
+    struct thread_start *released = NULL;
     pthread_mutex_lock(&start_lock);
-    for (unsigned i = 0; i < 8; ++i)
-        if (starts[i].used && starts[i].tid == thread)
-            starts[i].used = 0;
+    for (struct thread_start *entry = starts; entry; entry = entry->next)
+        if (entry->tid == thread)
+        {
+            remove_start(entry);
+            released = entry;
+            break;
+        }
     pthread_mutex_unlock(&start_lock);
+    free(released);
     return 0;
 }
 
 int pthread_detach(pthread_t thread)
 {
+    struct thread_start *released = NULL;
     pthread_mutex_lock(&start_lock);
-    struct lume_thread_request r = {.tid = thread};
+    struct lume_thread_request r = {.tid = native_thread(thread)};
     int64_t result = lume_thread_call(LUME_THREAD_DETACH, &r);
     if (result >= 0)
-        for (unsigned i = 0; i < 8; ++i)
-            if (starts[i].used && starts[i].tid == thread)
+        for (struct thread_start *entry = starts; entry; entry = entry->next)
+            if (entry->tid == thread)
             {
-                starts[i].detached = 1;
-                if (starts[i].finished)
-                    starts[i].used = 0;
+                entry->detached = true;
+                if (entry->finished)
+                {
+                    remove_start(entry);
+                    released = entry;
+                }
+                break;
             }
     pthread_mutex_unlock(&start_lock);
+    free(released);
     return result < 0 ? (int)-result : 0;
 }
 
@@ -354,15 +669,23 @@ int pthread_cond_destroy(pthread_cond_t *c)
     return __atomic_load_n(&c->waiters, __ATOMIC_ACQUIRE) ? EBUSY : 0;
 }
 
-static int condition_wait(pthread_cond_t *c, pthread_mutex_t *m, uint64_t ms)
+static int condition_wait(pthread_cond_t *c, pthread_mutex_t *m, uint64_t ms, bool realtime)
 {
     uint32_t sequence = __atomic_load_n(&c->sequence, __ATOMIC_ACQUIRE);
     __atomic_add_fetch(&c->waiters, 1, __ATOMIC_RELAXED);
     int result = pthread_mutex_unlock(m);
     if (!result)
     {
-        result = wait_word(&c->sequence, sequence, ms);
-        if (result == EAGAIN)
+        if (realtime)
+        {
+            struct lume_thread_request request = {
+                .address = (uintptr_t)&c->sequence, .value = sequence, .timeout_ms = ms};
+            int64_t status = lume_thread_call(LUME_THREAD_WAIT_REALTIME, &request);
+            result = status < 0 ? (int)-status : 0;
+        }
+        else
+            result = wait_word(&c->sequence, sequence, ms);
+        if (result == EAGAIN || result == EINTR)
             result = 0;
         int lock = pthread_mutex_lock(m);
         if (lock)
@@ -374,16 +697,22 @@ static int condition_wait(pthread_cond_t *c, pthread_mutex_t *m, uint64_t ms)
 
 int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m)
 {
-    return condition_wait(c, m, UINT64_MAX);
+    return condition_wait(c, m, UINT64_MAX, false);
 }
 
 int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct timespec *end)
 {
-    if (!end || end->tv_sec < 0 || end->tv_nsec < 0 || end->tv_nsec >= 1000000000)
+    if (!end || end->tv_nsec < 0 || end->tv_nsec >= 1000000000)
         return EINVAL;
     struct timespec now;
     if (clock_gettime(c->clock, &now))
-        return ENOTSUP;
+        return errno;
+    if (c->clock == CLOCK_REALTIME)
+    {
+        uint64_t deadline;
+        int error = timespec_deadline_ms(end, &deadline);
+        return error ? error : condition_wait(c, m, deadline, true);
+    }
     uint64_t ms = 0;
     if (end->tv_sec > now.tv_sec || (end->tv_sec == now.tv_sec && end->tv_nsec > now.tv_nsec))
     {
@@ -397,7 +726,7 @@ int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct t
         else
             ms -= (uint64_t)-ns / 1000000;
     }
-    return condition_wait(c, m, ms);
+    return condition_wait(c, m, ms, false);
 }
 
 int pthread_cond_signal(pthread_cond_t *c)
@@ -483,7 +812,7 @@ static void rwlock_wake(pthread_rwlock_t *lock)
         pthread_cond_broadcast(&lock->changed);
 }
 
-/* New readers wait behind pending writers. Existing readers may still recurse. */
+/* Writers enter in queue order. Existing readers may still recurse. */
 static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
 {
     int result = try_only ? pthread_mutex_trylock(&lock->mutex) : pthread_mutex_lock(&lock->mutex);
@@ -493,12 +822,27 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
     struct rwlock_read_hold *hold = writer ? NULL : rwlock_read_slot(lock);
     bool recursive = hold && hold->lock == lock;
     bool pending_writer = false;
+    struct rwlock_writer_wait waiter;
     if (!writer && !hold)
         result = EAGAIN;
     if (!try_only && lock->writer == self)
         result = EDEADLK;
-    while (!result && (lock->writer || (writer && lock->readers) ||
-                       (!writer && !recursive && lock->mutex.reserved)))
+    if (!result && writer && !try_only && (lock->writer || lock->readers || lock->mutex.reserved))
+    {
+        if (lock->mutex.reserved == UINT_MAX)
+            result = EAGAIN;
+        else
+        {
+            queue_writer(&waiter, lock);
+            ++lock->mutex.reserved;
+            pending_writer = true;
+        }
+    }
+    while (!result &&
+           (lock->writer ||
+            (writer && (lock->readers ||
+                        (pending_writer ? !first_writer(&waiter) : lock->mutex.reserved != 0))) ||
+            (!writer && !recursive && lock->mutex.reserved)))
     {
         if (try_only)
         {
@@ -510,12 +854,6 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
             result = EAGAIN;
             break;
         }
-        if (writer && !pending_writer)
-        {
-            /* The internal mutex reserves this field for the number of pending writers. */
-            ++lock->mutex.reserved;
-            pending_writer = true;
-        }
         ++lock->waiters;
         result = pthread_cond_wait(&lock->changed, &lock->mutex);
         --lock->waiters;
@@ -523,7 +861,10 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
             result = 0;
     }
     if (pending_writer)
+    {
+        unqueue_writer(&waiter);
         --lock->mutex.reserved;
+    }
     if (!result)
     {
         if (writer)
@@ -537,7 +878,7 @@ static int rwlock_acquire(pthread_rwlock_t *lock, bool writer, bool try_only)
             ++hold->depth;
         }
     }
-    if (pending_writer && result && !lock->mutex.reserved && !lock->writer)
+    if (pending_writer && result && !lock->writer)
         rwlock_wake(lock);
     pthread_mutex_unlock(&lock->mutex);
     return result;
@@ -612,53 +953,112 @@ int pthread_once(pthread_once_t *once, void (*function)(void))
 
 int pthread_key_create(pthread_key_t *out, void (*destroy)(void *))
 {
+    if (!out)
+        return EINVAL;
+    struct thread_key *entry = malloc(sizeof(*entry));
+    if (!entry)
+        return EAGAIN;
     pthread_mutex_lock(&key_lock);
-    for (unsigned i = 0; i < 16; ++i)
-        if (!keys[i].used)
-        {
-            keys[i].used = true;
-            keys[i].destroy = destroy;
-            *out = ++keys[i].generation * 16 + i;
-            pthread_mutex_unlock(&key_lock);
-            return 0;
-        }
+    if (key_sequence == UINT_MAX)
+    {
+        pthread_mutex_unlock(&key_lock);
+        free(entry);
+        return EAGAIN;
+    }
+    *entry = (struct thread_key){.next = keys, .key = ++key_sequence, .destroy = destroy};
+    keys = entry;
+    *out = entry->key;
     pthread_mutex_unlock(&key_lock);
-    return EAGAIN;
+    return 0;
 }
 
 int pthread_key_delete(pthread_key_t key)
 {
     pthread_mutex_lock(&key_lock);
-    unsigned i = key % 16;
-    int result = !keys[i].used || keys[i].generation != key / 16 ? EINVAL : 0;
-    if (!result)
-        keys[i].used = false;
+    struct thread_key **position = &keys;
+    while (*position && (*position)->key != key)
+        position = &(*position)->next;
+    struct thread_key *entry = *position;
+    if (entry)
+        *position = entry->next;
+    struct thread_value *released = NULL;
+    for (struct thread_value *value = all_values; value;)
+    {
+        struct thread_value *next = value->all_next;
+        if (value->key == key)
+        {
+            unlink_value(value);
+            value->next = released;
+            released = value;
+        }
+        value = next;
+    }
     pthread_mutex_unlock(&key_lock);
-    return result;
+    bool valid = entry != NULL;
+    free_values(released);
+    free(entry);
+    return valid ? 0 : EINVAL;
 }
 
 int pthread_setspecific(pthread_key_t key, const void *value)
 {
     pthread_mutex_lock(&key_lock);
-    unsigned i = key % 16;
-    int result = !keys[i].used || keys[i].generation != key / 16 ? EINVAL : 0;
-    if (!result)
+    if (!find_key(key))
     {
-        key_values[i] = (void *)value;
-        key_generations[i] = keys[i].generation;
+        pthread_mutex_unlock(&key_lock);
+        return EINVAL;
+    }
+    struct thread_value *entry = key_values;
+    while (entry && entry->key != key)
+        entry = entry->next;
+    if (entry || !value)
+    {
+        if (entry)
+            entry->value = (void *)value;
+        pthread_mutex_unlock(&key_lock);
+        return 0;
     }
     pthread_mutex_unlock(&key_lock);
+    struct thread_value *allocated = malloc(sizeof(*allocated));
+    if (!allocated)
+        return ENOMEM;
+    pthread_mutex_lock(&key_lock);
+    int result = find_key(key) ? 0 : EINVAL;
+    if (!result)
+    {
+        entry = key_values;
+        while (entry && entry->key != key)
+            entry = entry->next;
+        if (!entry)
+        {
+            entry = allocated;
+            *entry = (struct thread_value){.next = key_values,
+                                           .all_next = all_values,
+                                           .owner = &key_values,
+                                           .key = key,
+                                           .destructor_pass = destructor_pass};
+            key_values = entry;
+            all_values = entry;
+            allocated = NULL;
+        }
+        entry->value = (void *)value;
+    }
+    pthread_mutex_unlock(&key_lock);
+    free(allocated);
     return result;
 }
 
 void *pthread_getspecific(pthread_key_t key)
 {
     pthread_mutex_lock(&key_lock);
-    unsigned i = key % 16;
-    void *value =
-        keys[i].used && keys[i].generation == key / 16 && keys[i].generation == key_generations[i]
-            ? key_values[i]
-            : NULL;
+    void *value = NULL;
+    if (find_key(key))
+        for (struct thread_value *entry = key_values; entry; entry = entry->next)
+            if (entry->key == key)
+            {
+                value = entry->value;
+                break;
+            }
     pthread_mutex_unlock(&key_lock);
     return value;
 }

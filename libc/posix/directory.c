@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#if defined(LUME_NATIVE_ABI) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#ifdef LUME_POSIX_DIRECTORY_NATIVE
 #define lume_stat lume_native_stat
 #define LUME_SEEK_SET LUME_NATIVE_SEEK_SET
 #define LUME_SEEK_CUR LUME_NATIVE_SEEK_CUR
@@ -21,6 +21,7 @@
 #undef LUME_ARG_BYTES
 #include "lume/file_mode.h"
 #include "fd.h"
+#include "files_client.h"
 #ifndef LUME_USER_HOST_TEST
 #include "lume/syscall_native.h"
 #endif
@@ -50,13 +51,11 @@ DIR *opendir(const char *path)
     if (!directory)
         return NULL;
     directory->fd = -1;
-    struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
-                                             .bytes = sizeof(request),
-                                             .path = (uintptr_t)path,
-                                             .flags = LUME_O_RDONLY,
-                                             .descriptor_flags = LUME_FD_CLOEXEC};
-    int64_t result = directory_call(LUME_SYS_FILE_MODE, LUME_FILE_MODE_OPEN, (uintptr_t)&request,
-                                    sizeof(request));
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = LUME_FILES_AT_CWD,
+                                         .flags = LUME_O_RDONLY | LUME_FILES_OPEN_DIRECTORY,
+                                         .descriptor_flags = LUME_FD_CLOEXEC};
+    int64_t result = lume_native_files_call(LUME_FILES_OPEN, &request);
     if (result < 0)
         return directory_fail(directory, lume_errno_from_syscall((unsigned)-result));
     if (result > INT_MAX)
@@ -132,20 +131,22 @@ struct dirent *readdir(DIR *directory)
     {
         if (directory->eof)
             return NULL;
-        int64_t result = directory_call(LUME_SYS_GETDENTS, (unsigned)directory->fd,
-                                        (uintptr_t)directory->buffer, sizeof(directory->buffer));
+        struct lume_files_request request = {.fd = directory->fd,
+                                             .buffer = (uintptr_t)directory->buffer,
+                                             .count = sizeof(directory->buffer)};
+        int64_t result = lume_native_files_call(LUME_FILES_GETDENTS, &request);
         if (result < 0)
         {
             errno = lume_errno_from_syscall((unsigned)-result);
             return NULL;
         }
         if ((uint64_t)result > sizeof(directory->buffer) ||
-            result % (int64_t)sizeof(struct lume_dirent))
+            result % (int64_t)sizeof(struct lume_files_dirent))
         {
             errno = EIO;
             return NULL;
         }
-        directory->count = (unsigned)((uint64_t)result / sizeof(struct lume_dirent));
+        directory->count = (unsigned)((uint64_t)result / sizeof(struct lume_files_dirent));
         directory->next = 0;
         if (!result)
         {
@@ -153,9 +154,11 @@ struct dirent *readdir(DIR *directory)
             return NULL;
         }
     }
-    struct lume_dirent entry;
+    struct lume_files_dirent entry;
     memcpy(&entry, directory->buffer + directory->next * sizeof(entry), sizeof(entry));
-    if (!memchr(entry.name, 0, sizeof(entry.name)) || entry.inode <= directory->position)
+    if (!entry.name_bytes || entry.name_bytes >= sizeof(entry.name) ||
+        entry.name[entry.name_bytes] || memchr(entry.name, 0, entry.name_bytes) ||
+        entry.inode <= directory->position || (uint64_t)(ino_t)entry.inode != entry.inode)
     {
         errno = EIO;
         return NULL;
@@ -170,7 +173,7 @@ struct dirent *readdir(DIR *directory)
     directory->entry = (struct dirent){.d_ino = (ino_t)entry.inode,
                                        .d_reclen = sizeof(struct dirent),
                                        .d_type = (unsigned char)type};
-    memcpy(directory->entry.d_name, entry.name, sizeof(entry.name));
+    memcpy(directory->entry.d_name, entry.name, entry.name_bytes + 1);
     ++directory->next;
     /* The VFS inode is also the cursor immediately following this entry. */
     directory->position = entry.inode;
@@ -287,8 +290,8 @@ struct dirent *readdir(DIR *directory)
         return NULL;
     }
     struct lume_directory_entry entry;
-    int result = lume_syscall(LUME_READDIR, (uint32_t)(uintptr_t)directory->path,
-                              (uint32_t)(uintptr_t)&entry, directory->index);
+    int result = lume_app_call(LUME_READDIR, (uintptr_t)directory->path, (uintptr_t)&entry,
+                               directory->index);
     if (result <= 0)
     {
         if (result < 0)

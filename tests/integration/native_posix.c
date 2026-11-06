@@ -25,7 +25,12 @@ int main(void)
     assert(lseek(fd, 0, SEEK_CUR) == 11);
     assert(fstat(fd, &by_fd) == 0 && by_fd.st_size == 7);
     errno = 0;
-    assert(ftruncate(fd, 20) == -1 && errno == ENOTSUP);
+    assert(ftruncate(fd, 20) == 0 && lseek(fd, 0, SEEK_CUR) == 11);
+    char extension[13];
+    assert(lseek(fd, 7, SEEK_SET) == 7 &&
+           read(fd, extension, sizeof(extension)) == sizeof(extension));
+    for (unsigned i = 0; i < sizeof(extension); ++i)
+        assert(extension[i] == 0);
     assert(close(fd) == 0);
 
     DIR *directory = opendir("/data");

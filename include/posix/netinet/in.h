@@ -39,6 +39,7 @@ struct sockaddr_in6
 #define IPPROTO_UDP 17
 #define IP_TOS 1
 #define IP_TTL 2
+#define IP_RECVTOS 13
 #define IP_MULTICAST_IF 32
 #define IP_MULTICAST_TTL 33
 #define IP_MULTICAST_LOOP 34

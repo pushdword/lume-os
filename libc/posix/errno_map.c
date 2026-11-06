@@ -92,10 +92,62 @@ int lume_errno_from_syscall(unsigned error)
         return ELOOP;
     case 75:
         return EOVERFLOW;
+    case 88:
+        return ENOTSOCK;
+    case 89:
+        return EDESTADDRREQ;
+    case 90:
+        return EMSGSIZE;
+    case 91:
+        return EPROTOTYPE;
+    case 92:
+        return ENOPROTOOPT;
+    case 93:
+        return EPROTONOSUPPORT;
+    case 94:
+        return ESOCKTNOSUPPORT;
     case 95:
         return EOPNOTSUPP;
+    case 96:
+        return EPFNOSUPPORT;
+    case 97:
+        return EAFNOSUPPORT;
+    case 98:
+        return EADDRINUSE;
+    case 99:
+        return EADDRNOTAVAIL;
+    case 100:
+        return ENETDOWN;
+    case 101:
+        return ENETUNREACH;
+    case 102:
+        return ENETRESET;
+    case 103:
+        return ECONNABORTED;
+    case 104:
+        return ECONNRESET;
+    case 105:
+        return ENOBUFS;
+    case 106:
+        return EISCONN;
+    case 107:
+        return ENOTCONN;
+    case 108:
+        return ESHUTDOWN;
+    case 109:
+        return ETOOMANYREFS;
     case 110:
         return ETIMEDOUT;
+    case 111:
+        return ECONNREFUSED;
+    case 112:
+        return EHOSTDOWN;
+    case 113:
+        return EHOSTUNREACH;
+    case 114:
+        return EALREADY;
+    case 115:
+        return EINPROGRESS;
     case 116:
         return ESTALE;
     case 125:
@@ -113,6 +165,11 @@ static int32_t mapped(int32_t result)
 int32_t lume_posix_syscall(uint32_t n, uint32_t a, uint32_t b, uint32_t c)
 {
     return mapped(lume_syscall(n, a, b, c));
+}
+
+int32_t lume_posix_app_call(uint32_t n, uintptr_t a, uintptr_t b, uintptr_t c)
+{
+    return mapped(lume_app_call(n, a, b, c));
 }
 
 int lume_posix_open(const char *p, unsigned f)

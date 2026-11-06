@@ -11,6 +11,18 @@ static bool termios_saved;
 #endif
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "errno_map.h"
+#include "files_client.h"
+#undef lume_app_call
+#define lume_app_call lume_posix_app_call
+#ifndef app_read
+#define app_open lume_posix_open
+#define app_close lume_posix_close
+#define app_read lume_posix_read
+#define app_write lume_posix_write
+#define app_seek lume_posix_seek
+#define app_sync lume_posix_sync
+#define app_stat lume_posix_stat
+#endif
 #endif
 #include <errno.h>
 #include <fcntl.h>
@@ -53,7 +65,7 @@ static int input_is_terminal(void)
     if (!input_kind)
     {
         struct lume_stat s;
-        int r = lume_syscall(LUME_FSTAT, 0, (uint32_t)(uintptr_t)&s, 0);
+        int r = lume_app_call(LUME_FSTAT, 0, (uintptr_t)&s, 0);
         /* An older kernel without metadata must keep interactive semantics. */
         input_kind = r < 0 || (s.mode & 0170000) == 0020000 ? 1 : 2;
     }
@@ -107,6 +119,16 @@ static int result(int r)
     return r;
 }
 
+static int poll_descriptors(struct lume_pollfd *descriptors, unsigned count, uint32_t timeout)
+{
+    int status = app_poll(descriptors, count, timeout);
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (status < 0)
+        return -lume_errno_from_syscall((unsigned)-status);
+#endif
+    return status;
+}
+
 static ssize_t write_raw(int fd, const void *buffer, size_t bytes)
 {
     size_t done = 0;
@@ -122,7 +144,7 @@ static ssize_t write_raw(int fd, const void *buffer, size_t bytes)
         if (n == -EAGAIN && flags >= 0 && !(flags & LUME_FD_NONBLOCK))
         {
             struct lume_pollfd ready = {.fd = fd, .events = LUME_POLLOUT};
-            int wait = app_poll(&ready, 1, UINT32_MAX);
+            int wait = poll_descriptors(&ready, 1, UINT32_MAX);
             if (wait >= 0)
                 continue;
             n = wait;
@@ -186,16 +208,16 @@ ssize_t read(int fd, void *buffer, size_t bytes)
         if (r == -EAGAIN && flags >= 0 && !(flags & LUME_FD_NONBLOCK))
         {
             struct lume_pollfd ready = {.fd = fd, .events = LUME_POLLIN};
-            int wait = app_poll(&ready, 1, UINT32_MAX);
+            int wait = poll_descriptors(&ready, 1, UINT32_MAX);
             if (wait >= 0)
                 continue;
             r = wait;
         }
         if (r == -EAGAIN && flags < 0 && fd == 0 && input_is_terminal())
         {
-            int wait = lume_syscall(LUME_TERMINAL, 5, 1000, 0);
+            int wait = lume_app_call(LUME_TERMINAL, 5, 1000, 0);
             if (wait == -EINVAL || wait == -ENOSYS || wait == -ENOTSUP)
-                lume_syscall(LUME_YIELD, 0, 0, 0);
+                lume_app_call(LUME_YIELD, 0, 0, 0);
             continue;
         }
         if (r > (int)take)
@@ -249,6 +271,12 @@ int open(const char *path, int flags, ...)
         f |= LUME_APPEND;
     if (flags & O_EXCL)
         f |= LUME_EXCL;
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    if (flags & O_DIRECTORY)
+        f |= LUME_FILES_OPEN_DIRECTORY;
+    if (flags & O_NOFOLLOW)
+        f |= LUME_FILES_OPEN_NOFOLLOW;
+#endif
     int r;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     unsigned permissions = 0;
@@ -266,6 +294,7 @@ int open(const char *path, int flags, ...)
 #else
     r = app_open(path, f);
 #endif
+#if !defined(LUME_ARCH_AARCH64) && !defined(LUME_ARCH_AMD64) && !defined(LUME_ARCH_I686)
     if (r >= 0 && (flags & O_DIRECTORY))
     {
         struct stat metadata;
@@ -278,6 +307,7 @@ int open(const char *path, int flags, ...)
             return -1;
         }
     }
+#endif
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     if (r >= 0 && !(flags & O_NOCTTY) && !strncmp(path, "/dev/pts/", 9))
         lume_posix_acquire_terminal(r);
@@ -297,6 +327,29 @@ int close(int fd)
 
 off_t lseek(int fd, off_t offset, int whence)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+    _Static_assert(sizeof(off_t) == 8, "native file offsets require 64 bits");
+    extern int64_t lume_native_seek64(int, int64_t, unsigned);
+    int64_t adjusted = offset;
+    if (fd == 0 && input_used && whence == SEEK_CUR)
+    {
+        if (adjusted < INT64_MIN + (int64_t)input_used)
+        {
+            errno = EOVERFLOW;
+            return -1;
+        }
+        adjusted -= (int64_t)input_used;
+    }
+    int64_t r = lume_native_seek64(fd, adjusted, (unsigned)whence);
+    if (r < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-r);
+        return -1;
+    }
+    if (fd == 0)
+        input_start = input_used = 0;
+    return (off_t)r;
+#else
     if (offset > INT32_MAX || offset < INT32_MIN)
     {
         errno = EOVERFLOW;
@@ -317,6 +370,7 @@ off_t lseek(int fd, off_t offset, int whence)
     if (r >= 0 && fd == 0)
         input_start = input_used = 0;
     return result(r);
+#endif
 }
 
 int fsync(int fd)
@@ -326,6 +380,9 @@ int fsync(int fd)
 
 int stat(const char *path, struct stat *out)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    return lume_files_result(lume_native_stat_at(LUME_FILES_AT_CWD, path, 0, out));
+#else
     struct lume_stat s;
     int r = app_stat(path, &s);
     if (r < 0)
@@ -342,12 +399,16 @@ int stat(const char *path, struct stat *out)
     out->st_blksize = 512;
     out->st_blocks = (s.size + 511) / 512;
     return 0;
+#endif
 }
 
 int fstat(int fd, struct stat *out)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    return lume_files_result(lume_native_stat_at(fd, "", LUME_FILES_STAT_EMPTY_PATH, out));
+#else
     struct lume_stat s;
-    int r = lume_syscall(LUME_FSTAT, (uint32_t)fd, (uint32_t)(uintptr_t)&s, 0);
+    int r = lume_app_call(LUME_FSTAT, (uint32_t)fd, (uintptr_t)&s, 0);
     if (r < 0)
         return result(r);
     memset(out, 0, sizeof *out);
@@ -362,12 +423,13 @@ int fstat(int fd, struct stat *out)
     out->st_blksize = 512;
     out->st_blocks = (s.size + 511) / 512;
     return 0;
+#endif
 }
 
 int isatty(int fd)
 {
     struct lume_stat s;
-    int r = lume_syscall(LUME_FSTAT, (uint32_t)fd, (uint32_t)(uintptr_t)&s, 0);
+    int r = lume_app_call(LUME_FSTAT, (uint32_t)fd, (uintptr_t)&s, 0);
     if (r < 0)
     {
         errno = -r;
@@ -381,7 +443,12 @@ int isatty(int fd)
 
 int chdir(const char *path)
 {
-    return result(lume_syscall(LUME_CHDIR, (uint32_t)(uintptr_t)path, 0, 0));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD};
+    return lume_files_result(lume_native_files_call(LUME_FILES_CHDIR, &request));
+#else
+    return result(lume_app_call(LUME_CHDIR, (uintptr_t)path, 0, 0));
+#endif
 }
 
 char *getcwd(char *out, size_t size)
@@ -390,16 +457,33 @@ char *getcwd(char *out, size_t size)
     if (!out)
     {
         if (!size)
-            size = 128;
+            size =
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+                LUME_FILES_PATH_MAX;
+#else
+                128;
+#endif
         out = malloc(size);
         if (!out)
             return NULL;
         allocated = 1;
     }
-    int r = lume_syscall(LUME_GETCWD, (uint32_t)(uintptr_t)out, size, 0);
+    if (!size)
+    {
+        errno = EINVAL;
+        return NULL;
+    }
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.buffer = (uintptr_t)out, .count = size};
+    int r = lume_files_result(lume_native_files_call(LUME_FILES_GETCWD, &request));
+#else
+    int r = lume_app_call(LUME_GETCWD, (uintptr_t)out, size, 0);
+#endif
     if (r < 0)
     {
+#if !defined(LUME_ARCH_AARCH64) && !defined(LUME_ARCH_AMD64) && !defined(LUME_ARCH_I686)
         errno = -r;
+#endif
         if (allocated)
             free(out);
         return NULL;
@@ -409,18 +493,38 @@ char *getcwd(char *out, size_t size)
 
 int unlink(const char *path)
 {
-    return result(lume_syscall(LUME_UNLINK, (uint32_t)(uintptr_t)path, 0, 0));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD};
+    return lume_files_result(lume_native_files_call(LUME_FILES_UNLINK, &request));
+#else
+    return result(lume_app_call(LUME_UNLINK, (uintptr_t)path, 0, 0));
+#endif
 }
 
 int rename(const char *a, const char *b)
 {
-    return result(lume_syscall(LUME_RENAME, (uint32_t)(uintptr_t)a, (uint32_t)(uintptr_t)b, 0));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.path = (uintptr_t)a,
+                                         .path2 = (uintptr_t)b,
+                                         .fd = LUME_FILES_AT_CWD,
+                                         .fd2 = LUME_FILES_AT_CWD};
+    return lume_files_result(lume_native_files_call(LUME_FILES_REPLACE, &request));
+#else
+    return result(lume_app_call(LUME_RENAME, (uintptr_t)a, (uintptr_t)b, 0));
+#endif
 }
 
 int lume_rename_noreplace(const char *a, const char *b)
 {
-    return result(lume_syscall(LUME_RENAME, (uint32_t)(uintptr_t)a, (uint32_t)(uintptr_t)b,
-                               LUME_RENAME_NOREPLACE));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.path = (uintptr_t)a,
+                                         .path2 = (uintptr_t)b,
+                                         .fd = LUME_FILES_AT_CWD,
+                                         .fd2 = LUME_FILES_AT_CWD};
+    return lume_files_result(lume_native_files_call(LUME_FILES_RENAME, &request));
+#else
+    return result(lume_app_call(LUME_RENAME, (uintptr_t)a, (uintptr_t)b, LUME_RENAME_NOREPLACE));
+#endif
 }
 
 int mkdir(const char *path, mode_t mode)
@@ -430,13 +534,18 @@ int mkdir(const char *path, mode_t mode)
     return result(r < 0 ? -lume_errno_from_syscall((unsigned)-r) : r);
 #else
     (void)mode;
-    return result(lume_syscall(LUME_MKDIR, (uint32_t)(uintptr_t)path, 0, 0));
+    return result(lume_app_call(LUME_MKDIR, (uintptr_t)path, 0, 0));
 #endif
 }
 
 int rmdir(const char *path)
 {
-    return result(lume_syscall(LUME_RMDIR, (uint32_t)(uintptr_t)path, 0, 0));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_files_request request = {.path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD};
+    return lume_files_result(lume_native_files_call(LUME_FILES_RMDIR, &request));
+#else
+    return result(lume_app_call(LUME_RMDIR, (uintptr_t)path, 0, 0));
+#endif
 }
 
 static int out_flush(FILE *stream)

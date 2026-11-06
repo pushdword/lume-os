@@ -11,8 +11,9 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include "lume/spawn.h"
+#include "fd.h"
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-#define SPAWN_FD_LIMIT 32
+#define SPAWN_FD_LIMIT LUME_FD_LIMIT
 #else
 #define SPAWN_FD_LIMIT 16
 #endif
@@ -32,18 +33,18 @@ struct __posix_spawn_file_actions
 
 pid_t getpid(void)
 {
-    return (pid_t)lume_syscall(LUME_PID, 0, 0, 0);
+    return (pid_t)lume_app_call(LUME_PID, 0, 0, 0);
 }
 
 uid_t getuid(void)
 {
-    return (uid_t)lume_syscall(LUME_UID, 0, 0, 0);
+    return (uid_t)lume_app_call(LUME_UID, 0, 0, 0);
 }
 
 uid_t geteuid(void)
 {
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
-    return (uid_t)lume_syscall(LUME_UID, 1, 0, 0);
+    return (uid_t)lume_app_call(LUME_UID, 1, 0, 0);
 #else
     return getuid();
 #endif
@@ -52,7 +53,7 @@ uid_t geteuid(void)
 gid_t getgid(void)
 {
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
-    return (gid_t)lume_syscall(LUME_UID, 2, 0, 0);
+    return (gid_t)lume_app_call(LUME_UID, 2, 0, 0);
 #else
     return 0;
 #endif
@@ -61,7 +62,7 @@ gid_t getgid(void)
 gid_t getegid(void)
 {
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
-    return (gid_t)lume_syscall(LUME_UID, 3, 0, 0);
+    return (gid_t)lume_app_call(LUME_UID, 3, 0, 0);
 #else
     return getgid();
 #endif
@@ -89,7 +90,7 @@ pid_t waitpid(pid_t pid, int *status, int options)
     return result;
 #else
     struct lume_wait_status child;
-    int result = lume_syscall(LUME_WAITPID, (uint32_t)pid, (uint32_t)(uintptr_t)&child,
+    int result = lume_app_call(LUME_WAITPID, (uint32_t)pid, (uintptr_t)&child,
                               !!(options & WNOHANG));
     if (result < 0)
     {
@@ -325,7 +326,7 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
         extended |= (*actions)->action[i].operation == LUME_SPAWN_CHDIR;
     if (extended)
         request.base.version = LUME_SPAWN_OPTIONS_VERSION;
-    result = lume_syscall(LUME_SPAWN_ACTIONS, (uint32_t)(uintptr_t)&request,
+    result = lume_app_call(LUME_SPAWN_ACTIONS, (uintptr_t)&request,
                          extended ? sizeof(request) : sizeof(request.base), 0);
 #else
     if (attribute && (*attribute)->flags)
@@ -342,7 +343,7 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
                                                      .count = (*actions)->count,
                                                      .version = LUME_SPAWN_VERSION};
         result =
-            lume_syscall(LUME_SPAWN_ACTIONS, (uint32_t)(uintptr_t)&request, sizeof(request), 0);
+            lume_app_call(LUME_SPAWN_ACTIONS, (uintptr_t)&request, sizeof(request), 0);
     }
     else
         result =

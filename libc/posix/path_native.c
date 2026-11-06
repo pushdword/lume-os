@@ -10,42 +10,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
-static int relative_path(int fd, const char *path, char out[LUME_PATH_MAX])
-{
-    if (*path == '/' || fd == AT_FDCWD)
-    {
-        if (strlen(path) >= LUME_PATH_MAX)
-        {
-            errno = ENAMETOOLONG;
-            return -1;
-        }
-        strcpy(out, path);
-        return 0;
-    }
-    struct lume_fd_request r = {.version = LUME_FD_VERSION,
-                                .bytes = sizeof(r),
-                                .fd = fd,
-                                .buffer = (uintptr_t)out,
-                                .count = LUME_PATH_MAX};
-    if (native_result(native_call(LUME_SYS_FD, LUME_FD_PATH, (uintptr_t)&r, sizeof(r))))
-        return -1;
-    size_t length = strlen(out), count = strlen(path);
-    if (length + count + 2 > LUME_PATH_MAX)
-    {
-        errno = ENAMETOOLONG;
-        return -1;
-    }
-    out[length++] = '/';
-    memcpy(out + length, path, count + 1);
-    return 0;
-}
+#include <limits.h>
+#include "files_client.h"
 
 int openat(int directory, const char *path, int flags, ...)
 {
-    char name[LUME_PATH_MAX];
-    if (relative_path(directory, path, name))
+    if (!path)
+    {
+        errno = EFAULT;
         return -1;
+    }
     mode_t mode = 0;
     if (flags & O_CREAT)
     {
@@ -54,29 +28,88 @@ int openat(int directory, const char *path, int flags, ...)
         mode = va_arg(args, unsigned);
         va_end(args);
     }
-    return open(name, flags, mode);
-}
-
-int fstatat(int directory, const char *path, struct stat *metadata, int flags)
-{
-    char name[LUME_PATH_MAX];
-    if (flags & ~AT_SYMLINK_NOFOLLOW)
+    if (*path == '/' || directory == AT_FDCWD)
+        return open(path, flags, mode);
+    unsigned known = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL | O_CLOEXEC | O_NONBLOCK |
+                     O_NOCTTY | O_NOFOLLOW | O_DIRECTORY;
+    if (((unsigned)flags & ~known) || (flags & O_ACCMODE) > O_RDWR)
     {
         errno = EINVAL;
         return -1;
     }
-    return relative_path(directory, path, name) ? -1 : stat(name, metadata);
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = directory,
+                                         .flags = (flags & O_ACCMODE) == O_WRONLY ? LUME_O_WRONLY
+                                                  : (flags & O_ACCMODE) == O_RDWR ? LUME_O_RDWR
+                                                                                  : LUME_O_RDONLY,
+                                         .mode = mode & 0777u,
+                                         .descriptor_flags =
+                                             (flags & O_CLOEXEC ? LUME_FD_CLOEXEC : 0) |
+                                             (flags & O_NONBLOCK ? LUME_FD_NONBLOCK : 0)};
+    if (flags & O_CREAT)
+        request.flags |= LUME_O_CREAT;
+    if (flags & O_TRUNC)
+        request.flags |= LUME_O_TRUNC;
+    if (flags & O_APPEND)
+        request.flags |= LUME_O_APPEND;
+    if (flags & O_EXCL)
+        request.flags |= LUME_O_EXCL;
+    if (flags & O_DIRECTORY)
+        request.flags |= LUME_FILES_OPEN_DIRECTORY;
+    if (flags & O_NOFOLLOW)
+        request.flags |= LUME_FILES_OPEN_NOFOLLOW;
+    int result = lume_files_result(lume_native_files_call(LUME_FILES_OPEN, &request));
+    if (result >= 0 && !(flags & O_NOCTTY))
+    {
+        extern void lume_posix_acquire_terminal(int);
+        lume_posix_acquire_terminal(result);
+    }
+    return result;
+}
+
+int fstatat(int directory, const char *path, struct stat *metadata, int flags)
+{
+    unsigned allowed = AT_SYMLINK_NOFOLLOW;
+#ifdef AT_EMPTY_PATH
+    allowed |= AT_EMPTY_PATH;
+#endif
+    if ((unsigned)flags & ~allowed)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    unsigned native_flags = flags & AT_SYMLINK_NOFOLLOW ? LUME_FILES_STAT_NOFOLLOW : 0;
+#ifdef AT_EMPTY_PATH
+    if (flags & AT_EMPTY_PATH)
+        native_flags |= LUME_FILES_STAT_EMPTY_PATH;
+#endif
+    return lume_files_result(lume_native_stat_at(
+        directory == AT_FDCWD ? LUME_FILES_AT_CWD : directory, path, native_flags, metadata));
 }
 
 int faccessat(int directory, const char *path, int mode, int flags)
 {
-    char name[LUME_PATH_MAX];
-    if (flags)
+    if (mode & ~(R_OK | W_OK | X_OK))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (flags & ~AT_SYMLINK_NOFOLLOW)
     {
         errno = ENOTSUP;
         return -1;
     }
-    return relative_path(directory, path, name) ? -1 : access(name, mode);
+    struct stat metadata;
+    if (fstatat(directory, path, &metadata, flags))
+        return -1;
+    unsigned permissions = metadata.st_mode;
+    if (((mode & R_OK) && !(permissions & 0444)) || ((mode & W_OK) && !(permissions & 0222)) ||
+        ((mode & X_OK) && !(permissions & 0111)))
+    {
+        errno = EACCES;
+        return -1;
+    }
+    return 0;
 }
 
 ssize_t readlink(const char *path, char *buffer, size_t bytes)
@@ -146,7 +179,7 @@ static int tree_walk(const char *path,
     {
         if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
             continue;
-        char child[LUME_PATH_MAX];
+        char child[PATH_MAX];
         if (snprintf(child, sizeof(child), "%s/%s", path, entry->d_name) >= (int)sizeof(child))
         {
             errno = ENAMETOOLONG;
@@ -173,65 +206,26 @@ int nftw(const char *path, int (*visit)(const char *, const struct stat *, int, 
 
 char *realpath(const char *path, char *resolved)
 {
-    char input[LUME_PATH_MAX], result[LUME_PATH_MAX];
     if (!path || !*path)
     {
         errno = ENOENT;
         return NULL;
     }
-    if (*path == '/')
-    {
-        if (strlen(path) >= sizeof(input))
-        {
-            errno = ENAMETOOLONG;
-            return NULL;
-        }
-        strcpy(input, path);
-    }
-    else
-    {
-        char cwd[LUME_PATH_MAX];
-        if (!getcwd(cwd, sizeof(cwd)))
-            return NULL;
-        if (snprintf(input, sizeof(input), "%s/%s", cwd, path) >= (int)sizeof(input))
-        {
-            errno = ENAMETOOLONG;
-            return NULL;
-        }
-    }
-    strcpy(result, "/");
-    char *save, *part = strtok_r(input, "/", &save);
-    while (part)
-    {
-        if (!strcmp(part, ".."))
-        {
-            char *slash = strrchr(result, '/');
-            if (slash == result)
-                result[1] = 0;
-            else
-                *slash = 0;
-        }
-        else if (strcmp(part, "."))
-        {
-            if (result[1])
-                strcat(result, "/");
-            strcat(result, part);
-            struct stat metadata;
-            if (stat(result, &metadata))
-                return NULL;
-            if (save && *save && !S_ISDIR(metadata.st_mode))
-            {
-                errno = ENOTDIR;
-                return NULL;
-            }
-        }
-        part = strtok_r(NULL, "/", &save);
-    }
-    if (!resolved && !(resolved = malloc(strlen(result) + 1)))
+    char *output = resolved ? resolved : malloc(PATH_MAX);
+    if (!output)
     {
         errno = ENOMEM;
         return NULL;
     }
-    strcpy(resolved, result);
-    return resolved;
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = LUME_FILES_AT_CWD,
+                                         .buffer = (uintptr_t)output,
+                                         .count = PATH_MAX};
+    if (lume_files_result(lume_native_files_call(LUME_FILES_CANONICAL, &request)) < 0)
+    {
+        if (!resolved)
+            free(output);
+        return NULL;
+    }
+    return output;
 }

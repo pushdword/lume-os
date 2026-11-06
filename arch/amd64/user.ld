@@ -10,10 +10,20 @@ SECTIONS
     .rodata : { *(.rodata .rodata.*) } :ro
     . = ALIGN(4096);
     .data : { *(.data .data.*) } :data
+    .preinit_array : {
+        __preinit_array_start = .;
+        KEEP(*(.preinit_array))
+        __preinit_array_end = .;
+    } :data
     .init_array : {
         __init_array_start = .;
         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*))) KEEP(*(.init_array))
         __init_array_end = .;
+    } :data
+    .fini_array_onexit : {
+        __fini_array_onexit_start = .;
+        KEEP(*(.fini_array_onexit))
+        __fini_array_onexit_end = .;
     } :data
     .fini_array : {
         __fini_array_start = .;

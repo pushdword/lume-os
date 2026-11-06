@@ -6,6 +6,18 @@ extern "C"
 {
 #endif
     int32_t lume_syscall(uint32_t, uint32_t, uint32_t, uint32_t);
+#if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    int32_t lume_native_compat_call(uint32_t, uintptr_t, uintptr_t, uintptr_t);
+    int32_t lume_native_spawn_env(const char *, unsigned, const char *const *, unsigned,
+                                  const char *const *);
+    int32_t lume_native_spawn_fds(const char *, unsigned, const char *const *, unsigned,
+                                  const char *const *);
+    int32_t lume_native_fd_call(unsigned, void *, unsigned);
+    int32_t lume_native_poll(void *, unsigned, uint64_t);
+#define lume_app_call lume_native_compat_call
+#else
+#define lume_app_call lume_syscall
+#endif
     /* LUME_RENAME accepts this flag to preserve an existing destination. */
 #define LUME_RENAME_NOREPLACE 1u
     int lume_rename_noreplace(const char *, const char *);

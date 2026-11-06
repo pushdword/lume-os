@@ -16,7 +16,7 @@ extern "C"
         char sa_data[14];
     };
 
-    struct sockaddr_storage
+    struct __attribute__((aligned(4))) sockaddr_storage
     {
         sa_family_t ss_family;
         unsigned char data[126];
@@ -27,6 +27,7 @@ extern "C"
 #define AF_INET 2
 #define AF_INET6 10
 #define PF_INET AF_INET
+#define PF_INET6 AF_INET6
 #define PF_UNSPEC AF_UNSPEC
 #define PF_UNIX AF_UNIX
 #define SOCK_STREAM 1
@@ -43,7 +44,9 @@ extern "C"
 #define SHUT_WR 1
 #define SHUT_RDWR 2
 #define MSG_PEEK 2
+#define MSG_DONTWAIT 0x40
 #define MSG_NOSIGNAL 0x4000
+#define MSG_CMSG_CLOEXEC 0x40000000
     int socket(int, int, int);
     int bind(int, const struct sockaddr *, socklen_t);
     int listen(int, int);
@@ -57,6 +60,8 @@ extern "C"
     int shutdown(int, int);
     ssize_t recv(int, void *, size_t, int);
     ssize_t send(int, const void *, size_t, int);
+    ssize_t sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_t);
+    ssize_t recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
     int socketpair(int, int, int, int[2]);
     struct iovec;
 

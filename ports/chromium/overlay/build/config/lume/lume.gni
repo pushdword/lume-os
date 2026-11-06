@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+declare_args() {
+  lume_toolchain_root = ""
+  lume_llvm_tools_root = ""
+  lume_native_nm = ""
+  lume_native_readelf = ""
+  lume_compiler_builtins = ""
+  lume_native_sysroot = ""
+  lume_native_cxx_extension = ""
+  lume_x11_library_dir = ""
+  lume_x11_include_dir = ""
+  lume_os_source = ""
+  lume_kernel_source = ""
+  lume_linker_script = ""
+  lume_linker_threads = 0
+  lume_host_gperf = ""
+}
+
+if (lume_x11_library_dir == "") {
+  lume_x11_library_dir = "$lume_native_sysroot/lib"
+}
+
+if (lume_x11_include_dir == "") {
+  lume_x11_include_dir = "$lume_native_sysroot/include"
+}
+
+if (current_cpu == "arm64") {
+  lume_target_triple = "aarch64-unknown-none-elf"
+} else if (current_cpu == "x64") {
+  lume_target_triple = "x86_64-unknown-none-elf"
+} else {
+  lume_target_triple = ""
+}

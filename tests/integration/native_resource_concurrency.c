@@ -19,6 +19,9 @@
 static atomic_int ready, started, done;
 static struct lume_net_request network;
 static uint64_t net_start, net_end, beat_gap, beat_io, beat_samples;
+static pthread_mutex_t measurement_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint64_t measure_start, measure_end, beat_previous;
+static bool measure_open, measure_closed;
 static int64_t net_result;
 static int endpoints[2], beat_error;
 
@@ -36,7 +39,6 @@ static void pause_ms(unsigned ms)
 static void *heartbeat(void *unused)
 {
     (void)unused;
-    uint64_t previous = now();
     atomic_store(&ready, 1);
     while (!atomic_load(&done))
     {
@@ -49,12 +51,18 @@ static void *heartbeat(void *unused)
             break;
         }
         uint64_t after = now();
-        if (after - before > beat_io)
-            beat_io = after - before;
-        if (after - previous > beat_gap)
-            beat_gap = after - previous;
-        previous = after;
-        ++beat_samples;
+        pthread_mutex_lock(&measurement_lock);
+        /* Completion timestamps define membership even when publication follows window close. */
+        if (measure_open && after >= measure_start && (!measure_closed || after <= measure_end))
+        {
+            if (after - before > beat_io)
+                beat_io = after - before;
+            if (after - beat_previous > beat_gap)
+                beat_gap = after - beat_previous;
+            beat_previous = after;
+            ++beat_samples;
+        }
+        pthread_mutex_unlock(&measurement_lock);
         pause_ms(1);
     }
     return NULL;
@@ -63,7 +71,10 @@ static void *heartbeat(void *unused)
 static void *network_wait(void *unused)
 {
     (void)unused;
-    net_start = now();
+    pthread_mutex_lock(&measurement_lock);
+    net_start = measure_start = beat_previous = now();
+    measure_open = true;
+    pthread_mutex_unlock(&measurement_lock);
     atomic_store(&started, 1);
     net_result = lume_native_call(LUME_SYS_NET, LUME_NET_TCP, (uintptr_t)&network, sizeof(network));
     net_end = now();
@@ -122,9 +133,17 @@ int main(int argc, char **argv)
     uint64_t storage_end = now();
     if (pthread_join(net, NULL))
         return 8;
+    pthread_mutex_lock(&measurement_lock);
+    measure_end = now();
+    measure_closed = true;
     atomic_store(&done, 1);
+    pthread_mutex_unlock(&measurement_lock);
     if (pthread_join(heart, NULL))
         return 9;
+    pthread_mutex_lock(&measurement_lock);
+    if (measure_end - beat_previous > beat_gap)
+        beat_gap = measure_end - beat_previous;
+    pthread_mutex_unlock(&measurement_lock);
     close(fd);
     close(endpoints[0]);
     close(endpoints[1]);
@@ -143,14 +162,14 @@ int main(int argc, char **argv)
         .error = beat_error};
     printf("RESOURCE_IO net_result=%lld query_result=%lld bytes=%llu sample=%u net_ms=%llu "
            "query_ms=%llu read_ms=%llu display_overlap=%u storage_overlap=%u io_ms=%llu "
-           "gap_ms=%llu samples=%llu error=%d max_query_ms=%llu max_read_ms=%llu "
+           "gap_ms=%llu samples=%llu window_ms=%llu error=%d max_query_ms=%llu max_read_ms=%llu "
            "max_io_ms=%llu max_gap_ms=%llu\n",
            (long long)net_result, (long long)query, (unsigned long long)bytes, sample,
            (unsigned long long)(net_end - net_start), (unsigned long long)measured.query_ms,
            (unsigned long long)measured.read_ms, measured.display_overlap, measured.storage_overlap,
            (unsigned long long)beat_io, (unsigned long long)beat_gap,
-           (unsigned long long)beat_samples, beat_error, (unsigned long long)limits.query_ms,
-           (unsigned long long)limits.read_ms, (unsigned long long)limits.io_ms,
-           (unsigned long long)limits.gap_ms);
+           (unsigned long long)beat_samples, (unsigned long long)(measure_end - measure_start),
+           beat_error, (unsigned long long)limits.query_ms, (unsigned long long)limits.read_ms,
+           (unsigned long long)limits.io_ms, (unsigned long long)limits.gap_ms);
     return resource_passed(&measured, &limits) ? 0 : 10;
 }

@@ -6,6 +6,7 @@ extern "C"
 {
 #endif
     int32_t lume_syscall(uint32_t, uint32_t, uint32_t, uint32_t);
+#define lume_app_call lume_syscall
     void app_puts(const char *);
     void app_number(uint32_t);
     unsigned app_length(const char *);

@@ -89,6 +89,9 @@ int kill(pid_t pid, int number)
     return native_result(LUME_SYS_SIGNAL, LUME_SIGNAL_SEND, (uintptr_t)&request, sizeof(request));
 }
 
+#if defined(LUME_ARCH_AARCH64)
+__attribute__((weak))
+#endif
 int truncate(const char *path, off_t length)
 {
     int fd = open(path, O_WRONLY);

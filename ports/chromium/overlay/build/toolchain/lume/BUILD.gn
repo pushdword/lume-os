@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+import("//build/config/lume/lume.gni")
+import("//build/toolchain/gcc_toolchain.gni")
+
+foreach(cpu,
+        [
+          "arm64",
+          "x64",
+        ]) {
+  gcc_toolchain(cpu) {
+    assert(lume_toolchain_root != "")
+    _suffix = ""
+    if (host_os == "win") {
+      _suffix = ".exe"
+    }
+    cc = "$lume_toolchain_root/bin/clang-cl$_suffix --driver-mode=gcc"
+    cxx = "$lume_toolchain_root/bin/clang-cl$_suffix --driver-mode=g++"
+    ld = cxx
+    ar = "$lume_llvm_tools_root/bin/llvm-ar$_suffix"
+    nm = lume_native_nm
+    readelf = lume_native_readelf
+    toolchain_args = {
+      current_cpu = cpu
+      current_os = "lume"
+      is_clang = true
+      use_remoteexec = false
+      use_sysroot = false
+      use_custom_libcxx = false
+    }
+  }
+}

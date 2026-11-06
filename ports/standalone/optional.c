@@ -13,6 +13,9 @@ int ioctl(int fd, unsigned long request, ...)
     return -1;
 }
 
+#if defined(LUME_ARCH_AARCH64)
+__attribute__((weak))
+#endif
 int symlink(const char *target, const char *path)
 {
     (void)target;

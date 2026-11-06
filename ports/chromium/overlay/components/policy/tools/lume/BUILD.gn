@@ -1,0 +1,12 @@
+if (host_toolchain == current_toolchain) {
+  executable("lume_policy_generator") {
+    sources = [ "policy_generator.cc" ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    if (is_win) {
+      libs = [ "shell32.lib" ]
+    } else if (!is_mac) {
+      libs = [ "dl" ]
+    }
+  }
+}

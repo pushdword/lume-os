@@ -1,0 +1,28 @@
+{
+  "arch": "aarch64",
+  "os": "lume",
+  "target-family": [
+    "unix"
+  ],
+  "env": "",
+  "vendor": "unknown",
+  "llvm-target": "aarch64-unknown-none",
+  "target-pointer-width": 64,
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
+  "max-atomic-width": 128,
+  "features": "+v8a,+strict-align,+neon",
+  "has-thread-local": true,
+  "linker-flavor": "gnu-cc",
+  "relocation-model": "static",
+  "panic-strategy": "abort",
+  "default-uwtable": true,
+  "disable-redzone": true,
+  "dynamic-linking": false,
+  "executables": true,
+  "position-independent-executables": false,
+  "crt-static-default": true,
+  "crt-static-respected": true,
+  "stack-probes": {
+    "kind": "inline"
+  }
+}

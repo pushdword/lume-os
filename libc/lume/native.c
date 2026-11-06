@@ -16,7 +16,9 @@
 #include "lume/credential.h"
 #include "lume/signal.h"
 #include "lume/file_mode.h"
+#include "lume/file_io.h"
 #include "lume/io.h"
+#include "files_client.h"
 #include "perf.h"
 #include "fd.h"
 #include <stddef.h>
@@ -41,7 +43,7 @@ int app_boot(unsigned operation, struct lume_boot_request *request)
     return (int)native(LUME_SYS_BOOT, operation, (uintptr_t)request, sizeof(*request));
 }
 
-static int valid(uint32_t p, size_t bytes, unsigned write)
+static int valid(uintptr_t p, size_t bytes, unsigned write)
 {
     return (int)native(LUME_SYS_PROBE, p, bytes, write);
 }
@@ -94,11 +96,10 @@ int32_t lume_native_wait_options(int pid, int *status, unsigned options)
 int32_t lume_aarch64_open_mode(const char *path, unsigned flags, unsigned mode,
                                unsigned descriptors)
 {
-    struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
-                                             .bytes = sizeof(request),
-                                             .path = (uintptr_t)path,
-                                             .mode = mode,
-                                             .descriptor_flags = descriptors};
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = LUME_FILES_AT_CWD,
+                                         .mode = mode & 0777u,
+                                         .descriptor_flags = descriptors};
     request.flags = flags & 3u;
     if (flags & LUME_CREAT)
         request.flags |= LUME_O_CREAT;
@@ -108,23 +109,50 @@ int32_t lume_aarch64_open_mode(const char *path, unsigned flags, unsigned mode,
         request.flags |= LUME_O_APPEND;
     if (flags & LUME_EXCL)
         request.flags |= LUME_O_EXCL;
-    int64_t result =
-        native(LUME_SYS_FILE_MODE, LUME_FILE_MODE_OPEN, (uintptr_t)&request, sizeof(request));
-    if (result == -LUME_ENOSYS && !descriptors)
-        result = native(LUME_SYS_FS, LUME_FS_COMPAT_OPEN, (uintptr_t)path, flags);
-    return (int32_t)result;
+    request.flags |= flags & (LUME_FILES_OPEN_DIRECTORY | LUME_FILES_OPEN_NOFOLLOW);
+    return (int32_t)lume_native_files_call(LUME_FILES_OPEN, &request);
 }
 
 int32_t lume_aarch64_mkdir_mode(const char *path, unsigned mode)
 {
-    struct lume_file_mode_request request = {.version = LUME_FILE_MODE_VERSION,
-                                             .bytes = sizeof(request),
-                                             .path = (uintptr_t)path,
-                                             .mode = mode};
-    int64_t result =
-        native(LUME_SYS_FILE_MODE, LUME_FILE_MODE_MKDIR, (uintptr_t)&request, sizeof(request));
-    return (int32_t)(result == -LUME_ENOSYS ? native(LUME_SYS_MKDIR, (uintptr_t)path, 0, 0)
-                                            : result);
+    struct lume_files_request request = {
+        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 0777u};
+    return (int32_t)lume_native_files_call(LUME_FILES_MKDIR, &request);
+}
+
+int64_t lume_native_files_call(unsigned operation, struct lume_files_request *request)
+{
+    request->version = LUME_FILES_VERSION;
+    request->bytes = sizeof(*request);
+    return native(LUME_SYS_FILES, operation, (uintptr_t)request, sizeof(*request));
+}
+
+int32_t lume_native_stat_at(int64_t directory, const char *path, unsigned flags,
+                            struct stat *output)
+{
+    if (!output)
+        return -LUME_EFAULT;
+    struct lume_native_stat metadata;
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = directory,
+                                         .buffer = (uintptr_t)&metadata,
+                                         .count = sizeof(metadata),
+                                         .flags = flags};
+    int64_t result = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (result < 0)
+        return (int32_t)result;
+    off_t bytes = (off_t)metadata.size;
+    if (bytes < 0 || (uint64_t)bytes != metadata.size ||
+        (uint64_t)(ino_t)metadata.inode != metadata.inode)
+        return -LUME_EOVERFLOW;
+    memset(output, 0, sizeof(*output));
+    output->st_size = bytes;
+    output->st_ino = (ino_t)metadata.inode;
+    output->st_mode = (mode_t)result;
+    output->st_nlink = 1;
+    output->st_blksize = 512;
+    output->st_blocks = (blkcnt_t)(metadata.size / 512 + !!(metadata.size % 512));
+    return 0;
 }
 
 int32_t lume_aarch64_posix_seek(int fd, int32_t offset, unsigned whence)
@@ -148,7 +176,23 @@ int32_t lume_aarch64_posix_seek(int fd, int32_t offset, unsigned whence)
     return (int32_t)native(LUME_SYS_SEEK, (unsigned)fd, (uint64_t)target, 0);
 }
 
-static int metadata(uint32_t source, uint32_t output, unsigned fd)
+int64_t lume_native_seek64(int fd, int64_t offset, unsigned whence)
+{
+    struct lume_file_io_request request = {.version = LUME_FILE_IO_VERSION,
+                                           .bytes = sizeof(request),
+                                           .fd = fd,
+                                           .whence = whence,
+                                           .offset = offset};
+    int64_t result =
+        native(LUME_SYS_FILE_IO, LUME_FILE_IO_SEEK, (uintptr_t)&request, sizeof(request));
+    if (result == -LUME_ENOSYS)
+        return offset < INT32_MIN || offset > INT32_MAX
+                   ? -75
+                   : lume_aarch64_posix_seek(fd, (int32_t)offset, whence);
+    return result;
+}
+
+static int metadata(uintptr_t source, uintptr_t output, unsigned fd)
 {
     if (valid(output, sizeof(struct lume_stat), 1))
         return -14;
@@ -164,7 +208,7 @@ static int metadata(uint32_t source, uint32_t output, unsigned fd)
     return 0;
 }
 
-static int spawn(uint32_t path, unsigned argc, uint32_t argv, unsigned envc, uint32_t envp,
+static int spawn(uintptr_t path, unsigned argc, uintptr_t argv, unsigned envc, uintptr_t envp,
                  unsigned inherit)
 {
     if (argc > LUME_ARGS || envc > LUME_ENVS)
@@ -186,7 +230,34 @@ static int spawn(uint32_t path, unsigned argc, uint32_t argv, unsigned envc, uin
     return (int)native(inherit ? LUME_SYS_RUN_FDS : LUME_SYS_RUN_ENV, (uintptr_t)&request, 0, 0);
 }
 
-int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
+int32_t lume_native_spawn_env(const char *path, unsigned argc, const char *const *argv,
+                              unsigned envc, const char *const *envp)
+{
+    return spawn((uintptr_t)path, argc, (uintptr_t)argv, envc, (uintptr_t)envp, 0);
+}
+
+int32_t lume_native_spawn_fds(const char *path, unsigned argc, const char *const *argv,
+                              unsigned envc, const char *const *envp)
+{
+    return spawn((uintptr_t)path, argc, (uintptr_t)argv, envc, (uintptr_t)envp, 1);
+}
+
+int32_t lume_native_fd_call(unsigned operation, void *request, unsigned bytes)
+{
+    return (int32_t)native(LUME_SYS_FD, operation, (uintptr_t)request, bytes);
+}
+
+int32_t lume_native_poll(void *records, unsigned count, uint64_t timeout)
+{
+    struct lume_poll_request request = {.version = LUME_POLL_VERSION,
+                                        .bytes = sizeof(request),
+                                        .buffer = (uintptr_t)records,
+                                        .timeout_ms = timeout,
+                                        .count = count};
+    return (int32_t)native(LUME_SYS_FD, LUME_FD_WAIT, (uintptr_t)&request, sizeof(request));
+}
+
+int32_t lume_native_compat_call(uint32_t number, uintptr_t a, uintptr_t b, uintptr_t c)
 {
     switch (number)
     {
@@ -411,7 +482,12 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         return (int32_t)native(LUME_SYS_FD, LUME_FD_WAIT, (uintptr_t)&poll, sizeof(poll));
     }
     case LUME_BRK:
-        return (int32_t)native(LUME_SYS_BRK, a, 0, 0);
+    {
+        if (a > UINT32_MAX)
+            return -LUME_EOVERFLOW;
+        int64_t result = native(LUME_SYS_BRK, a, 0, 0);
+        return result > INT32_MAX ? -LUME_EOVERFLOW : (int32_t)result;
+    }
     case LUME_MEMORY:
     {
         if (b != sizeof(struct lume_memory_info) || c != LUME_MEMORY_VERSION)
@@ -422,6 +498,10 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
         int64_t r = native(LUME_SYS_MEMORY, (uintptr_t)&snapshot, sizeof(snapshot), 0);
         if (r < 0)
             return (int32_t)r;
+        if (snapshot.total_pages > UINT32_MAX || snapshot.free_pages > UINT32_MAX ||
+            snapshot.process_pages > UINT32_MAX || snapshot.heap_base > UINT32_MAX ||
+            snapshot.heap_end > UINT32_MAX || snapshot.heap_limit > UINT32_MAX)
+            return -LUME_EOVERFLOW;
         *(struct lume_memory_info *)(uintptr_t)a =
             (struct lume_memory_info){LUME_MEMORY_VERSION,
                                       sizeof(struct lume_memory_info),
@@ -441,4 +521,9 @@ int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
     default:
         return -38;
     }
+}
+
+int32_t lume_syscall(uint32_t number, uint32_t a, uint32_t b, uint32_t c)
+{
+    return lume_native_compat_call(number, a, b, c);
 }

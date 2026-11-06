@@ -58,6 +58,12 @@ endif()
 
 enable_language(ASM)
 add_library(lume_native_crt OBJECT
+    ${LUME_OS_ROOT}/libc/runtime/init.c
+    ${LUME_OS_ROOT}/libc/posix/getrandom.c
+    ${LUME_OS_ROOT}/libc/posix/atfork.c
+    ${LUME_OS_ROOT}/libc/posix/sigwait.c
+    ${LUME_OS_ROOT}/libc/posix/ucontext.c
+    ${LUME_OS_ROOT}/libc/runtime/ucontext.S
     ${LUME_OS_ROOT}/arch/aarch64/crt0.S
     ${LUME_OS_ROOT}/arch/aarch64/setjmp.S
     ${LUME_OS_ROOT}/arch/aarch64/float.c
@@ -68,16 +74,20 @@ add_library(lume_native_crt OBJECT
     ${LUME_OS_ROOT}/arch/aarch64/tls.c
     ${LUME_OS_ROOT}/libc/runtime/locks.c
     ${LUME_OS_ROOT}/libc/posix/pthread.c
+    ${LUME_OS_ROOT}/libc/posix/semaphore.c
+    ${LUME_OS_ROOT}/libc/posix/mman.c
     ${LUME_OS_ROOT}/libc/posix/posix_runtime.c
     ${LUME_OS_ROOT}/libc/posix/errno_map.c
     ${LUME_OS_ROOT}/libc/posix/sbrk.c
     ${LUME_OS_ROOT}/libc/posix/directory.c
     ${LUME_OS_ROOT}/libc/posix/filesystem.c
+    ${LUME_OS_ROOT}/libc/posix/positioned_io.c
+    ${LUME_OS_ROOT}/libc/posix/file_lock.c
     ${LUME_OS_ROOT}/libc/posix/process.c
     ${LUME_OS_ROOT}/libc/posix/fd.c
     ${LUME_OS_ROOT}/libc/posix/time.c)
 target_include_directories(lume_native_crt PRIVATE
-    ../include ${LUME_OS_ROOT}/arch/aarch64/include
+    ../include ${LUME_OS_ROOT}/arch/aarch64/include ${LUME_OS_ROOT}/include/internal
     ${LUME_OS_ROOT}/include/lume ${LUME_OS_ROOT}/include/posix
     ${LUME_KERNEL_ROOT}/include/uapi ${LUME_KERNEL_ROOT}/include/abi/native)
 target_compile_definitions(lume_native_crt PRIVATE LUME_ARCH_AARCH64=1 LUME_NATIVE_CXX=1

@@ -21,14 +21,20 @@ ifeq ($(DEBUG),1)
 CFLAGS += -g -fno-omit-frame-pointer
 ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
 endif
-ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c
-ARM_COMMON_SOURCES += libc/posix/time.c
+ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c libc/posix/mman.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c
+ARM_COMMON_SOURCES += libc/runtime/init.c
+ARM_COMMON_SOURCES += libc/posix/atfork.c libc/posix/sigwait.c libc/posix/getrandom.c
+ARM_COMMON_SOURCES += libc/posix/time.c libc/posix/positioned_io.c libc/posix/semaphore.c
+ARM_COMMON_SOURCES += libc/posix/file_lock.c libc/posix/statvfs.c
 ARM_COMMON_SOURCES += libc/posix/tty.c
+ifeq ($(ARCH),aarch64)
+ARM_COMMON_SOURCES += libc/posix/ucontext.c libc/runtime/ucontext.S
+endif
 ifeq ($(ARCH),i686)
 ARM_COMMON_SOURCES += arch/i686/builtins.c
 I686_BUILTINS := $(OUT)/obj/arch/i686/builtins.c.o
 endif
-$(OUT)/obj/libc/posix/pthread.c.o $(OUT)/obj/libc/lume/thread.c.o $(OUT)/obj/arch/$(ARCH)/tls.c.o $(OUT)/obj/libc/runtime/locks.c.o: CPPFLAGS += -Iinclude/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
+$(OUT)/obj/libc/posix/pthread.c.o $(OUT)/obj/libc/lume/thread.c.o $(OUT)/obj/libc/posix/mman.c.o $(OUT)/obj/libc/posix/statvfs.c.o $(OUT)/obj/arch/$(ARCH)/tls.c.o $(OUT)/obj/libc/runtime/locks.c.o: CPPFLAGS += -Iinclude/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
 ifeq ($(ARCH),amd64)
 DESKTOP ?= 1
@@ -38,6 +44,9 @@ include mk/desktop.mk
 include mk/desktop-apps.mk
 include mk/gtk-base.mk
 include mk/xfce.mk
+include mk/gtk-dialog.mk
+include mk/x11-native.mk
+include mk/chromium.mk
 ifeq ($(DESKTOP),1)
 all: desktop
 endif
@@ -74,6 +83,9 @@ $(OUT)/amd64-runtime.elf: $(OUT)/obj/tests/integration/amd64_runtime.c.o $(ARM_C
 $(OUT)/obj/tests/integration/amd64_runtime.c.o: | headers
 endif
 $(OUT)/tests/pthread-probe.elf: tests/integration/pthread_probe.c $(ARM_COMMON_OBJECTS) | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -Iinclude/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
+$(OUT)/tests/pthread-cleanup-probe.elf: tests/integration/pthread_cleanup_probe.c $(ARM_COMMON_OBJECTS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iinclude/posix $(CFLAGS) $(ARM_LINK) $^ $(ARM_LIBS) -o "$@"
 $(OUT)/tests/rename-probe.elf: tests/integration/native_rename.c $(ARM_COMMON_OBJECTS) | headers

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-#include <__external_threading>
+#include "external_threading.h"
 _LIBCPP_BEGIN_NAMESPACE_STD
 static void *Values[16];
 static unsigned Used;

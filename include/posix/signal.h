@@ -3,6 +3,17 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <time.h>
+#include <stddef.h>
+#ifndef _STACK_T_DECLARED
+#define _STACK_T_DECLARED
+
+typedef struct
+{
+    void *ss_sp;
+    int ss_flags;
+    size_t ss_size;
+} stack_t;
+#endif
 #ifndef _SIGSET_T_DECLARED
 #define _SIGSET_T_DECLARED
 typedef uint32_t sigset_t;
@@ -69,6 +80,7 @@ extern "C"
     int sigaction(int, const struct sigaction *, struct sigaction *);
     int sigprocmask(int, const sigset_t *, sigset_t *);
     int pthread_sigmask(int, const sigset_t *, sigset_t *);
+    int sigwait(const sigset_t *, int *);
     int sigemptyset(sigset_t *);
     int sigfillset(sigset_t *);
     int sigaddset(sigset_t *, int);

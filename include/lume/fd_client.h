@@ -3,6 +3,22 @@
 #include "api.h"
 #include "fd.h"
 
+#if defined(__aarch64__) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) ||              \
+    defined(LUME_ARCH_I686)
+#define LUME_FD_CLIENT_NATIVE 1
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    int32_t lume_native_spawn_fds(const char *, unsigned, const char *const *, unsigned,
+                                  const char *const *);
+    int32_t lume_native_fd_call(unsigned, void *, unsigned);
+    int32_t lume_native_poll(void *, unsigned, uint64_t);
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 static inline uint32_t lume_fd_pointer(const void *p)
 {
     return (uint32_t)(uintptr_t)p;
@@ -16,7 +32,11 @@ static inline struct lume_fd_request app_fd_request(void)
 
 static inline int app_fd_call(unsigned op, struct lume_fd_request *r)
 {
+#ifdef LUME_FD_CLIENT_NATIVE
+    return lume_native_fd_call(op, r, sizeof(*r));
+#else
     return lume_syscall(LUME_FD, op, lume_fd_pointer(r), sizeof *r);
+#endif
 }
 
 static inline int app_fd_pair(int pair[2], unsigned duplex, unsigned flags)
@@ -51,20 +71,28 @@ static inline int app_fd_flags(int fd, unsigned op, unsigned flags)
 
 static inline int app_poll(struct lume_pollfd *p, unsigned count, uint32_t timeout)
 {
+#ifdef LUME_FD_CLIENT_NATIVE
+    return lume_native_poll(p, count, timeout == UINT32_MAX ? UINT64_MAX : timeout);
+#else
     struct lume_fd_request r = app_fd_request();
     r.buffer = lume_fd_pointer(p);
     r.count = count;
     r.timeout_ms = timeout;
     return app_fd_call(LUME_FD_POLL, &r);
+#endif
 }
 
 static inline int app_spawn_fds(const char *path, unsigned argc, const char *const *argv,
                                 unsigned envc, const char *const *envp)
 {
+#ifdef LUME_FD_CLIENT_NATIVE
+    return lume_native_spawn_fds(path, argc, argv, envc, envp);
+#else
     struct lume_spawn_request spawn = {lume_fd_pointer(path), argc, lume_fd_pointer(argv), envc,
                                        lume_fd_pointer(envp)};
     struct lume_fd_request r = app_fd_request();
     r.buffer = lume_fd_pointer(&spawn);
     return app_fd_call(LUME_FD_SPAWN, &r);
+#endif
 }
 #endif

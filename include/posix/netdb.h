@@ -42,6 +42,7 @@ extern "C"
 #define NI_MAXHOST 1025
 #define NI_MAXSERV 32
 #define EAI_NONAME -2
+#define EAI_BADFLAGS -1
 #define EAI_FAIL -4
 #define EAI_FAMILY -6
 #define EAI_MEMORY -10

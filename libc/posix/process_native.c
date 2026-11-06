@@ -14,6 +14,7 @@
 #include "fd.h"
 #include <limits.h>
 #include <fcntl.h>
+#include "lume/atfork.h"
 
 _Static_assert(NGROUPS_MAX == LUME_GROUP_MAX, "supplementary group limit");
 
@@ -23,7 +24,17 @@ pid_t fork(void)
 {
     fflush(stdout);
     fflush(stderr);
-    return native_result(native_call(LUME_SYS_FORK, 0, 0, 0));
+    struct lume_atfork_snapshot snapshot;
+    lume_atfork_prepare(&snapshot);
+    int64_t result = native_call(LUME_SYS_FORK, 0, 0, 0);
+    if (result == 0)
+    {
+        lume_pthread_fork_child();
+        lume_atfork_child(&snapshot);
+    }
+    else
+        lume_atfork_parent(&snapshot);
+    return native_result(result);
 }
 
 int daemon(int keep_directory, int keep_descriptors)

@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+#include <sched.h>
 typedef uint64_t pthread_t;
 typedef unsigned pthread_key_t;
 
@@ -62,6 +63,24 @@ typedef uint32_t pthread_once_t;
 #define PTHREAD_PROCESS_SHARED 1
 #define PTHREAD_DESTRUCTOR_ITERATIONS 4
 #define PTHREAD_STACK_MIN 32768u
+
+struct __lume_cleanup_record
+{
+    struct __lume_cleanup_record *previous;
+    void (*routine)(void *);
+    void *argument;
+};
+
+/* Cleanup records remain in the lexical scope shared by the paired macros. */
+#define pthread_cleanup_push(routine, argument)                                                    \
+    do                                                                                             \
+    {                                                                                              \
+        struct __lume_cleanup_record __lume_cleanup;                                               \
+        __lume_cleanup_push(&__lume_cleanup, (routine), (argument));
+#define pthread_cleanup_pop(execute)                                                               \
+    __lume_cleanup_pop(&__lume_cleanup, (execute));                                                \
+    }                                                                                              \
+    while (0)
 #ifdef __cplusplus
 extern "C"
 {
@@ -71,6 +90,9 @@ extern "C"
     int pthread_detach(pthread_t);
     pthread_t pthread_self(void);
     int pthread_equal(pthread_t, pthread_t);
+    int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
+    void __lume_cleanup_push(struct __lume_cleanup_record *, void (*)(void *), void *);
+    void __lume_cleanup_pop(struct __lume_cleanup_record *, int);
 #ifdef __cplusplus
     [[noreturn]] void pthread_exit(void *);
 #else
@@ -80,6 +102,13 @@ _Noreturn void pthread_exit(void *);
     int pthread_attr_destroy(pthread_attr_t *);
     int pthread_attr_setstacksize(pthread_attr_t *, size_t);
     int pthread_attr_getstacksize(const pthread_attr_t *, size_t *);
+    int pthread_attr_getstack(const pthread_attr_t *, void **, size_t *);
+    int pthread_attr_setstack(pthread_attr_t *, void *, size_t);
+    int pthread_getattr_np(pthread_t, pthread_attr_t *);
+    int pthread_getname_np(pthread_t, char *, size_t);
+    int pthread_setname_np(pthread_t, const char *);
+    int pthread_getschedparam(pthread_t, int *, struct sched_param *);
+    int pthread_setschedparam(pthread_t, int, const struct sched_param *);
     int pthread_attr_setdetachstate(pthread_attr_t *, int);
     int pthread_attr_getdetachstate(const pthread_attr_t *, int *);
     int pthread_attr_setguardsize(pthread_attr_t *, size_t);

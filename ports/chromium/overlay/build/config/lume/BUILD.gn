@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+import("//build/config/lume/lume.gni")
+
+config("compiler") {
+  assert(is_lume && lume_target_triple != "")
+  assert(lume_native_sysroot != "" && lume_os_source != "" &&
+         lume_kernel_source != "")
+  defines = [
+    "__lume__=1",
+    "LUME_NATIVE_CXX",
+    "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE",
+    "_DEFAULT_SOURCE",
+    "_GNU_SOURCE",
+    "_POSIX_C_SOURCE=200809L",
+    "_POSIX_MONOTONIC_CLOCK=200809L",
+    "_POSIX_TIMERS=200809L",
+  ]
+  if (current_cpu == "arm64") {
+    defines += [ "LUME_ARCH_AARCH64=1" ]
+  } else if (current_cpu == "x64") {
+    defines += [ "LUME_ARCH_AMD64=1" ]
+  }
+  _native_include_dirs = [
+    "$lume_os_source/include/posix",
+    "$lume_os_source/include/lume",
+    "$lume_os_source/include/internal",
+    "$lume_kernel_source/include/abi/native",
+    "$lume_kernel_source/include/uapi",
+    "$lume_os_source/ports/libcxx",
+    "$lume_os_source/vendor/libcxx/include",
+    "$lume_os_source/vendor/libcxxabi/include",
+    "$lume_os_source/ports/x11/include",
+    "$lume_native_sysroot/include",
+  ]
+  cflags = [
+    "--target=$lume_target_triple",
+    "--sysroot=$lume_native_sysroot",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-fno-pic",
+    "-fno-pie",
+    "-fno-omit-frame-pointer",
+  ]
+  foreach(directory, _native_include_dirs) {
+    cflags += [
+      "-isystem",
+      rebase_path(directory, root_build_dir),
+    ]
+  }
+  if (current_cpu == "arm64") {
+    cflags += [ "-mstrict-align" ]
+  }
+  asmflags = [
+    "--target=$lume_target_triple",
+    "--sysroot=$lume_native_sysroot",
+  ]
+  cflags_cc = [ "-nostdinc++" ]
+  if (lume_native_cxx_extension != "") {
+    assert(current_cpu == "arm64")
+    cflags_cc += [
+      "-include",
+      rebase_path("$lume_native_cxx_extension/include/__config_site",
+                  root_build_dir),
+    ]
+  }
+}
+
+config("executable") {
+  assert(is_lume && lume_linker_script != "")
+  ldflags = [
+    "--target=$lume_target_triple",
+    "--sysroot=$lume_native_sysroot",
+    "--ld-path=$lume_llvm_tools_root/bin/ld.lld.exe",
+    "-nostdlib",
+    "-static",
+    "-no-pie",
+    "-Wl,--gc-sections",
+    "-Wl,--build-id=sha1",
+    "-Wl,-z,max-page-size=4096",
+    "-Wl,-T,$lume_linker_script",
+    "$lume_native_sysroot/lib/crt0-cxx.o",
+  ]
+  if (lume_linker_threads > 0) {
+    ldflags += [ "-Wl,--threads=$lume_linker_threads" ]
+  }
+  lib_dirs = [ "$lume_native_sysroot/lib" ]
+  if (lume_x11_library_dir != "$lume_native_sysroot/lib") {
+    lib_dirs += [ lume_x11_library_dir ]
+  }
+  _runtime_library = "$lume_native_sysroot/lib/liblume.a"
+  _cxx_library = "$lume_native_sysroot/lib/libc++.a"
+  if (lume_native_cxx_extension != "") {
+    assert(current_cpu == "arm64")
+    _runtime_library = "$lume_native_cxx_extension/lib/liblume.a"
+    _cxx_library = "$lume_native_cxx_extension/lib/libc++.a"
+  }
+  libs = [
+    _runtime_library,
+    _cxx_library,
+    "$lume_native_sysroot/lib/libc.a",
+  ]
+}

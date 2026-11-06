@@ -15,7 +15,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <net/if.h>
+#include <ifaddrs.h>
 #include "lume/net_abi.h"
 #include "lume/net_commands.h"
 
@@ -58,6 +60,147 @@ void if_freenameindex(struct if_nameindex *interfaces)
     free(interfaces);
 }
 
+unsigned if_nametoindex(const char *name)
+{
+    if (!name || !*name || strnlen(name, IF_NAMESIZE) == IF_NAMESIZE)
+    {
+        errno = ENXIO;
+        return 0;
+    }
+    struct if_nameindex *interfaces = if_nameindex();
+    if (!interfaces)
+        return 0;
+    unsigned index = 0;
+    for (struct if_nameindex *entry = interfaces; entry->if_index; ++entry)
+        if (!strcmp(entry->if_name, name))
+        {
+            index = entry->if_index;
+            break;
+        }
+    if_freenameindex(interfaces);
+    if (!index)
+        errno = ENXIO;
+    return index;
+}
+
+char *if_indextoname(unsigned index, char *name)
+{
+    if (!name)
+    {
+        errno = EFAULT;
+        return NULL;
+    }
+    struct if_nameindex *interfaces = if_nameindex();
+    if (!interfaces)
+        return NULL;
+    bool found = false;
+    for (struct if_nameindex *entry = interfaces; entry->if_index; ++entry)
+        if (entry->if_index == index)
+        {
+            size_t length = strlen(entry->if_name);
+            if (length >= IF_NAMESIZE)
+            {
+                if_freenameindex(interfaces);
+                errno = EIO;
+                return NULL;
+            }
+            memcpy(name, entry->if_name, length + 1);
+            found = true;
+            break;
+        }
+    if_freenameindex(interfaces);
+    if (!found)
+    {
+        errno = ENXIO;
+        return NULL;
+    }
+    return name;
+}
+
+struct native_interface_address
+{
+    struct ifaddrs entry;
+    struct sockaddr_in address, netmask, broadcast;
+    char name[IF_NAMESIZE];
+};
+
+void freeifaddrs(struct ifaddrs *interfaces)
+{
+    while (interfaces)
+    {
+        struct ifaddrs *next = interfaces->ifa_next;
+        free(interfaces);
+        interfaces = next;
+    }
+}
+
+int getifaddrs(struct ifaddrs **interfaces)
+{
+    if (!interfaces)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    *interfaces = NULL;
+    struct lume_net_control request = {.version = LUME_NET_CONTROL_VERSION};
+    if (native_result(
+            native_call(LUME_SYS_NETCTL, LUME_NET_ENUM, (uintptr_t)&request, sizeof(request))) < 0)
+        return -1;
+    if (request.count > LUME_NET_INTERFACES)
+    {
+        errno = EIO;
+        return -1;
+    }
+    struct ifaddrs *first = NULL;
+    struct ifaddrs **tail = &first;
+    for (unsigned i = 0; i < request.count; ++i)
+    {
+        const struct lume_netif_info *source = &request.data.interfaces[i];
+        size_t length = strnlen(source->name, sizeof(source->name));
+        if (!source->ifindex || !length || length >= IF_NAMESIZE)
+        {
+            freeifaddrs(first);
+            errno = EIO;
+            return -1;
+        }
+        struct native_interface_address *address = calloc(1, sizeof(*address));
+        if (!address)
+        {
+            int saved = errno;
+            freeifaddrs(first);
+            errno = saved;
+            return -1;
+        }
+        memcpy(address->name, source->name, length + 1);
+        address->entry.ifa_name = address->name;
+        if (source->flags & LUME_IF_UP)
+            address->entry.ifa_flags |= IFF_UP;
+        if (source->flags & LUME_IF_LINK)
+            address->entry.ifa_flags |= IFF_RUNNING;
+        if (source->kind == LUME_IF_ETHERNET || source->kind == LUME_IF_WIFI)
+            address->entry.ifa_flags |= IFF_BROADCAST;
+        if (source->address_family == 4)
+        {
+            address->address.sin_family = AF_INET;
+            address->netmask.sin_family = AF_INET;
+            address->broadcast.sin_family = AF_INET;
+            memcpy(&address->address.sin_addr, source->address, 4);
+            memcpy(&address->netmask.sin_addr, source->netmask, 4);
+            unsigned char *broadcast = (unsigned char *)&address->broadcast.sin_addr;
+            for (unsigned j = 0; j < 4; ++j)
+                broadcast[j] = source->address[j] | (unsigned char)~source->netmask[j];
+            address->entry.ifa_addr = (struct sockaddr *)&address->address;
+            address->entry.ifa_netmask = (struct sockaddr *)&address->netmask;
+            if (address->entry.ifa_flags & IFF_BROADCAST)
+                address->entry.ifa_broadaddr = (struct sockaddr *)&address->broadcast;
+        }
+        *tail = &address->entry;
+        tail = &address->entry.ifa_next;
+    }
+    *interfaces = first;
+    return 0;
+}
+
 static int socket_call(unsigned operation, struct lume_socket_request *r)
 {
     r->version = LUME_SOCKET_VERSION;
@@ -73,7 +216,10 @@ static int descriptor_flags(int type)
 
 int socket(int family, int type, int protocol)
 {
-    if (protocol && protocol != IPPROTO_TCP)
+    int base_type = type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK);
+    if (protocol && ((base_type == SOCK_STREAM && protocol != IPPROTO_TCP) ||
+                     (base_type == SOCK_DGRAM && protocol != IPPROTO_UDP) ||
+                     (base_type != SOCK_STREAM && base_type != SOCK_DGRAM)))
     {
         errno = EPROTONOSUPPORT;
         return -1;
@@ -221,7 +367,7 @@ int connect(int fd, const struct sockaddr *address, socklen_t bytes)
         if (flags < 0 || (flags & O_NONBLOCK) || ready(fd, POLLOUT))
             return -1;
     }
-    if (r.family == AF_UNIX)
+    if (r.family == AF_UNIX || r.type == SOCK_DGRAM)
         return 0;
     if (fcntl(fd, F_GETFL) & O_NONBLOCK)
     {
@@ -273,6 +419,14 @@ static int option_type(int level, int name)
         return 2;
     if (level == SOL_SOCKET && name == SO_REUSEADDR)
         return 4;
+    if (level == SOL_SOCKET && name == SO_RCVBUF)
+        return LUME_SOCKET_OPTION_RECEIVE_BUFFER;
+    if (level == SOL_SOCKET && name == SO_SNDBUF)
+        return LUME_SOCKET_OPTION_SEND_BUFFER;
+    if (level == IPPROTO_IP && name == IP_RECVTOS)
+        return LUME_SOCKET_OPTION_RECEIVE_TOS;
+    if (level == IPPROTO_IP && name == IP_TOS)
+        return LUME_SOCKET_OPTION_TOS;
     errno = ENOPROTOOPT;
     return -1;
 }
@@ -287,8 +441,17 @@ int setsockopt(int fd, int level, int name, const void *value, socklen_t bytes)
         errno = EINVAL;
         return -1;
     }
+    int setting;
+    memcpy(&setting, value, sizeof(setting));
+    bool scalar = type == LUME_SOCKET_OPTION_RECEIVE_BUFFER ||
+                  type == LUME_SOCKET_OPTION_SEND_BUFFER || type == LUME_SOCKET_OPTION_TOS;
+    if (scalar && (setting < 0 || (!setting && type != LUME_SOCKET_OPTION_TOS)))
+    {
+        errno = EINVAL;
+        return -1;
+    }
     struct lume_socket_request r = {
-        .fd = fd, .type = type, .flags = 1, .count = !!*(const int *)value};
+        .fd = fd, .type = type, .flags = 1, .count = scalar ? (unsigned)setting : !!setting};
     return socket_call(LUME_SOCKET_OPTION, &r);
 }
 
@@ -300,20 +463,27 @@ int getsockopt(int fd, int level, int name, void *value, socklen_t *bytes)
         return -1;
     }
     int result;
-    if (level == SOL_SOCKET && (name == SO_ERROR || name == SO_TYPE))
+    if (level == SOL_SOCKET && name == SO_ERROR)
     {
-        struct stat metadata;
-        if (fstat(fd, &metadata))
+        struct lume_socket_request request = {.fd = fd};
+        if (socket_call(LUME_SOCKET_ERROR, &request))
             return -1;
-        if (!S_ISSOCK(metadata.st_mode))
+        if (request.flags & ~LUME_SOCKET_ERROR_PENDING)
         {
-            errno = ENOTSOCK;
+            errno = EIO;
             return -1;
         }
-        struct pollfd p = {.fd = fd, .events = POLLOUT};
-        if (poll(&p, 1, 0) < 0)
+        unsigned error = request.count;
+        if (!error && (request.flags & LUME_SOCKET_ERROR_PENDING))
+            error = LUME_EINPROGRESS;
+        result = lume_errno_from_syscall(error);
+    }
+    else if (level == SOL_SOCKET && name == SO_TYPE)
+    {
+        struct lume_socket_request request = {.fd = fd, .type = LUME_SOCKET_OPTION_TYPE};
+        if (socket_call(LUME_SOCKET_OPTION, &request))
             return -1;
-        result = name == SO_TYPE ? SOCK_STREAM : p.revents & POLLERR ? ECONNREFUSED : 0;
+        result = request.count;
     }
     else
     {
@@ -330,108 +500,318 @@ int getsockopt(int fd, int level, int name, void *value, socklen_t *bytes)
     return 0;
 }
 
-ssize_t send(int fd, const void *data, size_t bytes, int flags)
+static int message_rights(const struct msghdr *message, struct lume_socket_message *request)
 {
-    if (flags & ~MSG_NOSIGNAL)
+    if (message->msg_controllen && !message->msg_control)
     {
-        errno = EOPNOTSUPP;
+        errno = EFAULT;
         return -1;
     }
-    return write(fd, data, bytes);
+    const unsigned char *control = message->msg_control;
+    size_t offset = 0;
+    while (message->msg_controllen - offset >= sizeof(struct cmsghdr))
+    {
+        struct cmsghdr header;
+        memcpy(&header, control + offset, sizeof(header));
+        size_t remaining = message->msg_controllen - offset;
+        if (header.cmsg_len < CMSG_LEN(0) || header.cmsg_len > remaining)
+        {
+            errno = EINVAL;
+            return -1;
+        }
+        if (header.cmsg_level != SOL_SOCKET || header.cmsg_type != SCM_RIGHTS)
+        {
+            errno = EOPNOTSUPP;
+            return -1;
+        }
+        size_t bytes = header.cmsg_len - CMSG_LEN(0);
+        if (bytes % sizeof(int))
+        {
+            errno = EINVAL;
+            return -1;
+        }
+        size_t count = bytes / sizeof(int);
+        if (count > LUME_SOCKET_RIGHTS_MAX - request->rights_count)
+        {
+            errno = EMSGSIZE;
+            return -1;
+        }
+        memcpy(request->rights + request->rights_count, control + offset + CMSG_LEN(0), bytes);
+        request->rights_count += (unsigned)count;
+        if (header.cmsg_len > SIZE_MAX - sizeof(size_t) + 1)
+            break;
+        size_t next = CMSG_ALIGN(header.cmsg_len);
+        if (next > remaining)
+            break;
+        offset += next;
+    }
+    return 0;
 }
 
-ssize_t recv(int fd, void *data, size_t bytes, int flags)
+static ssize_t message_io(int fd, const struct msghdr *message, struct msghdr *received, int flags)
 {
-    if (flags)
+    bool sending = received == NULL;
+    int allowed =
+        MSG_DONTWAIT | MSG_NOSIGNAL | (sending ? 0 : MSG_PEEK | MSG_CMSG_CLOEXEC | MSG_TRUNC);
+    if (!message || (message->msg_iovlen && !message->msg_iov))
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    if ((flags & ~allowed) || message->msg_iovlen > 1024)
     {
         errno = EOPNOTSUPP;
         return -1;
     }
-    return read(fd, data, bytes);
-}
-
-ssize_t sendmsg(int fd, const struct msghdr *message, int flags)
-{
-    if ((flags & ~MSG_NOSIGNAL) || message->msg_name || !message->msg_iov ||
-        message->msg_iovlen > 1024)
+    struct lume_socket_message request = {.version = LUME_SOCKET_MESSAGE_VERSION,
+                                          .bytes = sizeof(request)};
+    unsigned rights_capacity = 0;
+    size_t control_capacity = message->msg_controllen;
+    if (sending)
     {
-        errno = EOPNOTSUPP;
-        return -1;
+        if (message_rights(message, &request))
+            return -1;
     }
-    if (!message->msg_controllen)
-        return writev(fd, message->msg_iov, (int)message->msg_iovlen);
-    const struct cmsghdr *c = CMSG_FIRSTHDR(message);
-    if (!c || c->cmsg_level != SOL_SOCKET || c->cmsg_type != SCM_RIGHTS ||
-        c->cmsg_len != CMSG_LEN(sizeof(int)) || message->msg_controllen > CMSG_SPACE(sizeof(int)))
+    else
     {
-        errno = EOPNOTSUPP;
-        return -1;
+        if (control_capacity && !message->msg_control)
+        {
+            errno = EFAULT;
+            return -1;
+        }
+        if (control_capacity >= CMSG_LEN(0))
+        {
+            size_t capacity = (control_capacity - CMSG_LEN(0)) / sizeof(int);
+            rights_capacity =
+                capacity < LUME_SOCKET_RIGHTS_MAX ? (unsigned)capacity : LUME_SOCKET_RIGHTS_MAX;
+        }
+        request.flags = (flags & MSG_PEEK ? LUME_SOCKET_MESSAGE_PEEK : 0) |
+                        (flags & MSG_CMSG_CLOEXEC ? LUME_SOCKET_MESSAGE_CLOEXEC : 0);
+        received->msg_flags = 0;
+        received->msg_controllen = 0;
     }
-    int passed;
-    memcpy(&passed, CMSG_DATA(c), sizeof(passed));
-    size_t first = 0;
-    while (first < message->msg_iovlen && !message->msg_iov[first].iov_len)
-        ++first;
-    if (first == message->msg_iovlen)
+    size_t bytes = 0;
+    unsigned nonempty = 0;
+    void *single = NULL;
+    for (size_t i = 0; i < message->msg_iovlen; ++i)
+    {
+        if (message->msg_iov[i].iov_len > SIZE_MAX / 2 - bytes)
+        {
+            errno = EINVAL;
+            return -1;
+        }
+        if (message->msg_iov[i].iov_len)
+        {
+            single = message->msg_iov[i].iov_base;
+            ++nonempty;
+        }
+        bytes += message->msg_iov[i].iov_len;
+    }
+    if (!bytes && request.rights_count)
     {
         errno = EINVAL;
         return -1;
     }
-    struct lume_socket_request r = {
-        .fd = fd, .other = passed, .count = 1, .buffer = (uintptr_t)message->msg_iov[first].iov_base};
-    int result;
-    do
+    if (bytes > LUME_FILE_IO_MAX)
+        bytes = LUME_FILE_IO_MAX;
+    unsigned char *buffer = nonempty == 1 ? single : bytes ? malloc(bytes) : NULL;
+    if (bytes && !buffer)
     {
-        result = socket_call(LUME_SOCKET_SEND_FD, &r);
-        if (result >= 0 || errno != EAGAIN || (fcntl(fd, F_GETFL) & O_NONBLOCK))
-            return result;
-    } while (!ready(fd, POLLOUT));
-    return -1;
+        if (nonempty == 1)
+            errno = EFAULT;
+        return -1;
+    }
+    if (sending && nonempty != 1)
+    {
+        size_t offset = 0;
+        for (size_t i = 0; i < message->msg_iovlen && offset < bytes; ++i)
+        {
+            size_t length = message->msg_iov[i].iov_len;
+            if (length > bytes - offset)
+                length = bytes - offset;
+            memcpy(buffer + offset, message->msg_iov[i].iov_base, length);
+            offset += length;
+        }
+    }
+    request.buffer = (uintptr_t)buffer;
+    request.count = (unsigned)bytes;
+    struct lume_socket_request call = {
+        .fd = fd, .buffer = (uintptr_t)&request, .count = sizeof(request)};
+    unsigned operation = sending ? LUME_SOCKET_SEND_MESSAGE : LUME_SOCKET_RECEIVE_MESSAGE;
+    bool addressed = message->msg_name != NULL;
+    if (addressed)
+    {
+        if (sending)
+        {
+            char path[108];
+            if (request.rights_count ||
+                address_request(fd, message->msg_name, message->msg_namelen, &call, path))
+            {
+                if (request.rights_count)
+                    errno = EOPNOTSUPP;
+                if (nonempty != 1)
+                    free(buffer);
+                return -1;
+            }
+            if (call.family != AF_INET || !call.port)
+            {
+                if (nonempty != 1)
+                    free(buffer);
+                errno = call.family != AF_INET ? EAFNOSUPPORT : EINVAL;
+                return -1;
+            }
+            operation = LUME_SOCKET_SENDTO;
+        }
+        else
+        {
+            call = (struct lume_socket_request){
+                .fd = fd,
+                .family = AF_INET,
+                .flags = flags & MSG_PEEK ? LUME_SOCKET_DATAGRAM_PEEK : 0};
+            operation = LUME_SOCKET_RECVFROM;
+        }
+        call.buffer = (uintptr_t)buffer;
+        call.count = bytes;
+    }
+    int result;
+    for (;;)
+    {
+        if (!sending)
+            request.rights_count = rights_capacity;
+        result = socket_call(operation, &call);
+        if (result >= 0 || errno != EAGAIN || (flags & MSG_DONTWAIT) ||
+            (fcntl(fd, F_GETFL) & O_NONBLOCK))
+            break;
+        if (ready(fd, sending ? POLLOUT : POLLIN))
+        {
+            result = -1;
+            break;
+        }
+    }
+    int saved = errno;
+    int reported = result;
+    if (!sending && result >= 0)
+    {
+        if (addressed)
+        {
+            request.rights_count = 0;
+            request.count = call.count;
+            request.received_flags =
+                call.flags & LUME_SOCKET_DATAGRAM_TRUNCATED ? LUME_SOCKET_MESSAGE_TRUNCATED : 0;
+        }
+        if (received->msg_name && call.family == AF_INET)
+            (void)return_address(&call, received->msg_name, &received->msg_namelen);
+        else
+            received->msg_namelen = 0;
+        if ((flags & MSG_TRUNC) && call.family == AF_INET &&
+            (request.received_flags & LUME_SOCKET_MESSAGE_TRUNCATED))
+            reported = request.count;
+
+        if (nonempty != 1)
+        {
+            size_t offset = 0;
+            for (size_t i = 0; i < message->msg_iovlen && offset < (unsigned)result; ++i)
+            {
+                size_t length = message->msg_iov[i].iov_len;
+                if (length > (unsigned)result - offset)
+                    length = (unsigned)result - offset;
+                memcpy(message->msg_iov[i].iov_base, buffer + offset, length);
+                offset += length;
+            }
+        }
+        if (request.rights_count)
+        {
+            size_t payload = request.rights_count * sizeof(int);
+            size_t used = CMSG_SPACE(payload);
+            if (used > control_capacity)
+                used = CMSG_LEN(payload);
+            memset(received->msg_control, 0, used);
+            struct cmsghdr *header = received->msg_control;
+            header->cmsg_len = CMSG_LEN(payload);
+            header->cmsg_level = SOL_SOCKET;
+            header->cmsg_type = SCM_RIGHTS;
+            memcpy(CMSG_DATA(header), request.rights, payload);
+            received->msg_controllen = used;
+        }
+        received->msg_flags =
+            (request.received_flags & LUME_SOCKET_MESSAGE_CTRUNC ? MSG_CTRUNC : 0) |
+            (request.received_flags & LUME_SOCKET_MESSAGE_TRUNCATED ? MSG_TRUNC : 0);
+        if (call.family == AF_INET && (call.flags & LUME_SOCKET_DATAGRAM_TOS))
+        {
+            if (control_capacity < CMSG_LEN(sizeof(uint8_t)))
+                received->msg_flags |= MSG_CTRUNC;
+            else
+            {
+                size_t used = CMSG_SPACE(sizeof(uint8_t));
+                if (used > control_capacity)
+                    used = CMSG_LEN(sizeof(uint8_t));
+                memset(received->msg_control, 0, used);
+                struct cmsghdr *header = received->msg_control;
+                header->cmsg_len = CMSG_LEN(sizeof(uint8_t));
+                header->cmsg_level = IPPROTO_IP;
+                header->cmsg_type = IP_TOS;
+                *(uint8_t *)CMSG_DATA(header) = (uint8_t)call.type;
+                received->msg_controllen = used;
+            }
+        }
+    }
+    if (nonempty != 1)
+        free(buffer);
+    errno = saved;
+    return reported;
+}
+
+ssize_t sendmsg(int fd, const struct msghdr *message, int flags)
+{
+    return message_io(fd, message, NULL, flags);
 }
 
 ssize_t recvmsg(int fd, struct msghdr *message, int flags)
 {
-    if (flags || message->msg_name || message->msg_iovlen != 1 || !message->msg_iov)
+    return message_io(fd, message, message, flags);
+}
+
+ssize_t send(int fd, const void *data, size_t bytes, int flags)
+{
+    struct iovec vector = {.iov_base = (void *)data, .iov_len = bytes};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1};
+    return sendmsg(fd, &message, flags);
+}
+
+ssize_t recv(int fd, void *data, size_t bytes, int flags)
+{
+    struct iovec vector = {.iov_base = data, .iov_len = bytes};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1};
+    return recvmsg(fd, &message, flags);
+}
+
+ssize_t sendto(int fd, const void *data, size_t bytes, int flags, const struct sockaddr *address,
+               socklen_t address_bytes)
+{
+    struct iovec vector = {.iov_base = (void *)data, .iov_len = bytes};
+    struct msghdr message = {.msg_name = (void *)address,
+                             .msg_namelen = address_bytes,
+                             .msg_iov = &vector,
+                             .msg_iovlen = 1};
+    return sendmsg(fd, &message, flags);
+}
+
+ssize_t recvfrom(int fd, void *data, size_t bytes, int flags, struct sockaddr *address,
+                 socklen_t *address_bytes)
+{
+    if (address && !address_bytes)
     {
-        errno = EOPNOTSUPP;
+        errno = EFAULT;
         return -1;
     }
-    struct lume_socket_request r = {
-        .fd = fd,
-        .count = message->msg_iov[0].iov_len > 65536 ? 65536 : message->msg_iov[0].iov_len,
-        .buffer = (uintptr_t)message->msg_iov[0].iov_base};
-    int result;
-    do
-    {
-        result = socket_call(LUME_SOCKET_RECEIVE_FD, &r);
-        if (result >= 0 || errno != EAGAIN || (fcntl(fd, F_GETFL) & O_NONBLOCK))
-            break;
-        if (ready(fd, POLLIN))
-            return -1;
-    } while (1);
-    if (result < 0)
-        return -1;
-    message->msg_flags = 0;
-    size_t capacity = message->msg_controllen;
-    message->msg_controllen = 0;
-    if (r.other >= 0)
-    {
-        if (message->msg_control && capacity >= CMSG_SPACE(sizeof(int)))
-        {
-            struct cmsghdr *c = message->msg_control;
-            memset(c, 0, CMSG_SPACE(sizeof(int)));
-            c->cmsg_level = SOL_SOCKET;
-            c->cmsg_type = SCM_RIGHTS;
-            c->cmsg_len = CMSG_LEN(sizeof(int));
-            memcpy(CMSG_DATA(c), &r.other, sizeof(int));
-            message->msg_controllen = CMSG_SPACE(sizeof(int));
-        }
-        else
-        {
-            close(r.other);
-            message->msg_flags |= MSG_CTRUNC;
-        }
-    }
+    struct iovec vector = {.iov_base = data, .iov_len = bytes};
+    struct msghdr message = {.msg_name = address,
+                             .msg_namelen = address ? *address_bytes : 0,
+                             .msg_iov = &vector,
+                             .msg_iovlen = 1};
+    ssize_t result = recvmsg(fd, &message, flags);
+    if (result >= 0 && address)
+        *address_bytes = message.msg_namelen;
     return result;
 }
 

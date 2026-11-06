@@ -6,6 +6,13 @@
 #include <poll.h>
 #include <stdarg.h>
 #include <errno.h>
+#if defined(__aarch64__) || defined(__x86_64__) || defined(__i386__)
+#include "lume/memory.h"
+extern int64_t lume_memory_call(unsigned, struct lume_vm_request *);
+#endif
+
+extern int lume_posix_ofd_lock(int, unsigned, struct flock *);
+extern int lume_posix_record_lock(int, unsigned, struct flock *);
 
 static int result(int value)
 {
@@ -37,8 +44,27 @@ int dup2(int fd, int to)
 
 int fcntl(int fd, int operation, ...)
 {
+    if (operation == F_SETLKW)
+    {
+        errno = ENOTSUP;
+        return -1;
+    }
+    if (operation == F_OFD_GETLK || operation == F_OFD_SETLK || operation == F_GETLK ||
+        operation == F_SETLK)
+    {
+        va_list arguments;
+        va_start(arguments, operation);
+        struct flock *lock = va_arg(arguments, struct flock *);
+        va_end(arguments);
+        return operation == F_GETLK || operation == F_SETLK
+                   ? lume_posix_record_lock(fd, (unsigned)operation, lock)
+                   : lume_posix_ofd_lock(fd, (unsigned)operation, lock);
+    }
     int value = 0;
     if (operation == F_DUPFD || operation == F_SETFD || operation == F_SETFL
+#ifdef F_ADD_SEALS
+        || operation == F_ADD_SEALS
+#endif
 #ifdef F_DUPFD_CLOEXEC
         || operation == F_DUPFD_CLOEXEC
 #endif
@@ -51,6 +77,21 @@ int fcntl(int fd, int operation, ...)
     }
     switch (operation)
     {
+#if (defined(__aarch64__) || defined(__x86_64__) || defined(__i386__)) && defined(F_ADD_SEALS)
+    case F_ADD_SEALS:
+    case F_GET_SEALS:
+    {
+        struct lume_vm_request request = {.fd = fd, .flags = (unsigned)value};
+        int64_t sealed = lume_memory_call(
+            operation == F_ADD_SEALS ? LUME_VM_ADD_SEALS : LUME_VM_GET_SEALS, &request);
+        if (sealed < 0)
+        {
+            errno = (int)-sealed;
+            return -1;
+        }
+        return (int)sealed;
+    }
+#endif
     case F_DUPFD:
         if (value < 0)
         {

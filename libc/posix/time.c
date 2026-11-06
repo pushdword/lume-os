@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <unistd.h>
+#include <stdint.h>
 #if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "lume/syscall_native.h"
 #include "lume/abi.h"
@@ -16,6 +17,30 @@
 #include "api.h"
 #endif
 
+static inline int realtime_clock(clockid_t id)
+{
+    return id == CLOCK_REALTIME
+#ifdef CLOCK_REALTIME_COARSE
+           || id == CLOCK_REALTIME_COARSE
+#endif
+        ;
+}
+
+static inline int uptime_clock(clockid_t id)
+{
+    return id == CLOCK_MONOTONIC
+#ifdef CLOCK_MONOTONIC_COARSE
+           || id == CLOCK_MONOTONIC_COARSE
+#endif
+#ifdef CLOCK_MONOTONIC_RAW
+           || id == CLOCK_MONOTONIC_RAW
+#endif
+#ifdef CLOCK_BOOTTIME
+           || id == CLOCK_BOOTTIME
+#endif
+        ;
+}
+
 int nanosleep(const struct timespec *delay, struct timespec *remaining)
 {
     if (!delay || delay->tv_sec < 0 || delay->tv_nsec < 0 || delay->tv_nsec >= 1000000000L)
@@ -23,10 +48,16 @@ int nanosleep(const struct timespec *delay, struct timespec *remaining)
         errno = EINVAL;
         return -1;
     }
+    int64_t fraction = (delay->tv_nsec + 999999) / 1000000;
+    if ((uint64_t)delay->tv_sec > (uint64_t)(INT64_MAX - fraction) / 1000)
+    {
+        errno = EOVERFLOW;
+        return -1;
+    }
     struct timespec start, now;
     if (clock_gettime(CLOCK_MONOTONIC, &start))
         return -1;
-    int64_t milliseconds = (int64_t)delay->tv_sec * 1000 + (delay->tv_nsec + 999999) / 1000000;
+    int64_t milliseconds = (int64_t)delay->tv_sec * 1000 + fraction;
     while (milliseconds)
     {
         int step = milliseconds > 60000 ? 60000 : (int)milliseconds;
@@ -34,12 +65,28 @@ int nanosleep(const struct timespec *delay, struct timespec *remaining)
         {
             if (remaining && !clock_gettime(CLOCK_MONOTONIC, &now))
             {
-                int64_t elapsed =
-                    (int64_t)(now.tv_sec - start.tv_sec) * 1000000000 + now.tv_nsec - start.tv_nsec;
-                int64_t left = (int64_t)delay->tv_sec * 1000000000 + delay->tv_nsec - elapsed;
-                if (left < 0)
-                    left = 0;
-                *remaining = (struct timespec){left / 1000000000, left % 1000000000};
+                int64_t seconds = (int64_t)now.tv_sec - (int64_t)start.tv_sec;
+                long nanoseconds = now.tv_nsec - start.tv_nsec;
+                if (nanoseconds < 0)
+                {
+                    --seconds;
+                    nanoseconds += 1000000000L;
+                }
+                if (seconds < 0)
+                    seconds = nanoseconds = 0;
+                if (seconds > delay->tv_sec ||
+                    (seconds == delay->tv_sec && nanoseconds >= delay->tv_nsec))
+                    *remaining = (struct timespec){0};
+                else
+                {
+                    *remaining = (struct timespec){delay->tv_sec - seconds,
+                                                   delay->tv_nsec - nanoseconds};
+                    if (remaining->tv_nsec < 0)
+                    {
+                        --remaining->tv_sec;
+                        remaining->tv_nsec += 1000000000L;
+                    }
+                }
             }
             return -1;
         }
@@ -64,7 +111,7 @@ int clock_gettime(clockid_t id, struct timespec *t)
         return -1;
     }
 #if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-    if (id == CLOCK_REALTIME)
+    if (realtime_clock(id))
     {
         struct lume_realtime_request request = {.version = LUME_REALTIME_VERSION,
                                                 .bytes = sizeof(request)};
@@ -85,13 +132,19 @@ int clock_gettime(clockid_t id, struct timespec *t)
         return 0;
     }
 #endif
-    if (id != CLOCK_MONOTONIC)
+    if (!uptime_clock(id))
     {
         errno = ENOSYS;
         return -1;
     }
 #if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-    uint64_t ms = (uint64_t)lume_native_call(LUME_SYS_CLOCK, 0, 0, 0);
+    int64_t value = lume_native_call(LUME_SYS_CLOCK, 0, 0, 0);
+    if (value < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-value);
+        return -1;
+    }
+    uint64_t ms = (uint64_t)value;
 #else
     uint32_t ms = (uint32_t)lume_syscall(LUME_INFO, LUME_UPTIME, 0, 0);
 #endif
@@ -102,9 +155,9 @@ int clock_gettime(clockid_t id, struct timespec *t)
 
 int clock_getres(clockid_t id, struct timespec *resolution)
 {
-    if (id != CLOCK_MONOTONIC
+    if (!uptime_clock(id)
 #if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-        && id != CLOCK_REALTIME
+        && !realtime_clock(id)
 #endif
     )
     {

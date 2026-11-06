@@ -21,4 +21,51 @@ $(OUT)/vi.elf: $(OUT)/vim.elf
 $(OUT)/native-terminal.elf: $(OUT)/obj/tests/integration/native_terminal.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
 $(OUT)/obj/tests/integration/native_terminal.c.o: | headers
+$(OUT)/native-file-io.elf: $(OUT)/obj/tests/integration/native_file_io.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_file_io.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_file_io.c.o: | headers
+$(OUT)/native-file-lock.elf: $(OUT)/obj/tests/integration/native_file_lock.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_file_lock.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_file_lock.c.o: | headers
+.PHONY: check-file-locks
+check: check-file-locks
+check-file-locks: $(OUT)/tests/file-lock$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/file-lock$(HOSTEXE): tests/unit/file_lock_test.c tests/fixtures/posix_lock/fcntl.h libc/posix/fd.c libc/posix/file_lock.c $(KERNEL)/include/abi/native/lume/file_lock.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -DLUME_USER_HOST_TEST=1 -Itests/fixtures/posix_lock -Iinclude/posix -Iinclude/lume -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" $(filter %file_lock_test.c %/posix/file_lock.c,$^) -o "$@"
+.PHONY: check-positioned-io
+check: check-positioned-io
+check-positioned-io: $(OUT)/tests/positioned-io$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/positioned-io$(HOSTEXE): tests/unit/positioned_io_test.c libc/posix/positioned_io.c $(KERNEL)/include/abi/native/lume/file_io.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -I"$(KERNEL)/include/abi/native" -iquote include/posix "$<" -o "$@"
 -include $(addsuffix .d,$(VIM_NATIVE_OBJECTS) $(NATIVE_POSIX_OBJECTS))
+
+ifeq ($(ARCH),aarch64)
+$(OUT)/native-ucontext.elf: $(OUT)/obj/tests/integration/native_ucontext.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_ucontext.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_ucontext.c.o: | headers
+endif
+
+$(OUT)/native-sigwait.elf: $(OUT)/obj/tests/integration/native_sigwait.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_sigwait.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_sigwait.c.o: | headers
+.PHONY: check-sigwait
+check: check-sigwait
+check-sigwait: $(OUT)/tests/sigwait$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/sigwait$(HOSTEXE): tests/unit/sigwait_test.c libc/posix/sigwait.c include/posix/signal.h $(KERNEL)/include/abi/native/lume/signal.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -DLUME_USER_HOST_TEST=1 -Iinclude/posix -Ilibc/posix -I"$(KERNEL)/include/abi/native" $(filter %.c,$^) -o "$@"
+
+$(OUT)/native-atfork.elf: $(OUT)/obj/tests/integration/native_atfork.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_atfork.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_atfork.c.o: | headers
+-include $(OUT)/obj/tests/integration/native_atfork.c.o.d

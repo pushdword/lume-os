@@ -375,10 +375,10 @@ const char *a_Tls_mbedtls_version(char *buf, int n)
  */
 void a_Tls_mbedtls_init(void)
 {
-   int ret;
-   char version[128];
-   mbedtls_version_get_string_full(version);
-   MSG("TLS library: %s\n", version);
+    int ret;
+    char version[128];
+    mbedtls_version_get_string_full(version);
+    MSG("TLS library: %s\n", version);
 
     /* As of 2.3.0 in 2016, the 'default' profile allows SHA1, RIPEMD160,
      * and SHA224 (in addition to the stronger ones), and the 'next' profile
@@ -390,66 +390,69 @@ void a_Tls_mbedtls_init(void)
      * Their 'next' profile only allows "Curves at or above 128-bit security
      * level". For now, we follow 'default' and allow all curves.
      */
-   static const mbedtls_x509_crt_profile prof = {
-    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA1 ) |
-    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA256 ) |
-    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA384 ) |
-    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA512 ),
-    0xFFFFFFF, /* Any PK alg    */
-    0xFFFFFFF, /* Any curve     */
-    2048,
-   };
+    static const mbedtls_x509_crt_profile prof = {
+        MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA1) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA256) |
+            MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA384) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA512),
+        0xFFFFFFF, /* Any PK alg    */
+        0xFFFFFFF, /* Any curve     */
+        2048,
+    };
 
-   mbedtls_ssl_config_init(&ssl_conf);
+    mbedtls_ssl_config_init(&ssl_conf);
 
-   mbedtls_ssl_config_defaults(&ssl_conf, MBEDTLS_SSL_IS_CLIENT,
-                               MBEDTLS_SSL_TRANSPORT_STREAM,
-                               MBEDTLS_SSL_PRESET_DEFAULT);
-   mbedtls_ssl_conf_cert_profile(&ssl_conf, &prof);
+    ret = mbedtls_ssl_config_defaults(&ssl_conf, MBEDTLS_SSL_IS_CLIENT,
+                                      MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0)
+    {
+        ssl_enabled = FALSE;
+        MSG_ERR("tls: configuration failed with -0x%04x. TLS disabled.\n", -ret);
+        return;
+    }
+    mbedtls_ssl_conf_cert_profile(&ssl_conf, &prof);
 
-   /*
+    /*
     * TLSv1.3 brings some changes, among them, having to call
     * psa_crypto_init(), and a new way of resuming sessions,
     * which is not currently supported by the code here.
     */
 #if defined(MBEDTLS_SSL_PROTO_TLS1_3)
-   mbedtls_ssl_conf_max_tls_version(&ssl_conf, MBEDTLS_SSL_VERSION_TLS1_2);
+    mbedtls_ssl_conf_max_tls_version(&ssl_conf, MBEDTLS_SSL_VERSION_TLS1_2);
 #endif
 
-   /*
+    /*
     * There are security concerns surrounding session tickets --
     * wrecking forward security, for instance.
     */
-   mbedtls_ssl_conf_session_tickets(&ssl_conf,
-                                    MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
+    mbedtls_ssl_conf_session_tickets(&ssl_conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
 
-   Tls_remove_psk_ciphersuites();
+    Tls_remove_psk_ciphersuites();
 
-   mbedtls_x509_crt_init(&cacerts);   /* trusted root certificates */
-   mbedtls_ctr_drbg_init(&ctr_drbg);  /* Counter mode Deterministic Random Byte
+    mbedtls_x509_crt_init(&cacerts);  /* trusted root certificates */
+    mbedtls_ctr_drbg_init(&ctr_drbg); /* Counter mode Deterministic Random Byte
                                        * Generator */
-   mbedtls_entropy_init(&entropy);
+    mbedtls_entropy_init(&entropy);
 
-   if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                   (unsigned char*)"dillo tls", 9))) {
-      ssl_enabled = FALSE;
-      MSG_ERR("tls: mbedtls_ctr_drbg_seed() failed. TLS disabled.\n");
-      return;
-   }
+    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                                     (unsigned char *)"dillo tls", 9)))
+    {
+        ssl_enabled = FALSE;
+        MSG_ERR("tls: mbedtls_ctr_drbg_seed() failed. TLS disabled.\n");
+        return;
+    }
 
 #ifdef __lume__
-   mbedtls_ssl_conf_authmode(&ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+    mbedtls_ssl_conf_authmode(&ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 #else
-   mbedtls_ssl_conf_authmode(&ssl_conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    mbedtls_ssl_conf_authmode(&ssl_conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 #endif
-   mbedtls_ssl_conf_ca_chain(&ssl_conf, &cacerts, NULL);
-   mbedtls_ssl_conf_rng(&ssl_conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+    mbedtls_ssl_conf_ca_chain(&ssl_conf, &cacerts, NULL);
+    mbedtls_ssl_conf_rng(&ssl_conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
-   fd_map = dList_new(20);
-   servers = dList_new(8);
-   cert_authorities = dList_new(12);
+    fd_map = dList_new(20);
+    servers = dList_new(8);
+    cert_authorities = dList_new(12);
 
-   Tls_load_certificates();
+    Tls_load_certificates();
 }
 
 /*
@@ -960,8 +963,56 @@ static void Tls_fatal_error_msg(int error_type)
       errmsg = "no application protocol";
    else errmsg = "unknown alert value";
 
-   MSG_WARN("mbedtls_ssl_handshake() received TLS fatal alert %d (%s)\n",
-            error_type, errmsg);
+   MSG_WARN("mbedtls_ssl_handshake() received TLS fatal alert %d (%s)\n", error_type, errmsg);
+}
+
+static void Tls_report_error(Conn_t *conn, int result, const char *operation)
+{
+    char message[256];
+    mbedtls_strerror(result, message, sizeof(message));
+    MSG_ERR("%s failed for %s: %s (-0x%04x)\n", operation, URL_HOST(conn->url), message, -result);
+    uint32_t flags = mbedtls_ssl_get_verify_result(conn->ssl);
+    if (flags && flags != UINT32_MAX)
+    {
+        char detail[512] = {0};
+        mbedtls_x509_crt_verify_info(detail, sizeof(detail), "", flags);
+        MSG_ERR("TLS certificate verification flags 0x%08lx: %s\n", (unsigned long)flags, detail);
+    }
+}
+
+static int Tls_io_result(Conn_t *conn, int result, const char *operation, bool_t writing,
+                         size_t requested)
+{
+    if (result == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY || result == 0)
+    {
+        if (writing && requested)
+        {
+            errno = EPIPE;
+            return -1;
+        }
+        errno = 0;
+        return 0;
+    }
+    if (result > 0)
+    {
+        errno = 0;
+        return result;
+    }
+    if (result == (writing ? MBEDTLS_ERR_SSL_WANT_WRITE : MBEDTLS_ERR_SSL_WANT_READ))
+    {
+        errno = EAGAIN;
+        return -1;
+    }
+    if (result == MBEDTLS_ERR_SSL_WANT_READ || result == MBEDTLS_ERR_SSL_WANT_WRITE)
+    {
+        MSG_ERR("%s failed for %s: TLS requires %s readiness\n", operation, URL_HOST(conn->url),
+                result == MBEDTLS_ERR_SSL_WANT_READ ? "read" : "write");
+        errno = EPROTO;
+        return -1;
+    }
+    Tls_report_error(conn, result, operation);
+    errno = result == MBEDTLS_ERR_NET_CONN_RESET ? ECONNRESET : EPROTO;
+    return -1;
 }
 
 /*
@@ -970,109 +1021,137 @@ static void Tls_fatal_error_msg(int error_type)
  */
 static void Tls_handshake(int fd, int connkey)
 {
-   int ret;
-   bool_t ongoing = FALSE, failed = TRUE;
-   Conn_t *conn;
+    int ret;
+    bool_t ongoing = FALSE, failed = TRUE;
+    Conn_t *conn;
 
-   if (!(conn = a_Klist_get_data(conn_list, connkey))) {
-      MSG("Tls_connect: conn for fd %d not valid\n", fd);
-      return;
-   }
+    if (!(conn = a_Klist_get_data(conn_list, connkey)))
+    {
+        MSG("Tls_connect: conn for fd %d not valid\n", fd);
+        return;
+    }
 
 #if MBEDTLS_VERSION_NUMBER < 0x03000000
-   int ssl_state = conn->ssl->state;
+    int ssl_state = conn->ssl->state;
 #else
-   int ssl_state = conn->ssl->MBEDTLS_PRIVATE(state);
+    int ssl_state = conn->ssl->MBEDTLS_PRIVATE(state);
 #endif
-   if (ssl_state != MBEDTLS_SSL_HANDSHAKE_OVER) {
-      ret = mbedtls_ssl_handshake(conn->ssl);
+    if (ssl_state != MBEDTLS_SSL_HANDSHAKE_OVER)
+    {
+        ret = mbedtls_ssl_handshake(conn->ssl);
+        if (ret < 0 && ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
+            Tls_report_error(conn, ret, "TLS handshake");
 
-      if (ret == MBEDTLS_ERR_SSL_WANT_READ ||
-          ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-         int want = ret == MBEDTLS_ERR_SSL_WANT_READ ? DIO_READ : DIO_WRITE;
+        if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
+        {
+            int want = ret == MBEDTLS_ERR_SSL_WANT_READ ? DIO_READ : DIO_WRITE;
 
-         _MSG("iowatching fd %d for tls -- want %s\n", fd,
-             ret == MBEDTLS_ERR_SSL_WANT_READ ? "read" : "write");
-         a_IOwatch_remove_fd(fd, -1);
-         a_IOwatch_add_fd(fd, want, Tls_handshake_cb, INT2VOIDP(connkey));
-         ongoing = TRUE;
-         failed = FALSE;
-      } else if (ret == 0) {
-         Server_t *srv = dList_find_sorted(servers, conn->url,
-                                           Tls_servers_by_url_cmp);
-
-         if (srv->cert_status == CERT_STATUS_RECEIVING) {
-            /* Making first connection with the server. Show cipher used. */
-            mbedtls_ssl_context *ssl = conn->ssl;
-            const char *version = mbedtls_ssl_get_version(ssl),
-                       *cipher = mbedtls_ssl_get_ciphersuite(ssl);
-
-            MSG("%s", URL_AUTHORITY(conn->url));
-            if (URL_PORT(conn->url) != URL_HTTPS_PORT)
-               MSG(":%d", URL_PORT(conn->url));
-            MSG(" %s, cipher %s\n", version, cipher);
-         }
-         if (srv->cert_status == CERT_STATUS_USER_ACCEPTED ||
-             (Tls_examine_certificate(conn->ssl, srv) != -1)) {
+            _MSG("iowatching fd %d for tls -- want %s\n", fd,
+                 ret == MBEDTLS_ERR_SSL_WANT_READ ? "read" : "write");
+            a_IOwatch_remove_fd(fd, -1);
+            a_IOwatch_add_fd(fd, want, Tls_handshake_cb, INT2VOIDP(connkey));
+            ongoing = TRUE;
             failed = FALSE;
-         }
-      } else if (ret == MBEDTLS_ERR_NET_SEND_FAILED) {
-         MSG("mbedtls_ssl_handshake() send failed. Server may not be accepting"
-             " connections.\n");
-      } else if (ret == MBEDTLS_ERR_NET_CONNECT_FAILED) {
-         MSG("mbedtls_ssl_handshake() connect failed.\n");
-      } else if (ret == MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE) {
-         /* Paul Bakker, the mbed tls guy, says "beware, this might change in
+        }
+        else if (ret == 0)
+        {
+            Server_t *srv = dList_find_sorted(servers, conn->url, Tls_servers_by_url_cmp);
+
+            if (srv->cert_status == CERT_STATUS_RECEIVING)
+            {
+                /* Making first connection with the server. Show cipher used. */
+                mbedtls_ssl_context *ssl = conn->ssl;
+                const char *version = mbedtls_ssl_get_version(ssl),
+                           *cipher = mbedtls_ssl_get_ciphersuite(ssl);
+
+                MSG("%s", URL_AUTHORITY(conn->url));
+                if (URL_PORT(conn->url) != URL_HTTPS_PORT)
+                    MSG(":%d", URL_PORT(conn->url));
+                MSG(" %s, cipher %s\n", version, cipher);
+            }
+            if (srv->cert_status == CERT_STATUS_USER_ACCEPTED ||
+                (Tls_examine_certificate(conn->ssl, srv) != -1))
+            {
+                failed = FALSE;
+            }
+        }
+        else if (ret == MBEDTLS_ERR_NET_SEND_FAILED)
+        {
+            MSG("mbedtls_ssl_handshake() send failed. Server may not be accepting"
+                " connections.\n");
+        }
+        else if (ret == MBEDTLS_ERR_NET_CONNECT_FAILED)
+        {
+            MSG("mbedtls_ssl_handshake() connect failed.\n");
+        }
+        else if (ret == MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE)
+        {
+            /* Paul Bakker, the mbed tls guy, says "beware, this might change in
           * future versions" and "ssl->in_msg[1] is not going to change anytime
           * soon, unless there are radical changes". It seems to be the best of
           * the alternatives.
           */
 #if MBEDTLS_VERSION_NUMBER < 0x03000000
-         Tls_fatal_error_msg(conn->ssl->in_msg[1]);
+            Tls_fatal_error_msg(conn->ssl->in_msg[1]);
 #else
-         Tls_fatal_error_msg(conn->ssl->MBEDTLS_PRIVATE(in_msg[1]));
+            Tls_fatal_error_msg(conn->ssl->MBEDTLS_PRIVATE(in_msg[1]));
 #endif
-      } else if (ret == MBEDTLS_ERR_SSL_INVALID_RECORD) {
-         MSG("mbedtls_ssl_handshake() failed upon receiving 'an invalid "
-             "record'.\n");
-      } else if (ret == MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE) {
-         MSG("mbedtls_ssl_handshake() failed: 'The requested feature is not "
-             "available.'\n");
+        }
+        else if (ret == MBEDTLS_ERR_SSL_INVALID_RECORD)
+        {
+            MSG("mbedtls_ssl_handshake() failed upon receiving 'an invalid "
+                "record'.\n");
+        }
+        else if (ret == MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE)
+        {
+            MSG("mbedtls_ssl_handshake() failed: 'The requested feature is not "
+                "available.'\n");
 #if MBEDTLS_VERSION_NUMBER < 0x03000000
-      } else if (ret == MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE) {
-         MSG("mbedtls_ssl_handshake() failed: 'Processing of the "
-             "ServerKeyExchange handshake message failed.'\n");
+        }
+        else if (ret == MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE)
+        {
+            MSG("mbedtls_ssl_handshake() failed: 'Processing of the "
+                "ServerKeyExchange handshake message failed.'\n");
 #endif
-      } else if (ret == MBEDTLS_ERR_SSL_CONN_EOF) {
-         MSG("mbedtls_ssl_handshake() failed: Read EOF. Connection closed by "
-             "server.\n");
-      } else {
-         MSG("mbedtls_ssl_handshake() failed with error -0x%04x\n", -ret);
-      }
-   }
+        }
+        else if (ret == MBEDTLS_ERR_SSL_CONN_EOF)
+        {
+            MSG("mbedtls_ssl_handshake() failed: Read EOF. Connection closed by "
+                "server.\n");
+        }
+        else
+        {
+            MSG("mbedtls_ssl_handshake() failed with error -0x%04x\n", -ret);
+        }
+    }
 
-   /*
+    /*
     * If there were problems with the certificate, the connection may have
     * been closed by the server if the user responded too slowly to a popup.
     */
 
-   if (!ongoing) {
-      if (a_Klist_get_data(conn_list, connkey)) {
-         conn->connecting = FALSE;
-         if (failed) {
-            Tls_close_by_key(connkey);
-         }
-         a_IOwatch_remove_fd(fd, -1);
-         a_Http_connect_done(fd, failed ? FALSE : TRUE);
-      } else {
-         MSG("Connection disappeared. Too long with a popup popped up?\n");
-      }
-   }
+    if (!ongoing)
+    {
+        if (a_Klist_get_data(conn_list, connkey))
+        {
+            conn->connecting = FALSE;
+            if (failed)
+            {
+                Tls_close_by_key(connkey);
+            }
+            a_IOwatch_remove_fd(fd, -1);
+            a_Http_connect_done(fd, failed ? FALSE : TRUE);
+        }
+        else
+        {
+            MSG("Connection disappeared. Too long with a popup popped up?\n");
+        }
+    }
 }
 
 static void Tls_handshake_cb(int fd, void *vconnkey)
 {
-   Tls_handshake(fd, VOIDP2INT(vconnkey));
+    Tls_handshake(fd, VOIDP2INT(vconnkey));
 }
 
 /*
@@ -1080,50 +1159,60 @@ static void Tls_handshake_cb(int fd, void *vconnkey)
  */
 void a_Tls_mbedtls_connect(int fd, const DilloUrl *url)
 {
-   mbedtls_ssl_context *ssl = dNew0(mbedtls_ssl_context, 1);
-   bool_t success = TRUE;
-   int connkey = -1;
-   int ret;
+    mbedtls_ssl_context *ssl = dNew0(mbedtls_ssl_context, 1);
+    bool_t success = TRUE;
+    int connkey = -1;
+    int ret;
 
-   if (!ssl_enabled)
-      success = FALSE;
+    mbedtls_ssl_init(ssl);
+    if (!ssl_enabled)
+        success = FALSE;
 
 #ifdef __lume__
-   struct timespec utc;
-   if (clock_gettime(CLOCK_REALTIME, &utc) != 0) {
-      MSG_ERR("TLS requires UTC. Run clock sync.\n");
-      success = FALSE;
-   }
+    struct timespec utc;
+    if (clock_gettime(CLOCK_REALTIME, &utc) != 0)
+    {
+        MSG_ERR("TLS requires UTC. Run clock sync.\n");
+        success = FALSE;
+    }
 #endif
 
-   if (success && Tls_user_said_no(url)) {
-      success = FALSE;
-   }
+    if (success && Tls_user_said_no(url))
+    {
+        success = FALSE;
+    }
 
-   if (success && (ret = mbedtls_ssl_setup(ssl, &ssl_conf))) {
-      MSG("mbedtls_ssl_setup failed %d\n", ret);
-      success = FALSE;
-   }
+    if (success && (ret = mbedtls_ssl_setup(ssl, &ssl_conf)))
+    {
+        MSG("mbedtls_ssl_setup failed %d\n", ret);
+        success = FALSE;
+    }
 
-   /* assign TLS connection to this file descriptor */
-   if (success) {
-      Conn_t *conn = Tls_conn_new(fd, url, ssl);
-      connkey = Tls_make_conn_key(conn);
-      mbedtls_ssl_set_bio(ssl, &conn->fd, mbedtls_net_send, mbedtls_net_recv,
-                          NULL);
-   }
+    if (success && (ret = mbedtls_ssl_set_hostname(ssl, URL_HOST(url))))
+    {
+        MSG("mbedtls_ssl_set_hostname failed %d\n", ret);
+        success = FALSE;
+    }
 
-   if (success && (ret = mbedtls_ssl_set_hostname(ssl, URL_HOST(url)))) {
-      MSG("mbedtls_ssl_set_hostname failed %d\n", ret);
-      success = FALSE;
-   }
+    /* assign TLS connection to this file descriptor */
+    if (success)
+    {
+        Conn_t *conn = Tls_conn_new(fd, url, ssl);
+        connkey = Tls_make_conn_key(conn);
+        mbedtls_ssl_set_bio(ssl, &conn->fd, mbedtls_net_send, mbedtls_net_recv, NULL);
+    }
 
-   if (!success) {
-      a_Tls_mbedtls_reset_server_state(url);
-      a_Http_connect_done(fd, success);
-   } else {
-      Tls_handshake(fd, connkey);
-   }
+    if (!success)
+    {
+        mbedtls_ssl_free(ssl);
+        dFree(ssl);
+        a_Tls_mbedtls_reset_server_state(url);
+        a_Http_connect_done(fd, success);
+    }
+    else
+    {
+        Tls_handshake(fd, connkey);
+    }
 }
 
 /*
@@ -1131,23 +1220,8 @@ void a_Tls_mbedtls_connect(int fd, const DilloUrl *url)
  */
 int a_Tls_mbedtls_read(void *conn, void *buf, size_t len)
 {
-   Conn_t *c = (Conn_t*)conn;
-   int ret = mbedtls_ssl_read(c->ssl, buf, len);
-
-   if (ret < 0) {
-      if (ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
-         /* treat it as EOF */
-         ret = 0;
-      } else if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
-         ret = -1;
-         errno = EAGAIN; /* already happens to be set, but let's make sure */
-      } else if (ret == MBEDTLS_ERR_NET_CONN_RESET) {
-         MSG("READ failed: TLS connection reset by server.\n");
-      } else {
-         MSG("READ failed with -0x%04x: an mbed tls error.\n", -ret);
-      }
-   }
-   return ret;
+    Conn_t *c = (Conn_t *)conn;
+    return Tls_io_result(c, mbedtls_ssl_read(c->ssl, buf, len), "TLS read", FALSE, len);
 }
 
 /*
@@ -1155,13 +1229,8 @@ int a_Tls_mbedtls_read(void *conn, void *buf, size_t len)
  */
 int a_Tls_mbedtls_write(void *conn, void *buf, size_t len)
 {
-   Conn_t *c = (Conn_t*)conn;
-   int ret = mbedtls_ssl_write(c->ssl, buf, len);
-
-   if (ret < 0) {
-      MSG("WRITE failed with -0x%04x: an mbed tls error\n", -ret);
-   }
-   return ret;
+    Conn_t *c = (Conn_t *)conn;
+    return Tls_io_result(c, mbedtls_ssl_write(c->ssl, buf, len), "TLS write", TRUE, len);
 }
 
 void a_Tls_mbedtls_close_by_fd(int fd)

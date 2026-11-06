@@ -37,7 +37,7 @@ int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct ti
         if ((reads && FD_ISSET(i, reads)) || (writes && FD_ISSET(i, writes)) ||
             (errors && FD_ISSET(i, errors)))
         {
-            if (i >= LUME_FD_LIMIT)
+            if ((unsigned)i >= LUME_FD_LIMIT)
             {
                 errno = EBADF;
                 return -1;
@@ -59,12 +59,15 @@ int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct ti
     } while (!ready);
     if (ready < 0)
         return -1;
+    /* Only the words addressed by maximum belong to this call. */
+    size_t set_bytes = ((unsigned)maximum + sizeof(unsigned long) * 8 - 1) /
+                       (sizeof(unsigned long) * 8) * sizeof(unsigned long);
     if (reads)
-        FD_ZERO(reads);
+        memset(reads, 0, set_bytes);
     if (writes)
-        FD_ZERO(writes);
+        memset(writes, 0, set_bytes);
     if (errors)
-        FD_ZERO(errors);
+        memset(errors, 0, set_bytes);
     int total = 0;
     for (unsigned i = 0; i < count; ++i)
     {

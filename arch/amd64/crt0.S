@@ -11,19 +11,14 @@ _start:
     call lume_runtime_init
 #ifdef LUME_NATIVE_CXX
     call native_cxx_initialize
+#else
+    call lume_runtime_c_initialize
 #endif
     movq (%r12), %rdi
     leaq 8(%r12), %rsi
     leaq 16(%r12,%rdi,8), %rdx
     call app_main
-#ifdef LUME_NATIVE_CXX
     movl %eax, %edi
     call exit
-#else
-    movl %eax, %r13d
-    call fflush_all_streams
-    movl %r13d, %edi
-    call app_exit
-#endif
     ud2
 .section .note.GNU-stack,"",@progbits

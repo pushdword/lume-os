@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include <lume/file_mode.h>
+#include "files_client.h"
 
 static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t gid)
 {
@@ -18,7 +19,9 @@ static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t
 
 int chmod(const char *path, mode_t mode)
 {
-    return change_mode(path, -1, mode & ~(mode_t)S_IFMT, 0, 0);
+    struct lume_files_request request = {
+        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 0777u};
+    return lume_files_result(lume_native_files_call(LUME_FILES_MODE, &request));
 }
 
 int fchmod(int fd, mode_t mode)

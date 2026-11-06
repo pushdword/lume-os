@@ -14,17 +14,12 @@ _start:
     bl lume_runtime_init
 #ifdef LUME_NATIVE_CXX
     bl native_cxx_initialize
+#else
+    bl lume_runtime_c_initialize
 #endif
     mov x0, x19
     mov x1, x20
     mov x2, x21
     bl app_main
-#ifdef LUME_NATIVE_CXX
     bl exit
-#else
-    mov x19, x0
-    bl fflush_all_streams
-    mov x0, x19
-    bl app_exit
-#endif
 .section .note.GNU-stack,"",%progbits

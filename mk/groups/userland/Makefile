@@ -15,7 +15,11 @@ CPPFLAGS := -I$(OS_ROOT)/arch/$(ARCH)/include -I$(OS_ROOT)/include/posix  -I$(OS
 CFLAGS := $(ARCH_CFLAGS) -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -ffunction-sections -fdata-sections
 LDFLAGS := --gc-sections --build-id=none -z max-page-size=4096 -T $(OS_ROOT)/arch/$(ARCH)/user.ld
 LIBS := --start-group $(SDK)/lib/libc.a $(SDK)/lib/libcrt.a --end-group
-COMMON := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c libc/posix/time.c
+COMMON := libc/posix/atfork.c libc/posix/sigwait.c libc/posix/file_lock.c libc/posix/ucontext.c libc/runtime/ucontext.S libc/posix/positioned_io.c arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c libc/posix/time.c
+COMMON += libc/runtime/init.c
+ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
+COMMON += libc/posix/getrandom.c
+endif
 COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(COMMON)))
 include $(OS_ROOT)/mk/applications.mk
 APPS := ls dir less top worker probe fstest libctest video smpdemo iostat iobench cp touch tar base64
