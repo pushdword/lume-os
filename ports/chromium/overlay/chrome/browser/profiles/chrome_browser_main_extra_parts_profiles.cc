@@ -966,7 +966,9 @@ void ChromeBrowserMainExtraPartsProfiles::EnsureBrowserContextKeyedServiceFactor
 #endif
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID) ||                       \
     BUILDFLAG(FULL_SAFE_BROWSING)
+#if !BUILDFLAG(IS_LUME)
     enterprise_connectors::BrowserCrashEventRouterFactory::GetInstance();
+#endif
 #endif
     enterprise_connectors::ConnectorsServiceFactory::GetInstance();
     enterprise_connectors::DeviceTrustConnectorServiceFactory::GetInstance();

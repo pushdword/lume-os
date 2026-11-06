@@ -441,6 +441,11 @@ cargo_crate("lib") {
   ]
   _configs_to_add = []
 
+  if (is_lume) {
+    rustflags = [ "-Zallow-features=thread_local" ]
+    _configs_to_remove += [ "//build/config/compiler:disallow_unstable_features" ]
+  }
+
   # Changing (if needed) which configs apply to this specific crate (based on
   # `extra_kv.configs_to_remove` and `extra_kv.configs_to_add` from
   # `gnrt_config.toml`).

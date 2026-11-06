@@ -109,7 +109,7 @@ bool MemoryMappedFile::MapFileRegionToMemory(const MemoryMappedFile::Region &reg
     auto *ptr = static_cast<uint8_t *>(
         mmap(nullptr, map_size, prot, flags, file_.GetPlatformFile(), map_start));
 #if BUILDFLAG(IS_LUME)
-    if (ptr == MAP_FAILED && errno == ENOTSUP && access == READ_ONLY)
+    if (ptr == MAP_FAILED && (errno == ENOTSUP || errno == EOPNOTSUPP) && access == READ_ONLY)
     {
         // Regular files expose read-only private views.
         ptr = static_cast<uint8_t *>(

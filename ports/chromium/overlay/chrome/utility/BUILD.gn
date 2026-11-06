@@ -110,6 +110,7 @@ static_library("utility") {
         "importer/firefox_importer.cc",
         "importer/firefox_importer.h",
       ]
+      deps += [ "//crypto:buildflags" ]
     }
     if (is_mac) {
       sources += [
@@ -117,15 +118,13 @@ static_library("utility") {
         "importer/safari_importer.mm",
       ]
     }
-    if (!is_mac && !is_chromeos) {
+    if (!is_mac && !is_chromeos && (is_win || use_nss_certs)) {
       # NSS decryptor is not needed on ChromeOS. Additionally, it depends on
       # system NSS that is unavailable on MacOS/Fuchsia.
       sources += [
         "importer/nss_decryptor.cc",
         "importer/nss_decryptor.h",
       ]
-
-      deps += [ "//crypto:buildflags" ]
     }
     if (is_win) {
       sources += [

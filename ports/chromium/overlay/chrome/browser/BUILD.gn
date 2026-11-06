@@ -156,6 +156,7 @@ source_set("global_features") {
     "//base",
     "//build:branding_buildflags",
     "//chrome/common/request_header_integrity:buildflags",
+    "//components/on_device_translation/buildflags",
   ]
 }
 
@@ -3055,8 +3056,10 @@ source_set("browser") {
         "//chrome/browser/ui/download:impl",
         "//chrome/browser/ui/webui/app_home",
         "//chrome/browser/ui/webui/app_home:impl",
-        "//chrome/browser/ui/webui/signin:profile_impl",
       ]
+      if (is_win || is_mac || is_linux) {
+        deps += [ "//chrome/browser/ui/webui/signin:profile_impl" ]
+      }
       if (!is_lume) {
         deps += [
           "//chrome/browser/default_browser",

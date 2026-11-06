@@ -144,6 +144,7 @@
 #include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/skills/features.h"
 #include "components/strings/grit/components_strings.h"
@@ -323,8 +324,10 @@ SettingsUI::SettingsUI(content::WebUI *web_ui)
     AddSettingsPageUIHandler(std::make_unique<MacSystemSettingsHandler>());
 #endif
 
+    auto *identity_manager =
+        profile->IsGuestSession() ? nullptr : IdentityManagerFactory::GetForProfile(profile);
     html_source->AddBoolean("signinAllowed",
-                            !profile->IsGuestSession() &&
+                            identity_manager && identity_manager->GetAccountsMutator() &&
                                 profile->GetPrefs()->GetBoolean(prefs::kSigninAllowed));
 
     html_source->AddBoolean(
