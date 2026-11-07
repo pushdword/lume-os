@@ -718,7 +718,7 @@ rtc_library("desktop_capture") {
   if (rtc_use_x11_extensions) {
     if (is_lume) {
       cflags = [
-        "-isystem",
+        "-idirafter",
         rebase_path(lume_x11_include_dir, root_build_dir),
       ]
     }

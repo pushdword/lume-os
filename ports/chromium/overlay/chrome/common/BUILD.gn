@@ -496,6 +496,13 @@ component("chrome_features") {
     "chrome_features.h",
   ]
 
+  if (is_lume) {
+    sources += [
+      "lume_chrome_apps_features.cc",
+      "lume_chrome_apps_features.h",
+    ]
+  }
+
   deps = [
     ":buildflags",
     ":non_code_constants",
@@ -519,6 +526,7 @@ static_library("url_constants") {
   visibility = [ "//chrome/common/*" ]
   sources = [
     "url_constants.h",
+    "lume_web_app_settings_constants.h",
     "webui_url_constants.cc",
     "webui_url_constants.h",
   ]

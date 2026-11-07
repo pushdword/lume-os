@@ -1,5 +1,6 @@
 CHROMIUM_SOURCE ?=
-CHROMIUM_OUT ?= $(CHROMIUM_SOURCE)/out/lume-arm64
+CHROMIUM_TARGET_CPU := $(if $(filter amd64,$(ARCH)),x64,arm64)
+CHROMIUM_OUT ?= $(CHROMIUM_SOURCE)/out/lume-$(CHROMIUM_TARGET_CPU)
 CHROMIUM_OVERLAY ?= $(CURDIR)/ports/chromium/overlay
 CHROMIUM_INPUTS ?= $(CURDIR)/ports/chromium/overlay.inputs
 CHROMIUM_ARGS ?= $(CURDIR)/ports/chromium/native.gn
@@ -12,7 +13,7 @@ CHROMIUM_LLVM_TOOLS ?= $(CHROMIUM_LLVM)
 CHROMIUM_NM ?= $(CHROMIUM_LLVM_TOOLS)/bin/llvm-nm.exe
 CHROMIUM_READELF ?= $(CHROMIUM_LLVM_TOOLS)/bin/llvm-readelf.exe
 CHROMIUM_BUILTINS ?= $(CHROMIUM_SYSROOT)/lib/libcompiler-rt.a
-CHROMIUM_LINKER_SCRIPT ?= $(CURDIR)/arch/aarch64/chromium.ld
+CHROMIUM_LINKER_SCRIPT ?= $(CURDIR)/arch/$(ARCH)/chromium.ld
 CHROMIUM_GN ?= $(CHROMIUM_SOURCE)/buildtools/win/gn.exe
 CHROMIUM_NINJA ?= $(CHROMIUM_SOURCE)/third_party/ninja/ninja.exe
 CHROMIUM_PYTHON ?= $(CHROMIUM_SOURCE)/third_party/cpython3/host/bin/python3.exe
@@ -37,7 +38,8 @@ override CHROMIUM_V8_REVISION := 440c1c463e2e528c309af5067952e7b11631507f
 
 define chromium_lock
 set -eu; \
-test "$(OS):$(ARCH)" = Windows_NT:aarch64 || { echo 'Chromium requires Windows and ARCH=aarch64'; exit 1; }; \
+test "$(OS)" = Windows_NT || { echo 'Chromium requires Windows'; exit 1; }; \
+case "$(ARCH)" in aarch64|amd64) ;; *) echo 'Chromium requires ARCH=aarch64 or ARCH=amd64'; exit 1 ;; esac; \
 case "$(CHROMIUM_JOBS)" in ''|*[!0-9]*) echo 'CHROMIUM_JOBS must be a positive integer'; exit 1 ;; esac; \
 test "$(CHROMIUM_JOBS)" -gt 0 || { echo 'CHROMIUM_JOBS must be a positive integer'; exit 1; }; \
 test -n "$(CHROMIUM_SOURCE)" || { echo 'CHROMIUM_SOURCE must name an external pinned checkout'; exit 1; }; \
@@ -160,7 +162,7 @@ fi; \
 mkdir -p "$$chrome_out"; \
 { \
     cat "$(CHROMIUM_ARGS)"; \
-    printf '\ntarget_os = "lume"\ntarget_cpu = "arm64"\n'; \
+    printf '\ntarget_os = "lume"\ntarget_cpu = "%s"\n' "$(CHROMIUM_TARGET_CPU)"; \
     printf 'concurrent_links = 1\nlume_linker_threads = 2\n'; \
     printf 'lume_host_symbol_level = 1\nv8_use_external_startup_data = false\n'; \
     printf '\nlume_toolchain_root = "%s"\n' "$$chrome_llvm"; \

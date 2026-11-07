@@ -1637,6 +1637,7 @@ component("net") {
   if (is_lume) {
     sources += [
       "base/network_change_notifier_lume.cc",
+      "base/platform_mime_util_linux.cc",
       "base/network_change_notifier_lume.h",
     ]
   }

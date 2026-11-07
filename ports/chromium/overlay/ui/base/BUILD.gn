@@ -410,6 +410,13 @@ component("base") {
       ]
     }
 
+    if (is_lume) {
+      sources += [
+        "linux/linux_desktop.cc",
+        "linux/linux_desktop.h",
+      ]
+    }
+
     if (is_linux || is_chromeos) {
       sources += [
         "accelerators/menu_label_accelerator_util_linux.cc",
@@ -577,7 +584,7 @@ component("base") {
     deps += [ "//ui/events" ]
   }
 
-  if (use_aura && (is_linux || is_chromeos)) {
+  if (use_aura && (is_linux || is_chromeos || is_lume)) {
     sources += [ "resource/resource_bundle_auralinux.cc" ]
   }
 

@@ -2514,9 +2514,12 @@ component("base") {
     sources += [
       "base_paths_posix.cc",
       "debug/stack_trace_lume.cc",
+      "files/file_path_watcher_stub.cc",
       "message_loop/message_pump_lume.cc",
       "message_loop/message_pump_lume.h",
       "native_library_lume.cc",
+      "nix/mime_util_xdg.cc",
+      "nix/mime_util_xdg.h",
       "nix/xdg_util.cc",
       "nix/xdg_util.h",
       "process/launch_lume.cc",

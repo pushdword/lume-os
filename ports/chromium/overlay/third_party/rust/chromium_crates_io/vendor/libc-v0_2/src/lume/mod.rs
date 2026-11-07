@@ -1,8 +1,13 @@
 use crate::prelude::*;
 
-#[cfg(not(target_arch = "aarch64"))]
-core::compile_error!("Lume libc bindings require AArch64");
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+core::compile_error!("Lume libc bindings require AArch64 or x86_64");
 
+#[cfg(target_arch = "aarch64")]
+#[allow(missing_copy_implementations, missing_debug_implementations)]
+mod bindings;
+#[cfg(target_arch = "x86_64")]
+#[path = "bindings_x86_64.rs"]
 #[allow(missing_copy_implementations, missing_debug_implementations)]
 mod bindings;
 pub use self::bindings::*;
@@ -175,6 +180,7 @@ pub unsafe fn killpg(group: pid_t, signal: core::ffi::c_int) -> core::ffi::c_int
 #[inline]
 pub unsafe fn lume_exepath(buffer: *mut core::ffi::c_char, bytes: usize) -> isize {
     let result: i64;
+    #[cfg(target_arch = "aarch64")]
     unsafe {
         core::arch::asm!(
             "svc {svc}",
@@ -183,6 +189,17 @@ pub unsafe fn lume_exepath(buffer: *mut core::ffi::c_char, bytes: usize) -> isiz
             inlateout("x0") 0u64 => result,
             in("x1") buffer,
             in("x2") bytes,
+            options(nostack),
+        );
+    }
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        core::arch::asm!(
+            "int 0x80",
+            in("r8") LUME_SYS_EXEPATH as u64,
+            inlateout("rdi") 0u64 => result,
+            in("rsi") buffer,
+            in("rdx") bytes,
             options(nostack),
         );
     }

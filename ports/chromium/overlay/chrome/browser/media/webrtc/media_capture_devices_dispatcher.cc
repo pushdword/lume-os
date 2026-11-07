@@ -38,6 +38,7 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/buildflags/buildflags.h"
 #include "media/base/media_switches.h"
+#include "content/public/common/buildflags.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
@@ -53,7 +54,7 @@
 #include "chrome/browser/media/chromeos_login_and_lock_media_access_handler.h"
 #endif // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 #include "chrome/browser/media/webrtc/desktop_capture_access_handler.h"
 #include "chrome/browser/media/webrtc/tab_capture_access_handler.h"
 #endif
@@ -97,7 +98,7 @@ MediaCaptureDevicesDispatcher::MediaCaptureDevicesDispatcher()
     media_access_handlers_.push_back(std::make_unique<ExtensionMediaAccessHandler>());
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
     auto desktop_handler = std::make_unique<DesktopCaptureAccessHandler>();
     desktop_capture_access_handler_for_test_ = desktop_handler.get();
     media_access_handlers_.push_back(std::move(desktop_handler));

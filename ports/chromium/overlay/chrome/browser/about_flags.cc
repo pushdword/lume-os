@@ -7,6 +7,9 @@
 
 #include "chrome/browser/about_flags.h"
 
+#include "components/optimization_guide/optimization_guide_buildflags.h"
+#include "components/enterprise/buildflags/buildflags.h"
+
 #include <iterator>
 #include <map>
 #include <memory>
@@ -7894,11 +7897,13 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kCustomizeChromeWallpaperSearchInspirationCardDescription, kOsDesktop,
      FEATURE_VALUE_TYPE(ntp_features::kCustomizeChromeWallpaperSearchInspirationCard)},
 
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
     {"wallpaper-search-settings-visibility",
      flag_descriptions::kWallpaperSearchSettingsVisibilityName,
      flag_descriptions::kWallpaperSearchSettingsVisibilityDescription, kOsDesktop,
      FEATURE_VALUE_TYPE(
          optimization_guide::features::internal::kWallpaperSearchSettingsVisibility)},
+#endif
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -9075,9 +9080,11 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(sensitive_content::features::kSensitiveContentWhileSwitchingTabs)},
 #endif // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
     {"data-controls-search-with", flag_descriptions::kDataControlsSearchWithName,
      flag_descriptions::kDataControlsSearchWithDescription, kOsAll,
      FEATURE_VALUE_TYPE(data_controls::kDataControlsSearchWith)},
+#endif
 
     {"data-sharing", flag_descriptions::kDataSharingName,
      flag_descriptions::kDataSharingDescription, kOsAll,

@@ -28,6 +28,7 @@ source_set("tabs_public") {
     "//base",
     "//chrome/common:buildflags",
     "//components/compose:buildflags",
+    "//components/enterprise/buildflags",
     "//components/offline_pages/buildflags",
     "//components/safe_browsing:buildflags",
     "//components/signin/public/base:signin_buildflags",
@@ -453,7 +454,7 @@ if (!is_android) {
       "vertical_tab_strip_state_controller_impl.h",
     ]
 
-    if (is_win || is_mac || is_linux || is_chromeos) {
+    if (is_win || is_mac || is_linux || is_chromeos || is_lume) {
       sources += [ "inactive_window_mouse_event_controller.h" ]
     }
 
@@ -528,7 +529,7 @@ if (!is_android) {
       "vertical_tab_strip_state_controller_impl.cc",
     ]
 
-    if (is_win || is_mac || is_linux || is_chromeos) {
+    if (is_win || is_mac || is_linux || is_chromeos || is_lume) {
       sources += [ "inactive_window_mouse_event_controller.cc" ]
     }
 
@@ -686,6 +687,7 @@ if (!is_android) {
       "//chrome/browser/web_applications",
       "//chrome/browser/web_applications/isolated_web_apps:isolated_web_apps_no_pwa_core_deps",
       "//chrome/common",
+      "//components/autofill/content/browser",
       "//components/blocked_content",
       "//components/breadcrumbs/core",
       "//components/breadcrumbs/core:status",
@@ -817,7 +819,6 @@ if (!is_android) {
     if (enable_compose) {
       deps += [
         "//chrome/browser/compose",
-        "//components/autofill/content/browser",
       ]
     }
 

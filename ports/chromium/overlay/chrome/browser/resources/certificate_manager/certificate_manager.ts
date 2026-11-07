@@ -33,9 +33,13 @@ import {ColorChangeUpdater, COLORS_CSS_SELECTOR} from '//resources/cr_components
 import type {CrPageSelectorElement} from '//resources/cr_elements/cr_page_selector/cr_page_selector.js';
 import type {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {assert, assertNotReached} from '//resources/js/assert.js';
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
+// </if>
 import {loadTimeData} from '//resources/js/load_time_data.js';
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
 import {PluralStringProxyImpl} from '//resources/js/plural_string_proxy.js';
+// </if>
 import {PromiseResolver} from '//resources/js/promise_resolver.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -45,7 +49,10 @@ import type {CertificateListElement} from './certificate_list.js';
 // </if>
 import {getCss} from './certificate_manager.css.js';
 import {getHtml} from './certificate_manager.html.js';
-import type {ActionResult, SummaryCertInfo} from './certificate_manager.mojom-webui.js';
+import type {ActionResult} from './certificate_manager.mojom-webui.js';
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
+import type {SummaryCertInfo} from './certificate_manager.mojom-webui.js';
+// </if>
 import {CertificateSource} from './certificate_manager.mojom-webui.js';
 import type {CertificatePasswordDialogElement} from './certificate_password_dialog.js';
 import type {CertificateSubpageElement, SubpageCertificateList} from './certificate_subpage.js';
@@ -76,7 +83,9 @@ export interface CertificateManagerElement {
     extensionsClientCerts: CertificateListElement,
     // </if>
     toast: CrToastElement,
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
     viewOsImportedClientCerts: HTMLElement,
+// </if>
     // <if expr="is_win or is_macosx">
     manageOsImportedClientCerts: HTMLElement,
     // </if>
@@ -90,10 +99,12 @@ export interface CertificateManagerElement {
     crsCertSection: CrsSectionElement,
     adminCertsSection: CertificateSubpageElement,
     userCertsSection: CertificateSubpageElement,
-    // <if expr="not is_chromeos">
+    // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
     platformCertsSection: CertificateSubpageElement,
     // </if>
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
     platformClientCertsSection: CertificateSubpageElement,
+// </if>
     scrollableShadow: HTMLElement,
   };
 }
@@ -114,9 +125,11 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
   static override get properties() {
     return {
       selectedPage_: {type: String},
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
       clientPlatformSubpageLists_: {type: Array},
+// </if>
       enterpriseSubpageLists_: {type: Array},
-      // <if expr="not is_chromeos">
+      // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
       platformSubpageLists_: {type: Array},
       // </if>
 
@@ -138,7 +151,9 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
 
       showSearch_: {type: Boolean},
 
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
       numPlatformClientCertsString_: {type: String},
+// </if>
       webuiRoundedIconsEnabled_: {type: Boolean},
     };
   }
@@ -177,6 +192,7 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
   protected accessor showSearch_: boolean = false;
   protected accessor confirmationDialogTitle_: string = '';
   protected accessor confirmationDialogMessage_: string = '';
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
   protected accessor clientPlatformSubpageLists_: SubpageCertificateList[] = [
     {
       headerText:
@@ -202,6 +218,7 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
       // </if>
     },
   ];
+// </if>
   protected accessor enterpriseSubpageLists_: SubpageCertificateList[] = [
     {
       headerText:
@@ -222,7 +239,7 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
     },
   ];
 
-  // <if expr="not is_chromeos">
+  // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
   protected accessor platformSubpageLists_: SubpageCertificateList[] = [
     {
       headerText:
@@ -243,7 +260,9 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
     },
   ];
   // </if>
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
   protected accessor numPlatformClientCertsString_: string = '';
+// </if>
   protected accessor webuiRoundedIconsEnabled_: boolean =
       loadTimeData.getBoolean('webuiRoundedIconsEnabled');
 
@@ -267,11 +286,14 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
         this.onAskForImportPassword_.bind(this));
     proxy.callbackRouter.askForConfirmation.addListener(
         this.onAskForConfirmation_.bind(this));
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
     proxy.callbackRouter.triggerReload.addListener(
         this.onTriggerReload_.bind(this));
     this.getClientCertCount_();
+// </if>
   }
 
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
   private onTriggerReload_(certSources: CertificateSource[]) {
     if (certSources.includes(CertificateSource.kPlatformClientCert)) {
       this.getClientCertCount_();
@@ -291,6 +313,7 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
         });
   }
 
+// </if>
   private onAskForImportPassword_(): Promise<PasswordResult> {
     this.showPasswordDialog_ = true;
     assert(this.passwordEntryResolver_ === null);
@@ -354,14 +377,16 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
         case Page.ADMIN_CERTS:
           this.$.adminCertsSection.setInitialFocus();
           break;
-        // <if expr="not is_chromeos">
+        // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
         case Page.PLATFORM_CERTS:
           this.$.platformCertsSection.setInitialFocus();
           break;
         // </if>
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
         case Page.PLATFORM_CLIENT_CERTS:
           this.$.platformClientCertsSection.setInitialFocus();
           break;
+// </if>
         case Page.USER_CERTS:
           this.$.userCertsSection.setInitialFocus();
           break;
@@ -377,18 +402,20 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
             this.$.localCertSection.setFocusToLinkRow(oldRoute.page);
           }
           break;
-        // <if expr="not is_chromeos">
+        // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
         case Page.PLATFORM_CERTS:
           if (route.page === Page.LOCAL_CERTS) {
             this.$.localCertSection.setFocusToLinkRow(oldRoute.page);
           }
           break;
         // </if>
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
         case Page.PLATFORM_CLIENT_CERTS:
           if (route.page === Page.CLIENT_CERTS) {
             focusWithoutInk(this.$.viewOsImportedClientCerts);
           }
           break;
+// </if>
         case Page.USER_CERTS:
           if (route.page === Page.LOCAL_CERTS) {
             this.$.localCertSection.setFocusToLinkRow(oldRoute.page);
@@ -408,14 +435,16 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
 
   protected getSelectedTopLevelHref_(): string {
     switch (this.selectedPage_) {
-      // <if expr="not is_chromeos">
+      // <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
       case Page.PLATFORM_CERTS:
       // </if>
       case Page.ADMIN_CERTS:
       case Page.USER_CERTS:
         return this.generateHrefForPage_(Page.LOCAL_CERTS);
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
       case Page.PLATFORM_CLIENT_CERTS:
         return this.generateHrefForPage_(Page.CLIENT_CERTS);
+// </if>
       default:
         return this.generateHrefForPage_(this.selectedPage_);
     }
@@ -426,10 +455,12 @@ export class CertificateManagerElement extends CertificateManagerElementBase {
   }
 
 
+// <if expr="is_win or is_macosx or is_linux or is_chromeos">
   protected onClientPlatformCertsLinkRowClick_(e: Event) {
     e.preventDefault();
     Router.getInstance().navigateTo(Page.PLATFORM_CLIENT_CERTS);
   }
+// </if>
 
   protected onImportResult_(e: CustomEvent<ActionResult|null>) {
     const result = e.detail;

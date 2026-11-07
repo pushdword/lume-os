@@ -143,10 +143,13 @@
 #endif
 #include "ui/webui/resources/js/browser_command/browser_command.mojom.h"
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_LUME)
+#include "chrome/browser/ui/webui/app_settings/web_app_settings_ui.h"
+#endif
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #include "chrome/browser/ui/webui/app_home/app_home.mojom.h"
 #include "chrome/browser/ui/webui/app_home/app_home_ui.h"
-#include "chrome/browser/ui/webui/app_settings/web_app_settings_ui.h"
 // The intro mojom targets exist on ChromeOS but these headers are only
 // compiled on Win/Mac/Linux; gn check is static, so suppress it on ChromeOS.
 #include "chrome/browser/ui/webui/intro/finish_or_continue.mojom.h" // nogncheck
@@ -174,7 +177,7 @@
 #include "chrome/browser/ui/webui/unexportable_keys_internals/unexportable_keys_internals_ui.h"
 #endif // BUILDFLAG(IS_MAC)
 
-#if !BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #include "chrome/browser/default_browser/default_browser_features.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal.mojom.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal_ui.h"
@@ -508,9 +511,12 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
             map);
     }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_LUME)
     RegisterWebUIControllerInterfaceBinder<app_management::mojom::PageHandlerFactory,
                                            WebAppSettingsUI>(map);
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
     RegisterWebUIControllerInterfaceBinder<
         on_device_translation_internals::mojom::PageHandlerFactory, OnDeviceTranslationInternalsUI>(
@@ -542,7 +548,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
                                            UnexportableKeysInternalsUI>(map);
 #endif // BUILDFLAG(IS_MAC)
 
-#if !BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     // The DefaultBrowserModalUI is only displayed for modal default browser
     // prompts. Only expose this Mojo interface when the modal dialog prompt
     // surface (with or without settings illustration) is enabled. The raw

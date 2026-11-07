@@ -211,12 +211,14 @@ source_set("webrtc") {
   }
 
   if (enable_extensions_core) {
-    sources += [
-      "desktop_capture_access_handler.cc",
-      "desktop_capture_access_handler.h",
-      "tab_capture_access_handler.cc",
-      "tab_capture_access_handler.h",
-    ]
+    if (enable_screen_capture) {
+      sources += [
+        "desktop_capture_access_handler.cc",
+        "desktop_capture_access_handler.h",
+        "tab_capture_access_handler.cc",
+        "tab_capture_access_handler.h",
+      ]
+    }
     public_deps += [ "//chrome/common/extensions/api" ]
   }
 

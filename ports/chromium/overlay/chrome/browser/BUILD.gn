@@ -641,6 +641,10 @@ if (!is_android) {
     if (enable_dice_support || is_chromeos) {
       deps += [ "//ui/webui/resources/js/batch_upload_promo:mojo_bindings" ]
     }
+    if (is_lume) {
+      deps += [ "//chrome/browser/ui/webui/app_settings" ]
+    }
+
     if (is_win || is_mac || is_linux) {
       deps += [
         "//chrome/browser/ui/webui/app_home",
@@ -670,9 +674,11 @@ if (!is_android) {
     if (!is_chromeos) {
       deps += [
         "//chrome/browser/default_browser",
-        "//chrome/browser/ui/webui/default_browser:default_browser_modal",
         "//chrome/browser/ui/webui/default_browser:modal_mojo_bindings",
       ]
+      if (is_win || is_mac || is_linux) {
+        deps += [ "//chrome/browser/ui/webui/default_browser:default_browser_modal" ]
+      }
     }
     if (!is_official_build) {
       deps += [ "//chrome/browser/ui/webui/new_tab_page/foo:mojo_bindings" ]
@@ -1516,8 +1522,14 @@ source_set("core") {
     deps += [
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/controlled_frame",
-      "//chrome/browser/ui/webui/extensions_zero_state_promo",
     ]
+    if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
+      deps += [ "//chrome/browser/ui/webui/extensions_zero_state_promo" ]
+    }
+  }
+
+  if (is_lume) {
+    deps += [ "//chrome/browser/ui/webui/app_settings" ]
   }
 
   if (is_win || is_mac || is_linux) {
@@ -1528,6 +1540,16 @@ source_set("core") {
       "//chrome/browser/ui/webui/app_settings",
       "//chrome/browser/ui/webui/on_device_translation_internals",
       "//chrome/browser/ui/webui/updater",
+    ]
+  }
+
+  if (is_lume) {
+    sources += [ "icon_loader_lume.cc" ]
+    deps += [
+      "//chrome/browser/headless:headless_extra_parts",
+      "//chrome/browser/sensor",
+      "//chrome/browser/ui/frame:impl",
+      "//chrome/browser/ui/views/hats:impl",
     ]
   }
 
@@ -1573,10 +1595,10 @@ source_set("core") {
   }
 
   if (!is_android || is_desktop_android) {
-    deps += [
-      "//chrome/browser/ui/webui/ai_overlay_dialog",
-      "//chrome/browser/ui/webui/discards",
-    ]
+    deps += [ "//chrome/browser/ui/webui/ai_overlay_dialog" ]
+  }
+  if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
+    deps += [ "//chrome/browser/ui/webui/discards" ]
   }
 
   if (enable_dice_support) {
@@ -1803,6 +1825,10 @@ source_set("core") {
       ":certificate_viewer",
       ":chrome_browser_main_posix",
     ]
+  }
+
+  if (is_lume) {
+    sources += [ "memory_details_lume.cc" ]
   }
 
   if (is_linux || is_chromeos) {
@@ -2803,7 +2829,6 @@ source_set("browser") {
     "//components/consent_auditor/",
     "//components/content_capture/common",
     "//components/crash/core/app",
-    "//components/enterprise/net/content",
     "//components/input",
     "//components/keyed_service/core",
     "//components/language_detection/core",
@@ -3455,6 +3480,10 @@ source_set("browser") {
         [ "//chrome/browser/enterprise/connectors/analysis:sdk_manager" ]
   }
 
+  if (is_lume) {
+    deps += [ "//chrome/browser/ui/webui/app_settings" ]
+  }
+
   if (is_linux || is_win || is_mac) {
     deps += [
       "//chrome/browser/enterprise/connectors/device_trust/key_management/core/persistence",
@@ -3781,10 +3810,10 @@ source_set("browser") {
   }
 
   if (!is_android && !is_chromeos) {
-    deps += [
-      "//chrome/browser/ui/webui/default_browser:default_browser_modal",
-      "//chrome/browser/ui/webui/default_browser:modal_mojo_bindings",
-    ]
+    deps += [ "//chrome/browser/ui/webui/default_browser:modal_mojo_bindings" ]
+    if (is_win || is_mac || is_linux) {
+      deps += [ "//chrome/browser/ui/webui/default_browser:default_browser_modal" ]
+    }
   }
 
   if (!is_android) {
@@ -4469,6 +4498,17 @@ source_set("browser") {
         "//chromeos/ash/resources/internal/strings",
       ]
     }
+  }
+
+  if (is_lume && enable_lens_desktop) {
+    deps += [ "//chrome/browser/ui/lens:impl" ]
+  }
+
+  if (is_lume) {
+    deps += [
+      "//chrome/browser/ui/webui/app_settings",
+      "//chrome/browser/ui/views/profiles:profile_menu_coordinator_impl",
+    ]
   }
 
   if (is_win || is_mac || is_linux || is_chromeos) {
@@ -5228,11 +5268,13 @@ source_set("browser") {
       "//chrome/browser/ui/views/extensions:extension_popup",
       "//chrome/browser/ui/views/extensions:extension_popup_impl",
       "//chrome/browser/ui/views/extensions:extension_view_views_impl",
-      "//chrome/browser/ui/webui/extensions_zero_state_promo",
       "//chrome/browser/web_applications/app_service",
       "//extensions/browser",
       "//ui/base/cursor",
     ]
+    if (is_win || is_mac || is_linux || is_chromeos || is_fuchsia) {
+      deps += [ "//chrome/browser/ui/webui/extensions_zero_state_promo" ]
+    }
 
     if (use_aura) {
       deps += [
@@ -5285,6 +5327,10 @@ source_set("browser") {
   # Kept last so an accidental `sources += [...]` above is reset to empty and
   # is easy to catch in review.
   sources = []
+
+  if (enterprise_proxy) {
+    deps += [ "//components/enterprise/net/content" ]
+  }
 }
 
 # These are the dependencies for the "browser" target that are outside of

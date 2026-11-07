@@ -11,7 +11,7 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_android || is_lume)
 # since it depends on aura::WindowOcclusionTracker which is not
 # supported on Linux.
 use_web_contents_occlusion_helper = is_win || is_chromeos || is_mac
-use_widget_occlusion_helper = is_linux
+use_widget_occlusion_helper = is_linux || is_lume
 use_stub_occlusion_helper = is_android
 
 source_set("picture_in_picture") {

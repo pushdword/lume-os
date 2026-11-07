@@ -9,6 +9,7 @@ import("//build/config/features.gni")
 import("//build/config/linux/pangocairo/pangocairo.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
+import("//components/optimization_guide/features.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//components/vrp_flags/features.gni")
 import("//content/browser/devtools/features.gni")
@@ -169,6 +170,7 @@ source_set("browser") {
     "//components/network_session_configurator/browser",
     "//components/offline_pages/buildflags",
     "//components/offline_pages/core/request_header",
+    "//components/optimization_guide:optimization_guide_buildflags",
     "//components/optimization_guide/core",
     "//components/optimization_guide/core:features",
     "//components/optimization_guide/public/mojom",
@@ -3448,11 +3450,16 @@ source_set("browser") {
 
     if (!is_fuchsia) {
       sources += [
-        "speech/on_device_speech_recognition_engine_impl.cc",
-        "speech/on_device_speech_recognition_engine_impl.h",
         "speech/soda_speech_recognition_engine_impl.cc",
         "speech/soda_speech_recognition_engine_impl.h",
       ]
+
+      if (build_with_model_execution) {
+        sources += [
+          "speech/on_device_speech_recognition_engine_impl.cc",
+          "speech/on_device_speech_recognition_engine_impl.h",
+        ]
+      }
 
       deps += [ "//media/mojo/mojom:web_speech_recognition" ]
     }
@@ -3480,7 +3487,7 @@ source_set("browser") {
   # NOTE: Fuchsia depends on this class, but probably shouldn't, as it doesn't
   # support extensions.
   if (is_win || is_apple || is_linux || is_chromeos || is_desktop_android ||
-      is_fuchsia) {
+      is_fuchsia || is_lume) {
     sources += [
       "service_worker/service_worker_usb_delegate_observer.cc",
       "service_worker/service_worker_usb_delegate_observer.h",

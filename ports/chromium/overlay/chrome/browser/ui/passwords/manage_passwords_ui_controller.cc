@@ -1283,7 +1283,10 @@ void ManagePasswordsUIController::AuthenticateUserWithMessage(const std::u16stri
         std::move(callback).Run(true);
         return;
     }
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LUME)
+    std::move(callback).Run(false);
+    return;
+#elif !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
     std::move(callback).Run(true);
     return;
 #else

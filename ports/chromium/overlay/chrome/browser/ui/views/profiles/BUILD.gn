@@ -622,7 +622,7 @@ if (is_win || is_mac || is_linux) {
   }
 }
 
-if (is_win || is_mac || is_linux || is_lume) {
+if (is_win || is_mac || is_linux) {
   source_set("profile_customization_bubble_sync_controller") {
     public = [ "profile_customization_bubble_sync_controller.h" ]
     public_deps = [

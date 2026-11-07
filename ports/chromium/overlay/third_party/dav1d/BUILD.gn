@@ -14,7 +14,7 @@ enable_nasm = (current_cpu == "x86" || current_cpu == "x64") && !is_msan
 if (is_win) {
   platform_config_root = "config/win/$current_cpu"
 } else if (is_lume) {
-  assert(current_cpu == "arm64")
+  assert(current_cpu == "arm64" || current_cpu == "x64")
   platform_config_root = "config/lume/$current_cpu"
 } else if (is_msan) {
   assert(current_cpu == "x64" && (is_linux || is_chromeos),

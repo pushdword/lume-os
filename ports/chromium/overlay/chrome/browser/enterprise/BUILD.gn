@@ -33,16 +33,12 @@ source_set("enterprise") {
     "connectors/referrer_cache_utils.h",
     "core/dependency_factory_impl.h",
     "data_protection/data_protection_features.h",
+    "data_protection/data_protection_page_user_data.h",
     "data_protection/data_protection_utils.h",
     "data_protection/view_source_navigation_throttle.h",
     "encryption/cache_encryption_provider_impl.h",
     "identifiers/profile_id_delegate_impl.h",
     "identifiers/profile_id_service_factory.h",
-    "net/enterprise_network_auth_service_factory.h",
-    "net/enterprise_proxy_error_service_factory.h",
-    "net/enterprise_proxy_service_factory.h",
-    "net/enterprise_proxy_tab_helper_delegate.h",
-    "net/proxy_error_utils.h",
     "profile_management/saml_response_parser.h",
     "reporting/cloud_profile_reporting_service.h",
     "reporting/cloud_profile_reporting_service_factory.h",
@@ -161,7 +157,6 @@ source_set("enterprise") {
     ]
     public += [
       "connectors/device_trust/signals/decorators/common/context_signals_decorator.h",
-      "data_protection/data_protection_ui_controller.h",
       "reporting/browser_report_generator_desktop.h",
       "reporting/report_generator_desktop.h",
       "reporting/report_scheduler_desktop.h",
@@ -247,15 +242,34 @@ source_set("enterprise") {
     ]
   }
 
+  if (enterprise_data_controls || enterprise_watermark ||
+      enterprise_screenshot_protection) {
+    public += [
+      "data_protection/data_protection_navigation_controller.h",
+      "data_protection/data_protection_navigation_observer.h",
+      "data_protection/data_protection_url_lookup_service_factory.h",
+    ]
+  }
+
+  if (!is_android && (enterprise_watermark || enterprise_screenshot_protection)) {
+    public += [ "data_protection/data_protection_ui_controller.h" ]
+  }
+
+  if (enterprise_proxy) {
+    public += [
+      "net/enterprise_network_auth_service_factory.h",
+      "net/enterprise_proxy_error_service_factory.h",
+      "net/enterprise_proxy_service_factory.h",
+      "net/enterprise_proxy_tab_helper_delegate.h",
+      "net/proxy_error_utils.h",
+    ]
+  }
+
   if (enterprise_data_controls) {
     public += [
       "data_controls/chrome_clipboard_context.h",
       "data_protection/data_protection_clipboard_utils.h",
       "data_protection/data_protection_clipboard_utils_types.h",
-      "data_protection/data_protection_navigation_controller.h",
-      "data_protection/data_protection_navigation_observer.h",
-      "data_protection/data_protection_page_user_data.h",
-      "data_protection/data_protection_url_lookup_service_factory.h",
     ]
 
     # TODO(b/352728209): Update the logic for which file compiles on Android
@@ -280,7 +294,7 @@ source_set("enterprise") {
         [ "//components/enterprise/connectors/core:cloud_content_scanning" ]
   }
 
-  if (is_linux || is_win || is_mac || is_chromeos || is_android) {
+  if (is_linux || is_win || is_mac || is_chromeos || is_android || is_lume) {
     public += [
       "reporting/realtime_event_upload_helper.h",
       "reporting/saas_usage/navigation_handle_data_delegate.h",
@@ -291,6 +305,10 @@ source_set("enterprise") {
       "reporting/saas_usage/saas_usage_reporting_controller_factory.h",
       "reporting/saas_usage/saas_usage_reporting_delegate_factory_impl.h",
     ]
+  }
+
+  if (is_lume) {
+    public += [ "remote_commands/cbcm_remote_commands_factory.h" ]
   }
 
   if (is_linux || is_win || is_mac) {
@@ -442,19 +460,11 @@ source_set("impl") {
     "connectors/referrer_cache_utils.cc",
     "core/dependency_factory_impl.cc",
     "data_protection/data_protection_features.cc",
-    "data_protection/data_protection_navigation_controller.cc",
-    "data_protection/data_protection_navigation_observer.cc",
     "data_protection/data_protection_page_user_data.cc",
-    "data_protection/data_protection_url_lookup_service_factory.cc",
     "data_protection/data_protection_utils.cc",
     "data_protection/view_source_navigation_throttle.cc",
     "identifiers/profile_id_delegate_impl.cc",
     "identifiers/profile_id_service_factory.cc",
-    "net/enterprise_network_auth_service_factory.cc",
-    "net/enterprise_proxy_error_service_factory.cc",
-    "net/enterprise_proxy_service_factory.cc",
-    "net/enterprise_proxy_tab_helper_delegate.cc",
-    "net/proxy_error_utils.cc",
     "profile_management/saml_response_parser.cc",
     "remote_commands/job_profile_picker.cc",
     "reporting/cloud_profile_reporting_service.cc",
@@ -473,6 +483,29 @@ source_set("impl") {
     "util/affiliation.cc",
     "util/managed_browser_utils.cc",
   ]
+
+  if (enterprise_data_controls || enterprise_watermark ||
+      enterprise_screenshot_protection) {
+    sources += [
+      "data_protection/data_protection_navigation_controller.cc",
+      "data_protection/data_protection_navigation_observer.cc",
+      "data_protection/data_protection_url_lookup_service_factory.cc",
+    ]
+  }
+
+  if (!is_android && (enterprise_watermark || enterprise_screenshot_protection)) {
+    sources += [ "data_protection/data_protection_ui_controller.cc" ]
+  }
+
+  if (enterprise_proxy) {
+    sources += [
+      "net/enterprise_network_auth_service_factory.cc",
+      "net/enterprise_proxy_error_service_factory.cc",
+      "net/enterprise_proxy_service_factory.cc",
+      "net/enterprise_proxy_tab_helper_delegate.cc",
+      "net/proxy_error_utils.cc",
+    ]
+  }
 
   public_deps = [ ":enterprise" ]
 
@@ -586,7 +619,6 @@ source_set("impl") {
     sources += [
       "connectors/device_trust/signals/decorators/common/context_signals_decorator.cc",
       "connectors/device_trust/signals/signals_service_factory.cc",
-      "data_protection/data_protection_ui_controller.cc",
       "reporting/browser_report_generator_desktop.cc",
       "reporting/report_generator_desktop.cc",
       "reporting/report_scheduler_desktop.cc",
@@ -775,7 +807,7 @@ source_set("impl") {
         [ "//chrome/browser/enterprise/connectors/analysis:sdk_manager" ]
   }
 
-  if (is_linux || is_win || is_mac || is_chromeos || is_android) {
+  if (is_linux || is_win || is_mac || is_chromeos || is_android || is_lume) {
     sources += [
       "reporting/realtime_event_upload_helper.cc",
       "reporting/saas_usage/navigation_handle_data_delegate.cc",
@@ -788,6 +820,10 @@ source_set("impl") {
     ]
 
     deps += [ "//components/enterprise/device_trust/core:device_trust_service" ]
+  }
+
+  if (is_lume) {
+    sources += [ "remote_commands/cbcm_remote_commands_factory.cc" ]
   }
 
   if (is_linux || is_win || is_mac) {

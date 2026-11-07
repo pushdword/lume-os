@@ -101,6 +101,7 @@ source_set("settings") {
     "//content/public/browser",
     "//extensions/browser",
     "//extensions/common",
+    "//services/screen_ai/buildflags",
     "//ui/base",
     "//ui/shell_dialogs",
     "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
@@ -120,7 +121,7 @@ source_set("settings") {
     public_deps += [ "//ui/webui/resources/cr_components/signin:mojo_bindings" ]
   }
 
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || is_lume) {
     sources += [
       "settings_default_browser_handler.h",
       "settings_manage_profile_handler.h",
@@ -362,17 +363,22 @@ source_set("impl") {
     deps += [ "//chrome/browser/compose" ]
   }
 
-  if (is_win || is_mac || is_linux) {
+  if (is_win || is_mac || is_linux || is_lume) {
     sources += [
       "settings_default_browser_handler.cc",
       "settings_manage_profile_handler.cc",
       "system_handler.cc",
     ]
     deps += [
-      "//chrome/browser/default_browser",
       "//chrome/browser/profiles:gaia_info_update_service",
-      "//chrome/browser/ui/startup/default_browser_prompt",
       "//chrome/browser/ui/webui:profile_helper",
+    ]
+  }
+
+  if (is_win || is_mac || is_linux) {
+    deps += [
+      "//chrome/browser/default_browser",
+      "//chrome/browser/ui/startup/default_browser_prompt",
     ]
   }
 

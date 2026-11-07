@@ -16,7 +16,7 @@
 static int64_t request_break(uintptr_t address)
 {
 #if defined(__aarch64__) || defined(__x86_64__)
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__x86_64__)
     /* High executable images use a heap outside the legacy address window. */
     uint64_t flags = (uintptr_t)&sbrk > UINT32_MAX ? LUME_BRK_EXTENDED : 0;
 #else

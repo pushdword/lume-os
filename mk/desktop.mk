@@ -35,7 +35,7 @@ desktop: $(DESKTOP_OUT)/programs/Xlume.elf $(DESKTOP_OUT)/programs/xkbcomp.elf $
 
 include ports/libcxx/sources.mk
 DESKTOP_LIBCXX_FILESYSTEM_OBJECTS :=
-ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64 amd64,$(ARCH)),)
 DESKTOP_LIBCXX_FILESYSTEM_OBJECTS := $(patsubst vendor/libcxx/src/%.cpp,$(DESKTOP_OUT)/cxx/obj/%.cpp.o,$(LIBCXX_FILESYSTEM_AARCH64_SOURCES))
 endif
 

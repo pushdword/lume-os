@@ -10,6 +10,43 @@
 #include "files_client.h"
 #endif
 
+int creat(const char *path, mode_t mode)
+{
+    return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+int futimes(int fd, const struct timeval times[2])
+{
+    if (fcntl(fd, F_GETFD) < 0)
+        return -1;
+    if (times && (times[0].tv_usec < 0 || times[0].tv_usec >= 1000000 || times[1].tv_usec < 0 ||
+                  times[1].tv_usec >= 1000000))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    errno = ENOTSUP;
+    return -1;
+}
+
+int lchown(const char *path, uid_t owner, gid_t group)
+{
+    (void)owner;
+    (void)group;
+    if (!path)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    if (!*path)
+    {
+        errno = ENOENT;
+        return -1;
+    }
+    errno = ENOTSUP;
+    return -1;
+}
+
 int renameat(int source_directory, const char *source, int target_directory, const char *target)
 {
     if (!source || !target)
@@ -166,7 +203,7 @@ int ftruncate(int fd, off_t length)
 }
 #endif
 
-#if defined(LUME_ARCH_AARCH64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
 int fchmodat(int directory, const char *path, mode_t mode, int flags)
 {
     if (!path)

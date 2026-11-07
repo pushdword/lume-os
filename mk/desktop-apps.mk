@@ -3,6 +3,10 @@ DESKTOP_APPS ?= $(if $(filter aarch64 amd64,$(ARCH)),1,0)
 DESKTOP_APPS_OUT ?= $(DESKTOP_OUT)/apps
 DESKTOP_APP_RUNTIME := $(DESKTOP_OUT)/programs/obj/common/libc/posix/getrandom.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/atfork.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/sigwait.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/file_lock.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/statvfs.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/api.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/runtime.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/sbrk.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/errno_map.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/thread.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/mman.c.o $(DESKTOP_OUT)/programs/obj/common/arch/$(ARCH)/tls.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/locks.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/pthread.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/time.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/tty.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/fd.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/process.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/process_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/directory.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/positioned_io.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/semaphore.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/filesystem.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/socket.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/signals.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/main.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/system_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/uio.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/path_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/accounts.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/words.c.o $(DESKTOP_OUT)/programs/obj/common/vendor/posix-glob/glob.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/file_mode.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/stream_pipe.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/limits.c.o $(DESKTOP_OUT)/programs/obj/common/ports/xorg-server/sha1.c.o $(DESKTOP_OUT)/programs/obj/common/vendor/openssh/openbsd-compat/sha1.c.o $(DESKTOP_OUT)/programs/obj/5f8c9d766f97/arch/$(ARCH)/crt0.S.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/ports/llvm/cxxabi.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/private_typeinfo.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/abort_message.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/cxa_demangle.cpp.o
 DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/runtime/init.c.o
+DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/posix/pause.c.o
+ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
+DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o $(DESKTOP_OUT)/programs/obj/common/vendor/picolibc/libm/ld/s_fpclassifyl.c.o
+endif
 ifeq ($(ARCH),aarch64)
 DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/posix/ucontext.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/ucontext.S.o
 endif
@@ -12,6 +16,21 @@ DESKTOP_APP_FLTK := -Iports/fltk -Ivendor/fltk -Ivendor/libpng -Iports/x11/libpn
 DESKTOP_APP_TLS := -Ivendor/mbedtls/include -Ivendor/mbedtls/library -Iports/mbedtls -DMBEDTLS_CONFIG_FILE='"lume_tls_config.h"'
 DESKTOP_APP_DILLO := -Iports/dillo -Ivendor/dillo -Ivendor/dillo/src -Ivendor/stb $(DESKTOP_APP_FLTK) $(DESKTOP_APP_TLS) -DHAVE_CONFIG_H
 DESKTOP_APP_LIBS := $(DESKTOP_APPS_OUT)/libfltk.a $(DESKTOP_APPS_OUT)/libmbedtls.a $(DESKTOP_OUT)/libraries/lib/libXpm.a $(DESKTOP_OUT)/libraries/lib/libXext.a $(DESKTOP_OUT)/libraries/lib/libXrender.a $(DESKTOP_OUT)/libraries/lib/libXcomposite.a $(DESKTOP_OUT)/libraries/lib/libXdamage.a $(DESKTOP_OUT)/libraries/lib/libXfixes.a $(DESKTOP_OUT)/libraries/lib/libXcursor.a $(DESKTOP_OUT)/libraries/lib/libX11.a $(DESKTOP_OUT)/libraries/lib/libxcb.a $(DESKTOP_OUT)/libraries/lib/libXau.a $(DESKTOP_OUT)/libraries/lib/libXdmcp.a $(DESKTOP_OUT)/libraries/lib/libpng.a $(DESKTOP_OUT)/libraries/lib/zlib.a $(DESKTOP_OUT)/cxx/libc++.a $(SYSROOT)/lib/libc.a
+$(DESKTOP_OUT)/programs/obj/common/libc/posix/pause.c.o: libc/posix/pause.c mk/desktop-apps.mk | headers
+	mkdir -p "$(@D)"
+	$(CC) $(DESKTOP_APP_BASE) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+-include $(DESKTOP_OUT)/programs/obj/common/libc/posix/pause.c.o.d
+
+$(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o: vendor/libcxxabi/src/cxa_aux_runtime.cpp mk/desktop-apps.mk | headers
+	mkdir -p "$(@D)"
+	$(CC) $(DESKTOP_APP_BASE) $(DESKTOP_APP_CXX) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+-include $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o.d
+
+$(DESKTOP_OUT)/programs/obj/common/vendor/picolibc/libm/ld/s_fpclassifyl.c.o: vendor/picolibc/libm/ld/s_fpclassifyl.c mk/desktop-apps.mk | headers
+	mkdir -p "$(@D)"
+	$(CC) $(DESKTOP_APP_BASE) -Ivendor/picolibc/libm/common -Ivendor/picolibc/libm/ld -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+-include $(DESKTOP_OUT)/programs/obj/common/vendor/picolibc/libm/ld/s_fpclassifyl.c.o.d
+
 .PHONY: desktop-apps desktop-apps-install desktop-apps-check
 desktop-apps: $(DESKTOP_APPS_OUT)/dillo.elf $(DESKTOP_APPS_OUT)/dilloc.elf $(DESKTOP_APPS_OUT)/browser.elf $(DESKTOP_APPS_OUT)/network.elf $(DESKTOP_APPS_OUT)/clock.elf $(DESKTOP_APPS_OUT)/dpid.elf $(DESKTOP_APPS_OUT)/file.dpi.elf $(DESKTOP_APPS_OUT)/bookmarks.dpi.elf $(DESKTOP_APPS_OUT)/cookies.dpi.elf $(DESKTOP_APPS_OUT)/datauri.dpi.elf $(DESKTOP_APPS_OUT)/vsource.dpi.elf
 desktop-apps-check: $(DESKTOP_APPS_OUT)/appcheck.elf $(DESKTOP_APPS_OUT)/fltkcheck.elf

@@ -99,7 +99,8 @@ template("chrome_repack_percent") {
       sources += [ "$root_gen_dir/extensions/extensions_browser_resources_${percent}_percent.pak" ]
       deps += [ "//extensions:extensions_browser_resources" ]
     }
-    if (enable_extensions) {
+    if (enable_extensions &&
+        (is_win || is_mac || is_linux || is_chromeos || is_fuchsia)) {
       sources +=
           [ "$root_gen_dir/chrome/extensions_zero_state_promo_resources.pak" ]
       deps +=
@@ -578,6 +579,11 @@ template("chrome_extra_paks") {
     if (enterprise_watermark) {
       sources += [ "$root_gen_dir/chrome/watermark_resources.pak" ]
       deps += [ "//chrome/browser/resources/watermark:resources" ]
+    }
+
+    if (is_lume) {
+      sources += [ "$root_gen_dir/chrome/app_settings_resources.pak" ]
+      deps += [ "//chrome/browser/resources/app_settings:resources" ]
     }
 
     if (is_win || is_mac || is_linux) {

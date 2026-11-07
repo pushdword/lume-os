@@ -50,11 +50,26 @@ config("compiler") {
   }
   if (current_cpu == "arm64") {
     cflags += [ "-mstrict-align" ]
+  } else if (current_cpu == "x64") {
+    cflags += [
+      "-m64",
+      "-march=x86-64",
+      "-mno-red-zone",
+      "-mcmodel=large",
+      "-ftls-model=local-exec",
+    ]
   }
   asmflags = [
     "--target=$lume_target_triple",
     "--sysroot=$lume_native_sysroot",
   ]
+  if (current_cpu == "x64") {
+    asmflags += [
+      "-m64",
+      "-mno-red-zone",
+      "-mcmodel=large",
+    ]
+  }
   cflags_cc = [ "-nostdinc++" ]
   if (lume_native_cxx_extension != "") {
     assert(current_cpu == "arm64")

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/chrome_content_browser_client.h"
 
+#include "components/optimization_guide/optimization_guide_buildflags.h"
+
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -95,7 +97,10 @@
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "components/enterprise/buildflags/buildflags.h"
+#if BUILDFLAG(ENTERPRISE_PROXY)
 #include "chrome/browser/enterprise/net/proxy_error_utils.h"
+#endif
 #include "chrome/browser/enterprise/network_header_injection/http_header_injection_proxying_url_loader_factory.h"
 #include "chrome/browser/enterprise/network_header_injection/http_header_injection_utils.h"
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_service.h"
@@ -270,7 +275,6 @@
 #include "components/embedder_support/switches.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/enterprise/browser/reporting/prefs.h"
-#include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/content/clipboard_restriction_service.h"
 #include "components/enterprise/content/pref_names.h"
@@ -864,7 +868,9 @@ using web_app::ChromeContentBrowserClientIsolatedWebAppsPart;
 namespace
 {
 
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
 const char kAIManagerUserDataKey[] = "ai_manager";
+#endif
 
 #if BUILDFLAG(IS_MAC)
 constexpr char kSecurePaymentConfirmationKeychainAccessGroup[] =
@@ -2907,7 +2913,11 @@ bool ChromeContentBrowserClient::IsVideoCaptureAllowedWhileScreenLocked(const ur
 content::WebContents *
 ChromeContentBrowserClient::GetWebContentsFromWindowIfCaptureHandleAllowed(gfx::NativeWindow window)
 {
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
     return ::GetWebContentsFromWindowIfCaptureHandleAllowed(window);
+#else
+    return nullptr;
+#endif
 }
 
 bool ChromeContentBrowserClient::IsFileAccessAllowed(const base::FilePath &path,
@@ -4663,9 +4673,13 @@ ChromeContentBrowserClient::CreateSpeechRecognitionManagerDelegate()
 std::unique_ptr<optimization_guide::ModelBrokerClient>
 ChromeContentBrowserClient::CreateModelBrokerClient(content::BrowserContext *browser_context)
 {
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
     auto *service = OptimizationGuideKeyedServiceFactory::GetForProfile(
         Profile::FromBrowserContext(browser_context));
     return service ? service->CreateModelBrokerClient() : nullptr;
+#else
+    return nullptr;
+#endif
 }
 
 media::mojom::AvailabilityStatus
@@ -8941,11 +8955,13 @@ ChromeContentBrowserClient::GetAlternativeErrorPageOverrideInfo(
     content::BrowserContext *browser_context, int32_t error_code)
 {
     const GURL &url = navigation_handle.GetURL();
+#if BUILDFLAG(ENTERPRISE_PROXY)
     if (auto enterprise_error_info =
             enterprise_net::GetEnterpriseProxyErrorPageInfo(navigation_handle, browser_context))
     {
         return enterprise_error_info;
     }
+#endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     if (navigation_handle.IsInPrimaryMainFrame() &&
@@ -9663,6 +9679,7 @@ void ChromeContentBrowserClient::BindAIManager(
     content::BrowserContext *browser_context, base::SupportsUserData *context_user_data,
     content::RenderFrameHost *rfh, mojo::PendingReceiver<blink::mojom::AIManager> receiver)
 {
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
     if (!context_user_data->GetUserData(kAIManagerUserDataKey))
     {
         context_user_data->SetUserData(kAIManagerUserDataKey,
@@ -9672,6 +9689,9 @@ void ChromeContentBrowserClient::BindAIManager(
     AIManager *ai_manager =
         static_cast<AIManager *>(context_user_data->GetUserData(kAIManagerUserDataKey));
     ai_manager->AddReceiver(std::move(receiver));
+#else
+    receiver.reset();
+#endif
 }
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
@@ -9915,6 +9935,7 @@ std::optional<std::vector<std::u16string>>
 ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
     const ui::ClipboardSequenceNumberToken &seqno)
 {
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
     const data_controls::LastReplacedClipboardData &last_replaced_data =
         data_controls::GetLastReplacedClipboardData();
 
@@ -9923,6 +9944,7 @@ ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
         return last_replaced_data.GetAvailableTypes();
     }
 
+#endif
     return std::nullopt;
 }
 

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
 
+#include "components/optimization_guide/optimization_guide_buildflags.h"
+
 #include <memory>
 #include <utility>
 
@@ -91,9 +93,16 @@
 #include "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service_factory.h"
 #include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
 #include "chrome/browser/enterprise/isolated_mode/isolated_mode_settings_service_factory.h"
+#include "components/enterprise/buildflags/buildflags.h"
+#if BUILDFLAG(ENTERPRISE_PROXY)
 #include "chrome/browser/enterprise/net/enterprise_network_auth_service_factory.h"
+#endif
+#if BUILDFLAG(ENTERPRISE_PROXY)
 #include "chrome/browser/enterprise/net/enterprise_proxy_error_service_factory.h"
+#endif
+#if BUILDFLAG(ENTERPRISE_PROXY)
 #include "chrome/browser/enterprise/net/enterprise_proxy_service_factory.h"
+#endif
 #include "chrome/browser/enterprise/network_header_injection/http_header_injection_service_factory.h"
 #include "chrome/browser/enterprise/remote_commands/user_remote_commands_service_factory.h"
 #include "chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.h"
@@ -303,7 +312,6 @@
 #include "components/captive_portal/core/buildflags.h"
 #include "components/commerce/core/proto/commerce_subscription_db_content.pb.h"
 #include "components/commerce/core/proto/persisted_state_db_content.pb.h"
-#include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/content/clipboard_restriction_service.h"
 #include "components/enterprise/network_header_injection/core/features.h"
 #include "components/offline_pages/buildflags/buildflags.h"
@@ -433,7 +441,9 @@
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/download/bubble/download_bubble_update_service_factory.h"
 #include "chrome/browser/profiles/profile_statistics_factory.h"
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/startup/first_run_service.h"
+#endif
 #if BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(ENABLE_MIRROR)
 #include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
 #endif
@@ -749,7 +759,9 @@ void ChromeBrowserMainExtraPartsProfiles::EnsureBrowserContextKeyedServiceFactor
     AffiliationServiceFactory::GetInstance();
     actor_login::ActorLoginPermissionCleaningServiceFactory::GetInstance();
     actor_login::ActorLoginPermissionServiceFactory::GetInstance();
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
     AiDataKeyedServiceFactory::GetInstance();
+#endif
     AiModeButtonServiceFactory::GetInstance();
     AimEligibilityServiceFactory::GetInstance();
 #if BUILDFLAG(IS_ANDROID)
@@ -1000,9 +1012,11 @@ void ChromeBrowserMainExtraPartsProfiles::EnsureBrowserContextKeyedServiceFactor
 #endif
     enterprise_isolated_mode::IsolatedModeSettingsServiceFactory::GetInstance();
     enterprise_signals::SignalsAggregatorFactory::GetInstance();
+#if BUILDFLAG(ENTERPRISE_PROXY)
     EnterpriseNetworkAuthServiceFactory::GetInstance();
     EnterpriseProxyErrorServiceFactory::GetInstance();
     EnterpriseProxyServiceFactory::GetInstance();
+#endif
     enterprise_reporting::CloudProfileReportingServiceFactory::GetInstance();
     enterprise_reporting::LegacyTechServiceFactory::GetInstance();
     enterprise_reporting::SaasUsageReportingControllerFactory::GetInstance();
@@ -1046,7 +1060,7 @@ void ChromeBrowserMainExtraPartsProfiles::EnsureBrowserContextKeyedServiceFactor
     finds::FindsServiceFactory::GetInstance();
 #endif // BUILDFLAG(IS_ANDROID)
     first_party_sets::FirstPartySetsPolicyServiceFactory::GetInstance();
-#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
     FirstRunServiceFactory::GetInstance();
 #endif
 #if BUILDFLAG(IS_CHROMEOS)

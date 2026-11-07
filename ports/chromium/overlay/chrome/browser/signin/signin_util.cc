@@ -16,12 +16,16 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/supports_user_data.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#if BUILDFLAG(IS_LUME)
+#include "chrome/browser/signin/lume_history_sync_util.h"
+#endif
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
@@ -338,7 +342,7 @@ bool IsSyncingUserSelectableTypesAllowedByPolicy(const syncer::SyncService *sync
     return true;
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LUME)
 bool HasExplicitlyDisabledHistorySync(const syncer::SyncService *sync_service,
                                       const signin::IdentityManager *identity_manager)
 {
@@ -374,6 +378,9 @@ bool HasExplicitlyDisabledHistorySync(const syncer::SyncService *sync_service,
     return false;
 }
 
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 ShouldShowHistorySyncOptinResult ShouldShowHistorySyncOptinScreen(Profile &profile)
 {
     if (GetSignedInState(IdentityManagerFactory::GetForProfile(&profile)) !=

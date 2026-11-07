@@ -461,7 +461,7 @@ bool ChangeSourceSupported(const MediaStreamDevices &devices)
     return true; // getDisplayMedia() now supported by default.
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 MediaStreamManager::CapturedSurfaceControllerFactoryCallback
 MakeDefaultCapturedSurfaceControllerFactory()
 {
@@ -1640,7 +1640,7 @@ MediaStreamManager::MediaStreamManager(media::AudioSystem *audio_system)
 MediaStreamManager::MediaStreamManager(media::AudioSystem *audio_system,
                                        std::unique_ptr<VideoCaptureProvider> video_capture_provider)
     :
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
       captured_surface_controller_factory_(MakeDefaultCapturedSurfaceControllerFactory()),
 #endif
       audio_system_(audio_system)
@@ -1689,7 +1689,7 @@ MediaStreamManager::MediaStreamManager(media::AudioSystem *audio_system,
 #if BUILDFLAG(IS_MAC)
         // On MacOS the main thread must be used to run VideoCaptureDevice.
         device_task_runner = base::SingleThreadTaskRunner::GetCurrentDefault();
-#else // !BUILDFLAG(IS_MAC)
+#else   // !BUILDFLAG(IS_MAC)
         // For all platforms other than MacOS start a new thread.
         video_capture_thread_.emplace("VideoCaptureThread");
         base::Thread::Options thread_options;
@@ -3293,7 +3293,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string &label, Devic
         return;
     }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
     CHECK(!request->captured_surface_controller());
     const WebContentsMediaCaptureId captured_tab_id = request->GetCapturedTabId();
     if (!captured_tab_id.is_null())

@@ -5,6 +5,7 @@
 #include "chrome/browser/memory_details.h"
 
 #include <algorithm>
+#include <limits>
 #include <ranges>
 #include <set>
 #include <vector>
@@ -158,6 +159,9 @@ ProcessMemoryInformation::ProcessMemoryInformation()
     : pid(0), num_processes(0), process_type(content::PROCESS_TYPE_UNKNOWN), num_open_fds(-1),
       open_fds_soft_limit(-1), renderer_type(RENDERER_UNKNOWN), private_memory_footprint_kb(0)
 {
+#if BUILDFLAG(IS_LUME)
+    private_memory_footprint_kb = std::numeric_limits<size_t>::max();
+#endif
 }
 
 ProcessMemoryInformation::ProcessMemoryInformation(const ProcessMemoryInformation &other) = default;
@@ -256,8 +260,17 @@ std::string MemoryDetails::ToLogString(bool include_tab_title)
             }
             log += "]";
         }
-        log += StringPrintf(" %d MB",
-                            static_cast<int>(process_info.private_memory_footprint_kb) / 1024);
+#if BUILDFLAG(IS_LUME)
+        if (process_info.private_memory_footprint_kb == std::numeric_limits<size_t>::max())
+        {
+            log += " memory unavailable";
+        }
+        else
+#endif
+        {
+            log += StringPrintf(" %d MB",
+                                static_cast<int>(process_info.private_memory_footprint_kb) / 1024);
+        }
         if (process_info.num_open_fds != -1 || process_info.open_fds_soft_limit != -1)
         {
             log += StringPrintf(", %d FDs open of %d", process_info.num_open_fds,
@@ -286,6 +299,26 @@ void MemoryDetails::CollectChildInfoOnUIThread()
         base::ProcessId pid = widget->GetProcess()->GetProcess().Pid();
         widgets_by_pid[pid].push_back(widget);
     }
+
+#if BUILDFLAG(IS_LUME)
+    for (const auto &entry : widgets_by_pid)
+    {
+        base::ProcessId pid = entry.first;
+        if (std::ranges::any_of(chrome_browser->processes,
+                                [pid](const ProcessMemoryInformation &process)
+                                {
+                                    return process.pid == pid;
+                                }))
+        {
+            continue;
+        }
+        ProcessMemoryInformation process;
+        process.pid = pid;
+        process.num_processes = 1;
+        process.process_type = content::PROCESS_TYPE_RENDERER;
+        chrome_browser->processes.push_back(std::move(process));
+    }
+#endif
 
     // Get more information about the process.
     for (ProcessMemoryInformation &process : chrome_browser->processes)

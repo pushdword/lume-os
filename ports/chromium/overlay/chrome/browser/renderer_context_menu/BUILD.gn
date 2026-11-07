@@ -229,7 +229,7 @@ source_set("impl") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_win) {
+  if (is_linux || is_chromeos || is_win || is_lume) {
     public += [ "spelling_options_submenu_observer.h" ]
     sources += [ "spelling_options_submenu_observer.cc" ]
   }

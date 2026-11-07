@@ -160,7 +160,10 @@
 #endif // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||   \
+    BUILDFLAG(IS_FUCHSIA)
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
+#endif
 #endif // ENABLE_EXTENSIONS
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
@@ -182,8 +185,11 @@
 #include "chrome/browser/ui/webui/default_browser/visual_guided_setter_ui.h"
 #endif // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_LUME)
 #include "chrome/browser/ui/webui/app_settings/web_app_settings_ui.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #include "chrome/browser/ui/webui/browser_switch/browser_switch_ui.h"
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin_ui.h"
 #include "chrome/browser/ui/webui/updater/updater_ui.h"
@@ -427,7 +433,10 @@ void RegisterChromeWebUIConfigs()
 #endif // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||   \
+    BUILDFLAG(IS_FUCHSIA)
     map.AddWebUIConfig(std::make_unique<extensions::ZeroStatePromoControllerConfig>());
+#endif
 #endif // !BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
@@ -447,11 +456,14 @@ void RegisterChromeWebUIConfigs()
     map.AddWebUIConfig(std::make_unique<VisualGuidedSetterUIConfig>());
 #endif // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_LUME)
+    map.AddWebUIConfig(std::make_unique<WebAppSettingsUIConfig>());
+#endif
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     map.AddWebUIConfig(std::make_unique<BrowserSwitchUIConfig>());
     map.AddWebUIConfig(std::make_unique<HistorySyncOptinUIConfig>());
     map.AddWebUIConfig(std::make_unique<OnDeviceTranslationInternalsUIConfig>());
-    map.AddWebUIConfig(std::make_unique<WebAppSettingsUIConfig>());
     map.AddWebUIConfig(std::make_unique<WhatsNewUIConfig>());
 #endif // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 

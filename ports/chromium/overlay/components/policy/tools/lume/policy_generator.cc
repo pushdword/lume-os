@@ -68,6 +68,7 @@ struct PythonAPI
     PythonObject *(*Import)(const char *) = nullptr;
     PythonObject *(*GetAttribute)(PythonObject *, const char *) = nullptr;
     PythonObject *(*DictGet)(PythonObject *, const char *) = nullptr;
+    int (*DictSet)(PythonObject *, const char *, PythonObject *) = nullptr;
     PythonObject *(*Call)(PythonObject *, PythonObject *) = nullptr;
     int (*IsTrue)(PythonObject *) = nullptr;
     PythonObject *(*Error)() = nullptr;
@@ -96,6 +97,7 @@ struct PythonAPI
                BindSymbol(library, "PyImport_ImportModule", Import) &&
                BindSymbol(library, "PyObject_GetAttrString", GetAttribute) &&
                BindSymbol(library, "PyDict_GetItemString", DictGet) &&
+               BindSymbol(library, "PyDict_SetItemString", DictSet) &&
                BindSymbol(library, "PyObject_CallObject", Call) &&
                BindSymbol(library, "PyObject_IsTrue", IsTrue) &&
                BindSymbol(library, "PyErr_Occurred", Error) &&
@@ -191,6 +193,11 @@ int Generate(PythonAPI &python, const std::vector<NativeString> &arguments)
         return 1;
     const int contains = python.Contains(desktop, native.get());
     if (contains < 0 || (contains == 0 && python.ListAppend(desktop, native.get()) != 0))
+        return 1;
+
+    PythonRef native_platforms(python.ListNew(0), python.Decrement);
+    if (!native_platforms || python.ListAppend(native_platforms.get(), native.get()) != 0 ||
+        python.DictSet(platforms.get(), "chrome.lume", native_platforms.get()) != 0)
         return 1;
 
     PythonRef entry(python.GetAttribute(module.get(), "main"), python.Decrement);

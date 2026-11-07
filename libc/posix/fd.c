@@ -32,6 +32,23 @@ int pipe(int descriptors[2])
     return result(app_fd_pair(descriptors, 0, 0));
 }
 
+int pipe2(int descriptors[2], int flags)
+{
+    if (flags & ~(O_CLOEXEC | O_NONBLOCK))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!descriptors)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    unsigned native_flags =
+        (flags & O_CLOEXEC ? LUME_FD_CLOEXEC : 0) | (flags & O_NONBLOCK ? LUME_FD_NONBLOCK : 0);
+    return result(app_fd_pair(descriptors, 0, native_flags));
+}
+
 int dup(int fd)
 {
     return result(app_fd_dup(fd, 0, 0, 0));

@@ -6,7 +6,8 @@ static _Alignas(64) unsigned char initial_tls[65536 + 64];
 
 void lume_tls_init(void)
 {
-    size_t align = (uintptr_t)__tls_align;
+    size_t align;
+    __asm__("ldr %0, =__tls_align" : "=r"(align));
     size_t bias = (16 + align - 1) & ~(align - 1);
     for (size_t i = 0; i < (size_t)(__tls_file_end - __tls_start); ++i)
         initial_tls[bias + i] = __tls_start[i];

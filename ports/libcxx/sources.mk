@@ -55,6 +55,6 @@ LIBCXX_FILESYSTEM_AARCH64_SOURCES := vendor/libcxx/src/filesystem/operations.cpp
     vendor/libcxx/src/filesystem/directory_iterator.cpp \
     vendor/libcxx/src/filesystem/int128_builtins.cpp
 
-ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64 amd64,$(ARCH)),)
 LIBCXX_SOURCES += $(LIBCXX_FILESYSTEM_AARCH64_SOURCES)
 endif

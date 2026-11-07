@@ -5,7 +5,7 @@
 #define PKG_COUNT_MAX 256u
 #define PKG_FILES_MAX 128u
 #define PKG_DEPS_MAX 8u
-#define PKG_BYTES_MAX (128u * 1024u * 1024u)
+#define PKG_BYTES_MAX (512u * 1024u * 1024u)
 #define PKG_ABI 65536u
 #if defined(LUME_ARCH_AMD64)
 #define PKG_ARCH "amd64"

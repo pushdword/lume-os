@@ -10,6 +10,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "chrome/common/lume_web_app_settings_constants.h"
 #include "components/commerce/core/commerce_constants.h"
 #include "components/history_clusters/history_clusters_internals/webui/url_constants.h"
 #include "components/optimization_guide/optimization_guide_internals/webui/url_constants.h"
@@ -245,7 +246,7 @@ base::span<const base::cstring_view> ChromeURLHosts()
     BUILDFLAG(IS_DESKTOP_ANDROID)
         kChromeUIDiscardsHost,
 #endif
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_LUME)
         kChromeUIWebAppSettingsHost,
 #endif
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)

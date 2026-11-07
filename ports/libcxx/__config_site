@@ -24,7 +24,7 @@
 #define _LIBCPP_HAS_VENDOR_AVAILABILITY_ANNOTATIONS 0
 /* #undef _LIBCPP_NO_VCRUNTIME */
 /* #undef _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION */
-#if defined(__lume__) && defined(__aarch64__)
+#if defined(__lume__) && (defined(__aarch64__) || defined(__x86_64__))
 #define _LIBCPP_HAS_FILESYSTEM 1
 #else
 #define _LIBCPP_HAS_FILESYSTEM 0

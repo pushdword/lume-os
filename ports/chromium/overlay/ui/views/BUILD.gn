@@ -699,6 +699,10 @@ component("views") {
     ]
   }
 
+  if (is_lume) {
+    sources += [ "controls/menu/menu_config_linux.cc" ]
+  }
+
   if (is_linux) {
     public_deps += [ "//ui/linux:linux_ui" ]
     deps += [ "//ui/base/ime/linux" ]

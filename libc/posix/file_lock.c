@@ -13,6 +13,7 @@ extern int64_t lume_abi_host_call(unsigned, uint64_t, uint64_t, uint64_t);
 #include <stddef.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/file.h>
 
 static int lock_call(int fd, unsigned operation, struct flock *lock, bool ofd)
 {
@@ -84,6 +85,41 @@ static int lock_call(int fd, unsigned operation, struct flock *lock, bool ofd)
         lock->l_type = request.type == LUME_FILE_LOCK_READ    ? F_RDLCK
                        : request.type == LUME_FILE_LOCK_WRITE ? F_WRLCK
                                                               : F_UNLCK;
+    }
+    return 0;
+}
+
+int flock(int fd, int operation)
+{
+    int mode = operation & ~LOCK_NB;
+    if ((operation & ~(LOCK_SH | LOCK_EX | LOCK_UN | LOCK_NB)) ||
+        (mode != LOCK_SH && mode != LOCK_EX && mode != LOCK_UN))
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (mode != LOCK_UN && !(operation & LOCK_NB))
+    {
+        errno = ENOTSUP;
+        return -1;
+    }
+    struct lume_file_lock_request request = {.version = LUME_FILE_LOCK_VERSION,
+                                             .bytes = sizeof(request),
+                                             .fd = fd,
+                                             .type = mode == LOCK_SH   ? LUME_FILE_LOCK_READ
+                                                     : mode == LOCK_EX ? LUME_FILE_LOCK_WRITE
+                                                                       : LUME_FILE_LOCK_UNLOCK};
+    int64_t result = lume_native_call(LUME_SYS_FILE_IO, LUME_FILE_IO_FLOCK_NB, (uintptr_t)&request,
+                                      sizeof(request));
+    if (result < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-result);
+        return -1;
+    }
+    if (result)
+    {
+        errno = EIO;
+        return -1;
     }
     return 0;
 }

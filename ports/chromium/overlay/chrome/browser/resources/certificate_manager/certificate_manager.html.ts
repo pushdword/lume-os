@@ -75,6 +75,7 @@ export function getHtml(this: CertificateManagerElement) {
         </certificate-list>
       </if>
 
+<if expr="is_win or is_macosx or is_linux or is_chromeos">
       <h3 class="section-title">$i18n{certificateManagerV2Platform}</h3>
 
       <div class="card">
@@ -92,6 +93,7 @@ export function getHtml(this: CertificateManagerElement) {
         </if>
       </div>
 
+</if>
       <if expr="is_chromeos">
         <certificate-provisioning-list remove-header-padding>
         </certificate-provisioning-list>
@@ -116,7 +118,7 @@ export function getHtml(this: CertificateManagerElement) {
         .subpageCertLists="${this.enterpriseSubpageLists_}">
     </certificate-subpage>
 
-    <if expr="not is_chromeos">
+    <if expr="not is_chromeos and (is_win or is_macosx or is_linux or is_chromeos)">
       <certificate-subpage id="platformCertsSection"
           path="${Page.PLATFORM_CERTS}"
           class="cr-centered-card-container"
@@ -127,6 +129,7 @@ export function getHtml(this: CertificateManagerElement) {
       </certificate-subpage>
     </if>
 
+<if expr="is_win or is_macosx or is_linux or is_chromeos">
     <certificate-subpage id="platformClientCertsSection"
         path="${Page.PLATFORM_CLIENT_CERTS}"
         class="cr-centered-card-container"
@@ -137,6 +140,7 @@ export function getHtml(this: CertificateManagerElement) {
         subpage-title="$i18n{certificateManagerV2ClientCertsFromPlatform}"
         .subpageCertLists="${this.clientPlatformSubpageLists_}">
     </certificate-subpage>
+</if>
 
     <certificate-subpage id="userCertsSection"
         path="${Page.USER_CERTS}"
