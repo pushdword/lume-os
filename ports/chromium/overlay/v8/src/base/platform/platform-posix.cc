@@ -733,6 +733,14 @@ bool OS::DiscardSystemPages(void *address, size_t size)
 #else
     int ret = madvise(address, size, MADV_DONTNEED);
 #endif
+#if V8_OS_LUME
+    if (ret != 0)
+    {
+        const int error = errno;
+        if (error == EINVAL || error == ENOTSUP || error == ENOSYS)
+            return false;
+    }
+#endif
     // madvise with MADV_DONTNEED only fails on illegal parameters. That's a bug
     // in the caller.
     CHECK_EQ(0, ret);

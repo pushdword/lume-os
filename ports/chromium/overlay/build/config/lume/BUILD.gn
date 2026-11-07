@@ -92,6 +92,7 @@ config("executable") {
     "-no-pie",
     "-Wl,--gc-sections",
     "-Wl,--build-id=sha1",
+    "-Wl,--error-limit=0",
     "-Wl,-z,max-page-size=4096",
     "-Wl,-T,$lume_linker_script",
     "$lume_native_sysroot/lib/crt0-cxx.o",

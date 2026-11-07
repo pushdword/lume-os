@@ -388,8 +388,10 @@ int pthread_setname_np(pthread_t thread, const char *name)
     size_t bytes = strnlen(name, 16);
     if (bytes == 16)
         return ERANGE;
-    struct lume_thread_request request = {
-        .tid = native_thread(thread), .address = (uintptr_t)name, .stack_bytes = bytes + 1, .value = 1};
+    struct lume_thread_request request = {.tid = native_thread(thread),
+                                          .address = (uintptr_t)name,
+                                          .stack_bytes = bytes + 1,
+                                          .value = 1};
     int64_t result = lume_thread_call(LUME_THREAD_NAME, &request);
     return result < 0 ? (int)-result : 0;
 }
@@ -473,6 +475,9 @@ int pthread_create(pthread_t *out, const pthread_attr_t *a, void *(*run)(void *)
     starts = s;
     struct lume_thread_request r = {
         .entry = (uintptr_t)trampoline, .argument = (uintptr_t)s, .stack_bytes = a->stacksize};
+#if defined(__aarch64__) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+    r.value = LUME_THREAD_CREATE_NATIVE64;
+#endif
     int64_t tid = lume_thread_call(LUME_THREAD_CREATE, &r);
     if (tid < 0)
         remove_start(s);

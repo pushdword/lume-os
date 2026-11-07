@@ -255,11 +255,31 @@ int chroot(const char *path)
     return credential(LUME_CREDENTIAL_CHROOT, &r);
 }
 
+static int address_space_limit(struct rlimit *limit, int set)
+{
+    if (set && limit->rlim_cur > limit->rlim_max)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    if (set && (limit->rlim_cur != RLIM_INFINITY || limit->rlim_max != RLIM_INFINITY))
+    {
+        errno = ENOTSUP;
+        return -1;
+    }
+    /* The kernel applies no per-process address-space quota. */
+    limit->rlim_cur = RLIM_INFINITY;
+    limit->rlim_max = RLIM_INFINITY;
+    return 0;
+}
+
 static int resource(int resource, struct rlimit *limit, int set)
 {
     unsigned index;
     switch (resource)
     {
+    case RLIMIT_AS:
+        return address_space_limit(limit, set);
     case RLIMIT_CORE:
         index = LUME_LIMIT_CORE_SIZE;
         break;
