@@ -96,6 +96,15 @@ uintptr_t SystemAllocPagesInternal(uintptr_t hint, size_t length,
     }
 #endif
 
+#if PA_BUILDFLAG(IS_LUME)
+    if (accessibility.permissions == PageAccessibilityConfiguration::kInaccessibleWillJitLater ||
+        accessibility.permissions == PageAccessibilityConfiguration::kReadWriteExecute ||
+        accessibility.permissions == PageAccessibilityConfiguration::kReadWriteExecuteProtected)
+    {
+        map_flags |= MAP_JIT;
+    }
+#endif
+
     void *ret = mmap(reinterpret_cast<void *>(hint), length, access_flag, map_flags, fd, 0);
     if (ret == MAP_FAILED)
     {
