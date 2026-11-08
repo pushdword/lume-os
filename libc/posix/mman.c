@@ -96,6 +96,21 @@ int madvise(void *address, size_t bytes, int advice)
 
 int posix_madvise(void *address, size_t bytes, int advice)
 {
+    switch (advice)
+    {
+    case POSIX_MADV_NORMAL:
+    case POSIX_MADV_RANDOM:
+    case POSIX_MADV_SEQUENTIAL:
+    case POSIX_MADV_WILLNEED:
+        break;
+    case POSIX_MADV_DONTNEED:
+        advice = MADV_NORMAL;
+        break;
+    default:
+        return EINVAL;
+    }
+    if (!bytes)
+        return 0;
     int saved = errno;
     int error = madvise(address, bytes, advice) ? errno : 0;
     errno = saved;

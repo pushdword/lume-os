@@ -1,15 +1,17 @@
 #define _WIN32_WINNT 0x0602
+#include "../fixtures/pthread_host_namespace.h"
 #include "pthread.h"
 #include "lume/abi.h"
 #include <assert.h>
 #include <errno.h>
 #include <process.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
 
-int lume_test_fork(void);
+pid_t lume_test_fork(void);
 
 static CRITICAL_SECTION registry;
 static _Thread_local unsigned lock_depth;
@@ -17,6 +19,7 @@ static unsigned events[64], event_count, allocations;
 static int fail_allocation, added_prepare, added_parent, added_child;
 static int64_t fork_result;
 static unsigned concurrent_prepare, concurrent_parent;
+static bool key_registry_locked;
 
 void *atfork_test_malloc(size_t bytes)
 {
@@ -51,6 +54,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 static void record(unsigned event)
 {
     assert(lock_depth == 0 && event_count < sizeof(events) / sizeof(events[0]));
+    assert(event == 99 ? key_registry_locked : !key_registry_locked);
     events[event_count++] = event;
 }
 
@@ -143,8 +147,22 @@ int64_t lume_native_call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
     return fork_result;
 }
 
+void lume_pthread_fork_prepare(void)
+{
+    assert(!key_registry_locked);
+    key_registry_locked = true;
+}
+
+void lume_pthread_fork_parent(void)
+{
+    assert(key_registry_locked);
+    key_registry_locked = false;
+}
+
 void lume_pthread_fork_child(void)
 {
+    assert(key_registry_locked);
+    key_registry_locked = false;
     record(98);
 }
 
@@ -221,3 +239,22 @@ int main(void)
     puts("atfork PASS: ordering, snapshots, callback registration, errno and concurrent append");
     return 0;
 }
+
+#define malloc atfork_test_malloc
+#include "../../libc/posix/atfork.c"
+#undef malloc
+
+static int native_result(int64_t result)
+{
+    if (result >= 0)
+        return (int)result;
+    assert(result == -LUME_EBUSY || result == -LUME_ENOMEM);
+    errno = result == -LUME_EBUSY ? EBUSY : ENOMEM;
+    return -1;
+}
+
+#define native_call lume_native_call
+#define fork lume_test_fork
+#include "../../libc/posix/process_fork.h"
+#undef fork
+#undef native_call

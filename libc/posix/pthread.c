@@ -19,17 +19,6 @@ static pthread_t native_thread(pthread_t thread)
     return fork_identity && thread == fork_identity ? fork_native_identity : thread;
 }
 
-void lume_pthread_fork_child(void)
-{
-    int64_t native = lume_thread_call(LUME_THREAD_SELF, NULL);
-    if (native < 0)
-        return;
-    if (!identity)
-        identity = (pthread_t)native;
-    fork_identity = identity;
-    fork_native_identity = (pthread_t)native;
-}
-
 void __lume_cleanup_push(struct __lume_cleanup_record *record, void (*routine)(void *),
                          void *argument)
 {
@@ -47,28 +36,64 @@ void __lume_cleanup_pop(struct __lume_cleanup_record *record, int execute)
         record->routine(record->argument);
 }
 
+#define KEY_SEGMENT_BITS 8u
+#define KEY_SEGMENT_SIZE (1u << KEY_SEGMENT_BITS)
+#define KEY_SLOT_BITS 16u
+#define KEY_SLOT_MASK ((1u << KEY_SLOT_BITS) - 1u)
+#define KEY_GENERATION_MAX UINT16_MAX
+
 struct thread_key
 {
-    struct thread_key *next;
-    pthread_key_t key;
+    pthread_key_t active;
+    uint16_t generation, next;
     void (*destroy)(void *);
+};
+
+struct thread_key_segment
+{
+    struct thread_key entries[KEY_SEGMENT_SIZE];
 };
 
 struct thread_value
 {
-    struct thread_value *next, *all_next;
-    struct thread_value **owner;
     pthread_key_t key;
     unsigned destructor_pass;
     void *value;
 };
 
-static struct thread_key *keys;
-static pthread_key_t key_sequence;
-static struct thread_value *all_values;
-static _Thread_local struct thread_value *key_values;
+struct thread_value_segment
+{
+    struct thread_value entries[KEY_SEGMENT_SIZE];
+};
+
+/* Published key segments remain allocated so concurrent getters never observe retired storage. */
+static struct thread_key_segment *key_segments[KEY_SEGMENT_SIZE];
+static unsigned key_unused = 1, key_free;
+static _Thread_local struct thread_value_segment *key_values[KEY_SEGMENT_SIZE];
 static _Thread_local unsigned destructor_pass;
 static pthread_mutex_t key_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void lume_pthread_fork_prepare(void)
+{
+    pthread_mutex_lock(&key_lock);
+}
+
+void lume_pthread_fork_parent(void)
+{
+    pthread_mutex_unlock(&key_lock);
+}
+
+void lume_pthread_fork_child(void)
+{
+    key_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    int64_t native = lume_thread_call(LUME_THREAD_SELF, NULL);
+    if (native < 0)
+        return;
+    if (!identity)
+        identity = (pthread_t)native;
+    fork_identity = identity;
+    fork_native_identity = (pthread_t)native;
+}
 
 static struct thread_start
 {
@@ -106,32 +131,15 @@ static void release_stack_attribute(const pthread_attr_t *attribute)
 
 static struct thread_key *find_key(pthread_key_t key)
 {
-    for (struct thread_key *entry = keys; entry; entry = entry->next)
-        if (entry->key == key)
-            return entry;
-    return NULL;
-}
-
-static void unlink_value(struct thread_value *entry)
-{
-    struct thread_value **position = entry->owner;
-    while (*position != entry)
-        position = &(*position)->next;
-    *position = entry->next;
-    position = &all_values;
-    while (*position != entry)
-        position = &(*position)->all_next;
-    *position = entry->all_next;
-}
-
-static void free_values(struct thread_value *entry)
-{
-    while (entry)
-    {
-        struct thread_value *next = entry->next;
-        free(entry);
-        entry = next;
-    }
+    unsigned slot = key & KEY_SLOT_MASK;
+    if (!slot || !(key >> KEY_SLOT_BITS))
+        return NULL;
+    struct thread_key_segment *segment =
+        __atomic_load_n(&key_segments[slot >> KEY_SEGMENT_BITS], __ATOMIC_ACQUIRE);
+    if (!segment)
+        return NULL;
+    struct thread_key *entry = &segment->entries[slot & (KEY_SEGMENT_SIZE - 1)];
+    return __atomic_load_n(&entry->active, __ATOMIC_ACQUIRE) == key ? entry : NULL;
 }
 
 static void remove_start(struct thread_start *start)
@@ -228,37 +236,33 @@ static _Noreturn void finish_thread(void *value, bool execute_cleanup)
     if (native_cxx_thread_finalize)
         native_cxx_thread_finalize();
     for (destructor_pass = 1; destructor_pass <= PTHREAD_DESTRUCTOR_ITERATIONS; ++destructor_pass)
-        for (;;)
+        for (unsigned group = 0; group < KEY_SEGMENT_SIZE; ++group)
         {
-            pthread_mutex_lock(&key_lock);
-            struct thread_value *entry = key_values;
-            while (entry && entry->destructor_pass >= destructor_pass)
-                entry = entry->next;
-            if (!entry)
+            struct thread_value_segment *segment = key_values[group];
+            if (!segment)
+                continue;
+            for (unsigned i = 0; i < KEY_SEGMENT_SIZE; ++i)
             {
+                struct thread_value *entry = &segment->entries[i];
+                if (!entry->key || entry->destructor_pass >= destructor_pass)
+                    continue;
+                pthread_mutex_lock(&key_lock);
+                entry->destructor_pass = destructor_pass;
+                struct thread_key *key = find_key(entry->key);
+                void (*destroy)(void *) = key ? key->destroy : NULL;
+                void *p = entry->value;
+                entry->value = NULL;
                 pthread_mutex_unlock(&key_lock);
-                break;
+                if (p && destroy)
+                    destroy(p);
             }
-            entry->destructor_pass = destructor_pass;
-            struct thread_key *key = find_key(entry->key);
-            void (*destroy)(void *) = key ? key->destroy : NULL;
-            void *p = entry->value;
-            entry->value = NULL;
-            pthread_mutex_unlock(&key_lock);
-            if (p && destroy)
-                destroy(p);
         }
-    pthread_mutex_lock(&key_lock);
-    struct thread_value *released_values = NULL;
-    while (key_values)
+    for (unsigned group = 0; group < KEY_SEGMENT_SIZE; ++group)
     {
-        struct thread_value *entry = key_values;
-        unlink_value(entry);
-        entry->next = released_values;
-        released_values = entry;
+        struct thread_value_segment *segment = key_values[group];
+        key_values[group] = NULL;
+        free(segment);
     }
-    pthread_mutex_unlock(&key_lock);
-    free_values(released_values);
     struct thread_start *released = NULL;
     pthread_mutex_lock(&start_lock);
     if (current_start)
@@ -960,110 +964,126 @@ int pthread_key_create(pthread_key_t *out, void (*destroy)(void *))
 {
     if (!out)
         return EINVAL;
-    struct thread_key *entry = malloc(sizeof(*entry));
-    if (!entry)
-        return EAGAIN;
-    pthread_mutex_lock(&key_lock);
-    if (key_sequence == UINT_MAX)
+    struct thread_key_segment *allocated = NULL;
+    for (;;)
     {
+        pthread_mutex_lock(&key_lock);
+        unsigned slot = key_free ? key_free : key_unused;
+        if (slot > KEY_SLOT_MASK)
+        {
+            pthread_mutex_unlock(&key_lock);
+            free(allocated);
+            return EAGAIN;
+        }
+        unsigned group = slot >> KEY_SEGMENT_BITS;
+        struct thread_key_segment *segment = key_segments[group];
+        if (!segment && !allocated)
+        {
+            pthread_mutex_unlock(&key_lock);
+            allocated = malloc(sizeof(*allocated));
+            if (!allocated)
+                return EAGAIN;
+            memset(allocated, 0, sizeof(*allocated));
+            continue;
+        }
+        if (!segment)
+        {
+            segment = allocated;
+            allocated = NULL;
+            __atomic_store_n(&key_segments[group], segment, __ATOMIC_RELEASE);
+        }
+        struct thread_key *entry = &segment->entries[slot & (KEY_SEGMENT_SIZE - 1)];
+        if (key_free)
+            key_free = entry->next;
+        else
+            ++key_unused;
+        ++entry->generation;
+        pthread_key_t key = (pthread_key_t)entry->generation << KEY_SLOT_BITS | slot;
+        entry->destroy = destroy;
+        __atomic_store_n(&entry->active, key, __ATOMIC_RELEASE);
+        *out = key;
         pthread_mutex_unlock(&key_lock);
-        free(entry);
-        return EAGAIN;
+        free(allocated);
+        return 0;
     }
-    *entry = (struct thread_key){.next = keys, .key = ++key_sequence, .destroy = destroy};
-    keys = entry;
-    *out = entry->key;
-    pthread_mutex_unlock(&key_lock);
-    return 0;
 }
 
 int pthread_key_delete(pthread_key_t key)
 {
     pthread_mutex_lock(&key_lock);
-    struct thread_key **position = &keys;
-    while (*position && (*position)->key != key)
-        position = &(*position)->next;
-    struct thread_key *entry = *position;
-    if (entry)
-        *position = entry->next;
-    struct thread_value *released = NULL;
-    for (struct thread_value *value = all_values; value;)
+    struct thread_key *entry = find_key(key);
+    if (!entry)
     {
-        struct thread_value *next = value->all_next;
-        if (value->key == key)
-        {
-            unlink_value(value);
-            value->next = released;
-            released = value;
-        }
-        value = next;
+        pthread_mutex_unlock(&key_lock);
+        return EINVAL;
+    }
+    __atomic_store_n(&entry->active, 0, __ATOMIC_RELEASE);
+    entry->destroy = NULL;
+    if (entry->generation < KEY_GENERATION_MAX)
+    {
+        entry->next = (uint16_t)key_free;
+        key_free = key & KEY_SLOT_MASK;
     }
     pthread_mutex_unlock(&key_lock);
-    bool valid = entry != NULL;
-    free_values(released);
-    free(entry);
-    return valid ? 0 : EINVAL;
+    return 0;
 }
 
 int pthread_setspecific(pthread_key_t key, const void *value)
 {
+    struct thread_value_segment *allocated = NULL;
     pthread_mutex_lock(&key_lock);
     if (!find_key(key))
     {
         pthread_mutex_unlock(&key_lock);
         return EINVAL;
     }
-    struct thread_value *entry = key_values;
-    while (entry && entry->key != key)
-        entry = entry->next;
-    if (entry || !value)
+    unsigned slot = key & KEY_SLOT_MASK, group = slot >> KEY_SEGMENT_BITS;
+    struct thread_value_segment *segment = key_values[group];
+    if (!segment && !value)
     {
-        if (entry)
-            entry->value = (void *)value;
         pthread_mutex_unlock(&key_lock);
         return 0;
     }
-    pthread_mutex_unlock(&key_lock);
-    struct thread_value *allocated = malloc(sizeof(*allocated));
-    if (!allocated)
-        return ENOMEM;
-    pthread_mutex_lock(&key_lock);
-    int result = find_key(key) ? 0 : EINVAL;
-    if (!result)
+    if (!segment)
     {
-        entry = key_values;
-        while (entry && entry->key != key)
-            entry = entry->next;
-        if (!entry)
+        pthread_mutex_unlock(&key_lock);
+        allocated = malloc(sizeof(*allocated));
+        if (!allocated)
+            return ENOMEM;
+        memset(allocated, 0, sizeof(*allocated));
+        pthread_mutex_lock(&key_lock);
+        if (!find_key(key))
         {
-            entry = allocated;
-            *entry = (struct thread_value){.next = key_values,
-                                           .all_next = all_values,
-                                           .owner = &key_values,
-                                           .key = key,
-                                           .destructor_pass = destructor_pass};
-            key_values = entry;
-            all_values = entry;
+            pthread_mutex_unlock(&key_lock);
+            free(allocated);
+            return EINVAL;
+        }
+        segment = key_values[group];
+        if (!segment)
+        {
+            key_values[group] = segment = allocated;
             allocated = NULL;
         }
-        entry->value = (void *)value;
     }
+    struct thread_value *entry = &segment->entries[slot & (KEY_SEGMENT_SIZE - 1)];
+    if (entry->key != key)
+        *entry = (struct thread_value){.key = key, .destructor_pass = destructor_pass};
+    entry->value = (void *)value;
     pthread_mutex_unlock(&key_lock);
     free(allocated);
-    return result;
+    return 0;
 }
 
 void *pthread_getspecific(pthread_key_t key)
 {
-    pthread_mutex_lock(&key_lock);
-    void *value = NULL;
-    if (find_key(key))
-        for (struct thread_value *entry = key_values; entry; entry = entry->next)
-            if (entry->key == key)
-            {
-                value = entry->value;
-                break;
-            }
-    pthread_mutex_unlock(&key_lock);
-    return value;
+    struct thread_key *descriptor = find_key(key);
+    if (!descriptor)
+        return NULL;
+    unsigned slot = key & KEY_SLOT_MASK;
+    struct thread_value_segment *segment = key_values[slot >> KEY_SEGMENT_BITS];
+    if (!segment)
+        return NULL;
+    struct thread_value *entry = &segment->entries[slot & (KEY_SEGMENT_SIZE - 1)];
+    void *value = entry->key == key ? entry->value : NULL;
+    return __atomic_load_n(&descriptor->active, __ATOMIC_ACQUIRE) == key ? value : NULL;
 }

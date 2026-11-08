@@ -20,22 +20,7 @@ _Static_assert(NGROUPS_MAX == LUME_GROUP_MAX, "supplementary group limit");
 
 extern char **environ;
 
-pid_t fork(void)
-{
-    fflush(stdout);
-    fflush(stderr);
-    struct lume_atfork_snapshot snapshot;
-    lume_atfork_prepare(&snapshot);
-    int64_t result = native_call(LUME_SYS_FORK, 0, 0, 0);
-    if (result == 0)
-    {
-        lume_pthread_fork_child();
-        lume_atfork_child(&snapshot);
-    }
-    else
-        lume_atfork_parent(&snapshot);
-    return native_result(result);
-}
+#include "process_fork.h"
 
 int daemon(int keep_directory, int keep_descriptors)
 {

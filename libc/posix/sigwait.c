@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "lume/abi.h"
 #include "lume/signal.h"
+#include "lume/process.h"
 #include "errno_map.h"
 #ifndef LUME_USER_HOST_TEST
 #include "lume/syscall_native.h"
@@ -26,38 +27,23 @@ int sigwait(const sigset_t *set, int *number)
         error = EINVAL;
         goto done;
     }
-    for (;;)
+    struct lume_system_features features = {0};
+    int64_t result = lume_native_call(LUME_SYS_FEATURES, (uintptr_t)&features, sizeof(features),
+                                      LUME_FEATURE_VERSION);
+    if (result || !(features.features & LUME_FEATURE_SIGNAL_WAIT))
     {
-        struct lume_signal_request request = {
-            .version = LUME_SIGNAL_VERSION, .bytes = sizeof(request), .mask = selected};
-        int64_t result = lume_native_call(LUME_SYS_SIGNAL, LUME_SIGNAL_TRY_WAIT,
-                                          (uintptr_t)&request, sizeof(request));
-        if (!result)
-        {
-            if (!request.number || request.number >= NSIG ||
-                !(selected & (UINT32_C(1) << request.number)))
-                error = EIO;
-            else
-                *number = (int)request.number;
-            break;
-        }
-        if (result != -LUME_EAGAIN && result != -LUME_EINTR)
-        {
-            error = result < 0 ? lume_errno_from_syscall((unsigned)-result) : EIO;
-            break;
-        }
-        result = lume_native_call(LUME_SYS_SLEEP, 1, 0, 0);
-        if (result > 0)
-        {
-            error = EIO;
-            break;
-        }
-        if (result < 0 && result != -LUME_EINTR)
-        {
-            error = lume_errno_from_syscall((unsigned)-result);
-            break;
-        }
+        error = result < 0 ? lume_errno_from_syscall((unsigned)-result) : result ? EIO : ENOSYS;
+        goto done;
     }
+    do
+        result = lume_native_call(LUME_SYS_SIGNAL, LUME_SIGNAL_WAIT, selected, 0);
+    while (result == -LUME_EINTR);
+    if (result < 0)
+        error = lume_errno_from_syscall((unsigned)-result);
+    else if (!result || result >= NSIG || !(selected & (UINT32_C(1) << result)))
+        error = EIO;
+    else
+        *number = (int)result;
 done:
     errno = saved;
     return error;

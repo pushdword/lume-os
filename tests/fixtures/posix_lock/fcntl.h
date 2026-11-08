@@ -29,6 +29,9 @@ struct flock
 #define F_WRLCK 2
 #define F_UNLCK 3
 #define FD_CLOEXEC 1
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0x80000
+#endif
 #ifndef O_NONBLOCK
 #define O_NONBLOCK 0x4000
 #endif

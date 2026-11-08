@@ -245,6 +245,13 @@ $(OUT)/tests/shell-console$(HOSTEXE) $(OUT)/tests/shell-ssh$(HOSTEXE): tests/uni
 $(OUT)/image-tool$(HOSTEXE): tools/image.cpp
 	mkdir -p "$(@D)"
 	$(HOSTCXX) $(HOSTCXXFLAGS) "$<" -o "$@"
+.PHONY: check-pkg-bounds
+check: check-pkg-bounds
+check-pkg-bounds: $(OUT)/tests/pkg-bounds$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/pkg-bounds$(HOSTEXE): tests/unit/pkg_bounds_test.c apps/pkg/pkg.c apps/pkg/pkg_format.h libc/crypto/sha256.h $(KERNEL)/include/abi/native/lume/io.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -ffunction-sections -fdata-sections -Iapps/pkg -Ilibc/crypto -I"$(KERNEL)/include/abi/native" "$<" -Wl,--gc-sections -o "$@"
 check: $(OUT)/tests/net-client$(HOSTEXE) $(OUT)/tests/net-policy$(HOSTEXE) $(OUT)/tests/netd$(HOSTEXE) $(OUT)/tests/image$(HOSTEXE)
 	env "$(OUT)/tests/net-client$(HOSTEXE)"
 	env "$(OUT)/tests/net-policy$(HOSTEXE)"

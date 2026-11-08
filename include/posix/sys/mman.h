@@ -39,6 +39,8 @@ extern "C"
     int lume_clear_cache(void *, size_t);
     int lume_jit_write_begin(void);
     int lume_jit_write_end(void);
+    /* POSIX advice preserves contents and errno. Valid advice with zero length succeeds
+     * without accessing mappings. Nonempty ranges require VM alignment and mapped coverage. */
     int posix_madvise(void *, size_t, int);
     int memfd_create(const char *, unsigned);
     int shm_open(const char *, int, mode_t);

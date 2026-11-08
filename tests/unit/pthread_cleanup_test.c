@@ -12,9 +12,14 @@
 #include "../fixtures/pthread_host_namespace.h"
 
 static unsigned allocations, releases;
+static _Thread_local int allocation_budget = -1;
 
 static void *product_malloc(size_t bytes)
 {
+    if (!allocation_budget)
+        return NULL;
+    if (allocation_budget > 0)
+        --allocation_budget;
     void *result = malloc(bytes);
     if (result)
         __atomic_add_fetch(&allocations, 1, __ATOMIC_RELAXED);
@@ -128,6 +133,7 @@ int64_t lume_thread_call(unsigned operation, struct lume_thread_request *request
 #include "../integration/pthread_cleanup_probe.c"
 #undef main
 
+#ifndef LUME_PTHREAD_HOST_HARNESS_ONLY
 int main(void)
 {
     InitializeCriticalSection(&scheduler);
@@ -140,11 +146,27 @@ int main(void)
     assert(__atomic_load_n(&allocations, __ATOMIC_RELAXED) == before);
     assert(cleanup_probe_main() == 0);
     assert(cleanup_stack == NULL);
+#ifdef KEY_SEGMENT_SIZE
+    unsigned retained = 0;
+    for (unsigned group = 0; group < KEY_SEGMENT_SIZE; ++group)
+    {
+        assert(key_values[group] == NULL);
+        if (key_segments[group])
+        {
+            ++retained;
+            for (unsigned i = 0; i < KEY_SEGMENT_SIZE; ++i)
+                assert(!__atomic_load_n(&key_segments[group]->entries[i].active, __ATOMIC_ACQUIRE));
+        }
+    }
+    assert(allocations == releases + retained && starts == NULL);
+#else
     assert(allocations == releases);
     assert(starts == NULL && keys == NULL && all_values == NULL);
+#endif
     for (unsigned i = 0; i < sizeof(host_threads) / sizeof(host_threads[0]); ++i)
         assert(!host_threads[i].tid);
     DeleteCriticalSection(&scheduler);
-    puts("pthread cleanup host PASS: actual TLS threads, allocation balance and empty metadata");
+    puts("pthread cleanup host PASS: actual TLS threads, released values and bounded key metadata");
     return 0;
 }
+#endif
