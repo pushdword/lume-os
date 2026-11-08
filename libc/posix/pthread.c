@@ -8,6 +8,15 @@
 
 #include "absolute_time.h"
 
+#if defined(LUME_PTHREAD_COMPAT32)
+/* Legacy request buffers require thread stacks below the 32-bit address limit. */
+#define THREAD_STACK_DEFAULT (128u * 1024u)
+#define THREAD_STACK_MAX (768u * 1024u)
+#else
+#define THREAD_STACK_DEFAULT LUME_PTHREAD_STACK_DEFAULT
+#define THREAD_STACK_MAX LUME_PTHREAD_STACK_MAX
+#endif
+
 extern int64_t lume_thread_call(unsigned, struct lume_thread_request *);
 extern void native_cxx_thread_finalize(void) __attribute__((weak));
 static _Thread_local pthread_t identity;
@@ -300,7 +309,7 @@ int pthread_attr_init(pthread_attr_t *a)
     if (!a)
         return EINVAL;
     release_stack_attribute(a);
-    *a = (pthread_attr_t){.stacksize = LUME_PTHREAD_STACK_DEFAULT, .guardsize = 4096};
+    *a = (pthread_attr_t){.stacksize = THREAD_STACK_DEFAULT, .guardsize = 4096};
     return 0;
 }
 
@@ -314,7 +323,7 @@ int pthread_attr_destroy(pthread_attr_t *a)
 
 int pthread_attr_setstacksize(pthread_attr_t *a, size_t n)
 {
-    if (n < PTHREAD_STACK_MIN || n > LUME_PTHREAD_STACK_MAX)
+    if (n < PTHREAD_STACK_MIN || n > THREAD_STACK_MAX)
         return EINVAL;
     a->stacksize = n;
     return 0;
@@ -460,7 +469,7 @@ int pthread_create(pthread_t *out, const pthread_attr_t *a, void *(*run)(void *)
     pthread_attr_init(&defaults);
     if (!a)
         a = &defaults;
-    if (a->stacksize < PTHREAD_STACK_MIN || a->stacksize > LUME_PTHREAD_STACK_MAX ||
+    if (a->stacksize < PTHREAD_STACK_MIN || a->stacksize > THREAD_STACK_MAX ||
         (a->detachstate != PTHREAD_CREATE_JOINABLE && a->detachstate != PTHREAD_CREATE_DETACHED))
         return EINVAL;
     if (a->guardsize != 4096)
@@ -479,7 +488,8 @@ int pthread_create(pthread_t *out, const pthread_attr_t *a, void *(*run)(void *)
     starts = s;
     struct lume_thread_request r = {
         .entry = (uintptr_t)trampoline, .argument = (uintptr_t)s, .stack_bytes = a->stacksize};
-#if defined(__aarch64__) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if !defined(LUME_PTHREAD_COMPAT32) &&                                                             \
+    (defined(__aarch64__) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64))
     r.value = LUME_THREAD_CREATE_NATIVE64;
 #endif
     int64_t tid = lume_thread_call(LUME_THREAD_CREATE, &r);
