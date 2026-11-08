@@ -283,6 +283,19 @@ check-rwlock: $(OUT)/tests/rwlock$(HOSTEXE)
 $(OUT)/tests/rwlock$(HOSTEXE): tests/unit/rwlock_test.c libc/posix/pthread.c include/posix/pthread.h $(KERNEL)/include/uapi/lume/thread.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -ffunction-sections -fdata-sections -Iinclude/posix -I"$(KERNEL)/include/uapi" "$<" -Wl,--gc-sections -o "$@"
+.PHONY: check-pthread-stack
+PTHREAD_STACK_TESTS := $(addprefix $(OUT)/tests/pthread-stack-,$(addsuffix $(HOSTEXE),amd64 amd64-compat32 aarch64 aarch64-compat32 i686))
+check: check-pthread-stack
+check-pthread-stack: $(PTHREAD_STACK_TESTS)
+	for program in $(PTHREAD_STACK_TESTS); do env "$$program" || exit $$?; done
+$(OUT)/tests/pthread-stack-amd64$(HOSTEXE): PTHREAD_STACK_FLAGS := -DLUME_ARCH_AMD64=1
+$(OUT)/tests/pthread-stack-amd64-compat32$(HOSTEXE): PTHREAD_STACK_FLAGS := -DLUME_ARCH_AMD64=1 -DLUME_PTHREAD_COMPAT32=1
+$(OUT)/tests/pthread-stack-aarch64$(HOSTEXE): PTHREAD_STACK_FLAGS := -DLUME_ARCH_AARCH64=1
+$(OUT)/tests/pthread-stack-aarch64-compat32$(HOSTEXE): PTHREAD_STACK_FLAGS := -DLUME_ARCH_AARCH64=1 -DLUME_PTHREAD_COMPAT32=1
+$(OUT)/tests/pthread-stack-i686$(HOSTEXE): PTHREAD_STACK_FLAGS := -DLUME_ARCH_I686=1
+$(PTHREAD_STACK_TESTS): tests/unit/pthread_stack_test.c tests/fixtures/pthread_host_namespace.h libc/posix/pthread.c include/posix/pthread.h $(KERNEL)/include/uapi/lume/thread.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -ffunction-sections -fdata-sections $(PTHREAD_STACK_FLAGS) -iquote include/posix -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" "$<" -Wl,--gc-sections -o "$@"
 .PHONY: check-resource-gate
 check: check-resource-gate
 check-resource-gate: $(OUT)/tests/resource-gate$(HOSTEXE)
