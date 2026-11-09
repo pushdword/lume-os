@@ -16,4 +16,5 @@ ifeq ($(DESKTOP),1)
 	$(MAKE) desktop-install
 endif
 	$(foreach app,$(ARM_APPLETS),MSYS2_ARG_CONV_EXCL='*' "$(OUT)/image-tool$(HOSTEXE)" alias /bin/busybox "$(OUT)/root/bin/$(app)";)
+	$(MAKE) shell-tools-install
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"

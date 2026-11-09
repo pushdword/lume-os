@@ -12,5 +12,7 @@
 #undef NAME_MAX
 #define PATH_MAX LUME_FILES_PATH_MAX
 #define NAME_MAX LUME_FILES_NAME_MAX
+#undef PIPE_BUF
+#define PIPE_BUF 4096
 #endif
 #endif

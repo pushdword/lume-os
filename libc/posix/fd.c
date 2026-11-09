@@ -13,6 +13,15 @@ extern int64_t lume_memory_call(unsigned, struct lume_vm_request *);
 
 extern int lume_posix_ofd_lock(int, unsigned, struct flock *);
 extern int lume_posix_record_lock(int, unsigned, struct flock *);
+extern void lume_stdio_descriptor_changed(int) __attribute__((weak));
+
+static int duplicate(int fd, int target, int replace, unsigned flags)
+{
+    int created = app_fd_dup(fd, target, replace, flags);
+    if (created >= 0 && !(replace && fd == target) && lume_stdio_descriptor_changed)
+        lume_stdio_descriptor_changed(created);
+    return created;
+}
 
 static int result(int value)
 {
@@ -51,12 +60,12 @@ int pipe2(int descriptors[2], int flags)
 
 int dup(int fd)
 {
-    return result(app_fd_dup(fd, 0, 0, 0));
+    return result(duplicate(fd, 0, 0, 0));
 }
 
 int dup2(int fd, int to)
 {
-    return result(app_fd_dup(fd, to, 1, 0));
+    return result(duplicate(fd, to, 1, 0));
 }
 
 int fcntl(int fd, int operation, ...)
@@ -115,7 +124,7 @@ int fcntl(int fd, int operation, ...)
             errno = EINVAL;
             return -1;
         }
-        return result(app_fd_dup(fd, value, 0, 0));
+        return result(duplicate(fd, value, 0, 0));
 #ifdef F_DUPFD_CLOEXEC
     case F_DUPFD_CLOEXEC:
         if (value < 0)
@@ -123,7 +132,7 @@ int fcntl(int fd, int operation, ...)
             errno = EINVAL;
             return -1;
         }
-        return result(app_fd_dup(fd, value, 0, LUME_FD_CLOEXEC));
+        return result(duplicate(fd, value, 0, LUME_FD_CLOEXEC));
 #endif
     case F_GETFD:
     {

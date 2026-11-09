@@ -10,6 +10,73 @@
 #include <unistd.h>
 #include "lume/abi.h"
 #include "fd.h"
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#include "native_posix.h"
+#include "lume/file_io.h"
+#include <fcntl.h>
+#include <stdio.h>
+
+static ssize_t native_vector_io(int fd, const struct iovec *vectors, int count, int writing,
+                                int *handled)
+{
+    *handled = 0;
+    /* Buffered stdin and terminal reads retain the stdio and termios path. */
+    if (!writing && !fd)
+        return 0;
+    struct lume_io_vector local[8], *entries = local;
+    if (count > 8)
+    {
+        entries = malloc((size_t)count * sizeof(*entries));
+        if (!entries)
+        {
+            *handled = 1;
+            return -1;
+        }
+    }
+    for (int i = 0; i < count; ++i)
+        entries[i] = (struct lume_io_vector){(uintptr_t)vectors[i].iov_base, vectors[i].iov_len};
+    struct lume_file_io_request request = {.version = LUME_FILE_IO_VERSION,
+                                           .bytes = sizeof(request),
+                                           .fd = fd,
+                                           .buffer = (uintptr_t)entries,
+                                           .count = (unsigned)count};
+    if (writing && (fd == 1 || fd == 2) && fflush(stdout) < 0 && fd == 1)
+    {
+        if (entries != local)
+            free(entries);
+        *handled = 1;
+        return -1;
+    }
+    int64_t result;
+    for (;;)
+    {
+        result = native_call(LUME_SYS_FILE_IO, writing ? LUME_FILE_IO_WRITEV : LUME_FILE_IO_READV,
+                             (uintptr_t)&request, sizeof(request));
+        if (result != -LUME_EAGAIN)
+            break;
+        int flags = fcntl(fd, F_GETFL);
+        if (flags < 0 || flags & O_NONBLOCK)
+            break;
+        struct pollfd wait = {.fd = fd, .events = writing ? POLLOUT : POLLIN};
+        int ready = poll(&wait, 1, -1);
+        if (ready < 0)
+        {
+            if (entries != local)
+                free(entries);
+            *handled = 1;
+            return -1;
+        }
+    }
+    if (entries != local)
+        free(entries);
+    if (result == -LUME_ENOSYS || result == -LUME_EOPNOTSUPP || result == -LUME_EINVAL)
+        return 0;
+    *handled = 1;
+    return native_result(result);
+}
+
+#define LUME_VECTOR_NATIVE 1
+#endif
 
 #include "vector_io.h"
 

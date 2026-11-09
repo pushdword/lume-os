@@ -13,6 +13,28 @@ typedef uintptr_t memory_word __attribute__((__may_alias__));
 #endif
 
 #if defined(__aarch64__)
+typedef uint64_t arm64_unaligned_word __attribute__((__may_alias__, __aligned__(1)));
+
+static __attribute__((always_inline)) inline uint64_t arm64_load_word(const void *address)
+{
+#if defined(MEMORY_TEST_ARM64)
+    return *(const volatile arm64_unaligned_word *)address;
+#else
+    uint64_t value;
+    __asm__ volatile("ldr %0, [%1]" : "=r"(value) : "r"(address) : "memory");
+    return value;
+#endif
+}
+
+static __attribute__((always_inline)) inline void arm64_store_word(void *address, uint64_t value)
+{
+#if defined(MEMORY_TEST_ARM64)
+    *(volatile arm64_unaligned_word *)address = value;
+#else
+    __asm__ volatile("str %0, [%1]" : : "r"(value), "r"(address) : "memory");
+#endif
+}
+
 /* User buffers use Normal memory with unaligned accesses enabled. Every block
  * stays inside the requested range. Each overlapping copy loads 64 bytes before
  * storing them and advances in the direction that preserves unread bytes. */
@@ -107,11 +129,31 @@ static __attribute__((always_inline)) inline void *arm64_copy(void *destination,
     }
     count &= 127;
     if (backwards)
+    {
+        while (count >= 8)
+        {
+            out -= 8;
+            in -= 8;
+            uint64_t value = arm64_load_word(in);
+            arm64_store_word(out, value);
+            count -= 8;
+        }
         while (count--)
             *(volatile unsigned char *)--out = *(const volatile unsigned char *)--in;
+    }
     else
+    {
+        while (count >= 8)
+        {
+            uint64_t value = arm64_load_word(in);
+            arm64_store_word(out, value);
+            out += 8;
+            in += 8;
+            count -= 8;
+        }
         while (count--)
             *(volatile unsigned char *)out++ = *(const volatile unsigned char *)in++;
+    }
     return destination;
 }
 
@@ -149,6 +191,12 @@ static __attribute__((always_inline)) inline void *arm64_set(void *destination, 
 #endif
     }
     count &= 127;
+    while (count >= 8)
+    {
+        arm64_store_word(out, repeated);
+        out += 8;
+        count -= 8;
+    }
     while (count--)
         *(volatile unsigned char *)out++ = value;
     return destination;

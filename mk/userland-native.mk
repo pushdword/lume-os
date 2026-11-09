@@ -59,6 +59,7 @@ ARM_APPS := shell ls dir less top worker probe fstest libctest video smpdemo ios
 ARM_APPLETS := basename cat dirname echo false head printenv pwd true wc sort cut cmp cksum crc32 expand unexpand mkdir rmdir
 ARM_APP_TARGETS := $(addprefix $(OUT)/,$(addsuffix .elf,$(ARM_APPS)))
 include mk/vim-native.mk
+include mk/shell-tools.mk
 HTOP_SOURCES += $(addprefix ports/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/posix/,sbrk.c posix_runtime.c errno_map.c)
 BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
 HTOP_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(HTOP_SOURCES)))
@@ -203,6 +204,7 @@ endif
 ifeq ($(DESKTOP),1)
 	$(MAKE) desktop-install
 endif
+	$(MAKE) shell-tools-install
 	"$(OUT)/image-tool$(HOSTEXE)" fat "$(OUT)/root" "$(OUT)/lume-root.fat"
 endif
 .PHONY: check-update check-network-tools check-services

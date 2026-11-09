@@ -32,6 +32,12 @@ static ssize_t vector_io(int fd, const struct iovec *vectors, int count, int wri
         bytes = 65536;
     if (nonempty == 1)
         return writing ? write(fd, single->iov_base, bytes) : read(fd, single->iov_base, bytes);
+#ifdef LUME_VECTOR_NATIVE
+    int handled;
+    ssize_t native = native_vector_io(fd, vectors, count, writing, &handled);
+    if (handled)
+        return native;
+#endif
     char *buffer = malloc(bytes);
     if (!buffer)
         return -1;

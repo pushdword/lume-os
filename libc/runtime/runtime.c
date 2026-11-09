@@ -42,8 +42,9 @@ static char *empty_env[] = {NULL};
 static int raw_input;
 /* Each process owns its stdio state. Keep short interactive lines visible,
  * but send terminal redraws in blocks instead of entering the kernel per byte. */
-static char output_buffer[512];
+static char output_buffer[4096];
 static unsigned output_used;
+static int output_kind;
 static char error_buffer[512];
 static unsigned error_used;
 /* Prefetch only redirected stdio input. Terminal and raw input retain their
@@ -72,6 +73,27 @@ static int input_is_terminal(void)
     return input_kind == 1;
 }
 
+static int output_is_terminal(void)
+{
+    if (!output_kind)
+    {
+        int saved = errno;
+        struct lume_stat metadata;
+        int status = lume_app_call(LUME_FSTAT, 1, (uintptr_t)&metadata, 0);
+        output_kind = status < 0 || (metadata.mode & 0170000) == 0020000 ? 1 : 2;
+        errno = saved;
+    }
+    return output_kind == 1;
+}
+
+void lume_stdio_descriptor_changed(int fd)
+{
+    if (!fd)
+        input_reset();
+    if (fd == 1)
+        output_kind = 0;
+}
+
 void lume_stdio_raw(int raw)
 {
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
@@ -93,6 +115,7 @@ void lume_stdio_raw(int raw)
 void lume_stdio_reset(void)
 {
     output_used = error_used = 0;
+    output_kind = 0;
     input_reset();
 }
 
@@ -196,10 +219,13 @@ ssize_t read(int fd, void *buffer, size_t bytes)
     }
 #if defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_I686)
     extern ssize_t lume_posix_terminal_read(int, void *, size_t, int *);
-    int handled;
-    ssize_t terminal = lume_posix_terminal_read(fd, buffer, take, &handled);
-    if (handled)
-        return terminal;
+    if (fd != 0 || input_is_terminal())
+    {
+        int handled;
+        ssize_t terminal = lume_posix_terminal_read(fd, buffer, take, &handled);
+        if (handled)
+            return terminal;
+    }
 #endif
     for (;;)
     {
@@ -312,16 +338,16 @@ int open(const char *path, int flags, ...)
     if (r >= 0 && !(flags & O_NOCTTY) && !strncmp(path, "/dev/pts/", 9))
         lume_posix_acquire_terminal(r);
 #endif
-    if (r == 0)
-        input_reset();
+    if (r >= 0)
+        lume_stdio_descriptor_changed(r);
     return result(r);
 }
 
 int close(int fd)
 {
     int r = app_close(fd);
-    if (!r && fd == 0)
-        input_reset();
+    if (!r)
+        lume_stdio_descriptor_changed(fd);
     return result(r);
 }
 
@@ -573,10 +599,11 @@ static int out_put(char c, FILE *stream)
 {
     if (error_used && fflush(stderr) < 0)
         return _FDEV_ERR;
-    if (output_used == sizeof output_buffer && out_flush(stream) < 0)
+    unsigned capacity = output_is_terminal() ? 512u : sizeof output_buffer;
+    if (output_used >= capacity && out_flush(stream) < 0)
         return _FDEV_ERR;
     output_buffer[output_used++] = c;
-    return output_used == sizeof output_buffer || c == '\n' ? out_flush(stream) : 0;
+    return output_used >= capacity || (c == '\n' && output_kind == 1) ? out_flush(stream) : 0;
 }
 
 /* Keep diagnostics line buffered too. A formatter may call this callback for

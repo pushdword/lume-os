@@ -1,0 +1,6 @@
+lume|xterm|xterm-256color|vt100|ansi|Lume terminal:\
+	:am:bs:co#80:li#25:cl=\E[H\E[2J:ce=\E[K:cd=\E[J:\
+	:cm=\E[%i%d;%dH:up=\E[A:do=\E[B:nd=\E[C:le=^H:cr=^M:\
+	:al=\E[L:dl=\E[M:dc=\E[P:im=\E[4h:ei=\E[4l:\
+	:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:md=\E[1m:me=\E[m:\
+	:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kh=\E[H:@7=\E[F:kD=\E[3~:
