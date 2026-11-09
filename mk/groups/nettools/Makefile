@@ -10,7 +10,7 @@ OUT ?= $(OS_ROOT)/build/native-nettools
 CC := $(SDK)/bin/clang
 CPPFLAGS := -I$(OS_ROOT)/arch/$(ARCH)/include -I$(OS_ROOT)/include/internal -I$(OS_ROOT)/include/posix  -nostdinc -isystem $(SDK)/sdk/bare -I$(KERNEL)/include/abi/$(UAPI_ABI) -I$(KERNEL)/include/uapi
 CFLAGS := -O2 -std=c11 $(filter-out -mstrict-align,$(ARCH_CFLAGS)) -fno-builtin -fno-stack-protector -ffreestanding -ffunction-sections -fdata-sections
-SOURCES := $(OS_ROOT)/arch/$(ARCH)/start_bare.S $(OS_ROOT)/libc/string/memory.c
+SOURCES := $(OS_ROOT)/arch/$(ARCH)/start_bare.S $(OS_ROOT)/libc/string/memory.c $(OS_ROOT)/libc/string/transfer.c
 LINK := -nostdlib -Wl,--threads=1,--gc-sections,-z,max-page-size=4096,-T,$(OS_ROOT)/arch/$(ARCH)/user.ld
 .PHONY: all install
 all: $(OUT)/ping $(OUT)/nc

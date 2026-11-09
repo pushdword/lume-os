@@ -1,3 +1,21 @@
+#include <assert.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <limits.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
+#if defined(MEMORY_TEST_ARM64)
+#define __aarch64__ 1
+#elif defined(MEMORY_TEST_I686)
+#define __i386__ 1
+#endif
+
 #define memcpy lume_memory_copy
 #define memset lume_memory_set
 #define memmove lume_memory_move
@@ -7,6 +25,7 @@
 #define strcmp lume_memory_string_compare
 #define strncmp lume_memory_string_compare_n
 #define strtol lume_memory_integer
+#include "../../libc/string/transfer.c"
 #include "../../libc/string/memory.c"
 #undef memcpy
 #undef memset
@@ -18,13 +37,10 @@
 #undef strncmp
 #undef strtol
 
-#include <assert.h>
-#include <stdio.h>
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/mman.h>
-#include <unistd.h>
+#if defined(MEMORY_TEST_ARM64)
+#undef __aarch64__
+#elif defined(MEMORY_TEST_I686)
+#undef __i386__
 #endif
 
 static _Alignas(64) unsigned char source[65536 + 64], target[65536 + 64];
@@ -67,6 +83,24 @@ static void check_set(size_t count, unsigned offset, int value)
     for (size_t i = 0; i < span; ++i)
         assert(target[i] ==
                (i >= 16 + offset && i - 16 - offset < count ? (unsigned char)value : 0xa5));
+    ++cases;
+}
+
+static void check_move(size_t count, unsigned source_offset, unsigned target_offset)
+{
+    size_t span = count + 64;
+    for (size_t i = 0; i < span; ++i)
+        target[i] = pattern(i);
+    unsigned char *out = target + 16 + target_offset;
+    const unsigned char *in = target + 16 + source_offset;
+    assert(lume_memory_move(out, in, count) == out);
+    for (size_t i = 0; i < span; ++i)
+    {
+        unsigned char expected = i >= 16 + target_offset && i - 16 - target_offset < count
+                                     ? pattern(i - target_offset + source_offset)
+                                     : pattern(i);
+        assert(target[i] == expected);
+    }
     ++cases;
 }
 
@@ -116,6 +150,7 @@ static void check_guarded(void)
         in.data[i] = pattern(i);
     assert(lume_memory_copy(out.allocation, in.allocation, 0) == out.allocation);
     assert(lume_memory_set(out.allocation, 0, 0) == out.allocation);
+    assert(lume_memory_move(out.allocation, in.allocation, 0) == out.allocation);
     for (size_t count = 0; count <= 65; ++count)
     {
         unsigned char *end = out.data + out.page - count;
@@ -135,6 +170,16 @@ static void check_guarded(void)
         assert(lume_memory_set(end, 0x123, count) == end);
         for (size_t i = 0; i < count; ++i)
             assert(end[i] == 0x23);
+        for (size_t i = 0; i < out.page; ++i)
+            out.data[i] = pattern(i);
+        assert(lume_memory_move(end, end - 1, count) == end);
+        for (size_t i = 0; i < count; ++i)
+            assert(end[i] == pattern(out.page - count - 1 + i));
+        for (size_t i = 0; i < out.page; ++i)
+            out.data[i] = pattern(i);
+        assert(lume_memory_move(end - 1, end, count) == end - 1);
+        for (size_t i = 0; i < count; ++i)
+            assert((end - 1)[i] == pattern(out.page - count + i));
         ++cases;
     }
     guarded_destroy(in);
@@ -149,10 +194,18 @@ int main(void)
         for (unsigned in = 0; in < 16; ++in)
             for (unsigned out = 0; out < 16; ++out)
                 check_copy(count, in, out);
+    for (size_t count = 0; count <= 257; ++count)
+        for (unsigned in = 0; in < 16; ++in)
+            for (unsigned out = 0; out < 16; ++out)
+                check_move(count, in, out);
     for (unsigned n = 0; n < sizeof(large) / sizeof(large[0]); ++n)
         for (unsigned in = 0; in < 16; ++in)
             for (unsigned out = 0; out < 16; ++out)
                 check_copy(large[n], in, out);
+    for (unsigned n = 0; n < sizeof(large) / sizeof(large[0]); ++n)
+        for (unsigned in = 0; in < 16; ++in)
+            for (unsigned out = 0; out < 16; ++out)
+                check_move(large[n], in, out);
     for (size_t count = 0; count <= 257; ++count)
         for (unsigned offset = 0; offset < 16; ++offset)
             for (unsigned v = 0; v < sizeof(values) / sizeof(values[0]); ++v)
@@ -162,7 +215,8 @@ int main(void)
             for (unsigned v = 0; v < sizeof(values) / sizeof(values[0]); ++v)
                 check_set(large[n], offset, values[v]);
     check_guarded();
-    printf("PASS_MEMORY %u cases cover alignment, byte values, bounds and protected pages\n",
-           cases);
+    printf(
+        "PASS_MEMORY %u cases cover alignment, overlap, byte values, bounds and protected pages\n",
+        cases);
     return 0;
 }

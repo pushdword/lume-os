@@ -17,6 +17,9 @@ LDFLAGS := --gc-sections --build-id=none -z max-page-size=4096 -T $(OS_ROOT)/arc
 LIBS := --start-group $(SDK)/lib/libc.a $(SDK)/lib/libcrt.a --end-group
 COMMON := libc/posix/atfork.c libc/posix/sigwait.c libc/posix/file_lock.c libc/posix/ucontext.c libc/runtime/ucontext.S libc/posix/positioned_io.c arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c libc/posix/time.c
 COMMON += libc/runtime/init.c
+ifneq ($(filter aarch64 i686,$(ARCH)),)
+COMMON += libc/string/transfer.c
+endif
 ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
 COMMON += libc/posix/getrandom.c
 endif
@@ -86,14 +89,14 @@ $(OUT)/htop.a: $(HTOP_OBJECTS)
 $(OUT)/htop: $(OUT)/htop.a $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(COMMON_OBJECTS))
 	$(LD) $(LDFLAGS) --whole-archive $< --no-whole-archive $(filter-out $<,$^) $(LIBS) -o $@
 nettools: $(OUT)/ping $(OUT)/nc
-$(OUT)/ping $(OUT)/nc: $(OUT)/%: $(OUT)/obj/apps/net/%.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o
+$(OUT)/ping $(OUT)/nc: $(OUT)/%: $(OUT)/obj/apps/net/%.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o $(OUT)/obj/libc/string/transfer.c.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 .PHONY: base
 base: $(OUT)/net $(OUT)/netd $(OUT)/update $(OUT)/fetch
-$(OUT)/net: $(OUT)/obj/apps/net/net.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o
+$(OUT)/net: $(OUT)/obj/apps/net/net.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o $(OUT)/obj/libc/string/transfer.c.o
 	$(LD) $(LDFLAGS) $^ -o $@
-$(OUT)/netd: $(OUT)/obj/services/netd/netd.c.o $(OUT)/obj/services/netd/net_policy.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o
+$(OUT)/netd: $(OUT)/obj/services/netd/netd.c.o $(OUT)/obj/services/netd/net_policy.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o $(OUT)/obj/libc/string/transfer.c.o
 	$(LD) $(LDFLAGS) $^ -o $@
-$(OUT)/update $(OUT)/fetch: $(OUT)/%: $(OUT)/obj/apps/update/%.c.o $(OUT)/obj/libc/crypto/sha256.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o
+$(OUT)/update $(OUT)/fetch: $(OUT)/%: $(OUT)/obj/apps/update/%.c.o $(OUT)/obj/libc/crypto/sha256.c.o $(OUT)/obj/arch/$(ARCH)/start_bare.S.o $(OUT)/obj/libc/string/memory.c.o $(OUT)/obj/libc/string/transfer.c.o
 	$(LD) $(LDFLAGS) $^ -o $@

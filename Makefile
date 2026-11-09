@@ -212,7 +212,7 @@ headers:
 .PHONY: check-memory
 check-memory: $(OUT)/tests/memory$(HOSTEXE)
 	env "$<"
-$(OUT)/tests/memory$(HOSTEXE): tests/unit/memory_test.c libc/string/memory.c
+$(OUT)/tests/memory$(HOSTEXE): tests/unit/memory_test.c libc/string/memory.c libc/string/transfer.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -D_DEFAULT_SOURCE -fno-builtin -UNDEBUG "$<" -o "$@"
 check: check-memory
