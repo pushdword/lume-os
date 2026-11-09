@@ -38,6 +38,11 @@ static int64_t native(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 #endif
 }
 
+int32_t lume_native_process_id(void)
+{
+    return (int32_t)native(LUME_SYS_GETPID, 0, 0, 0);
+}
+
 int app_boot(unsigned operation, struct lume_boot_request *request)
 {
     return (int)native(LUME_SYS_BOOT, operation, (uintptr_t)request, sizeof(*request));

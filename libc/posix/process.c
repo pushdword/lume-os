@@ -33,7 +33,11 @@ struct __posix_spawn_file_actions
 
 pid_t getpid(void)
 {
+#if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    return (pid_t)lume_native_process_id();
+#else
     return (pid_t)lume_app_call(LUME_PID, 0, 0, 0);
+#endif
 }
 
 uid_t getuid(void)
