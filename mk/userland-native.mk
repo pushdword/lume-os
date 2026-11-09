@@ -141,12 +141,12 @@ $(SERVICE_OBJECTS): services/svcd/service_platform.h $(KERNEL)/include/abi/nativ
 $(OUT)/obj/services/svcd/service.c.o: services/svcd/service_loop.h services/svcd/service_discovery.h
 all pkg: $(OUT)/pkg.elf
 all: $(OUT)/service.elf $(OUT)/svcd.elf
-$(OUT)/service.elf: $(SERVICE_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
-	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "$(NATIVE_SDK)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(SERVICE_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
+$(OUT)/service.elf: $(SERVICE_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a arch/$(ARCH)/native.ld
+	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "arch/$(ARCH)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(SERVICE_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
 $(OUT)/svcd.elf: $(OUT)/service.elf
 	cp "$<" "$@"
-$(OUT)/pkg.elf: $(PKG_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a $(NATIVE_SDK)/native.ld
-	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "$(NATIVE_SDK)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(PKG_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
+$(OUT)/pkg.elf: $(PKG_OBJECTS) $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a arch/$(ARCH)/native.ld
+	$(LD) --gc-sections --build-id=none -z max-page-size=4096 -T "arch/$(ARCH)/native.ld" "$(NATIVE_SDK)/lib/crt0.o" $(PKG_OBJECTS) --start-group "$(NATIVE_SDK)/lib/liblume.a" "$(NATIVE_SDK)/lib/libc.a" --end-group -o "$@"
 else
 pkg:
 	@echo 'NATIVE_SDK must name the native TLS runtime SDK'

@@ -5,11 +5,11 @@ PHDRS { code PT_LOAD FLAGS(5); ro PT_LOAD FLAGS(4); data PT_LOAD FLAGS(6); tls P
 SECTIONS
 {
     . = 0x40040000;
-    .text : { KEEP(*(.text.start)) *(.text .text.*) } :code
+    .text : { KEEP(*(.text.start)) *(.text .text.* .ltext .ltext.*) } :code
     . = ALIGN(4096);
-    .rodata : { *(.rodata .rodata.*) } :ro
+    .rodata : { *(.rodata .rodata.* .lrodata .lrodata.*) } :ro
     . = ALIGN(4096);
-    .data : { *(.data .data.*) } :data
+    .data : { *(.data .data.* .ldata .ldata.*) } :data
     .preinit_array : {
         __preinit_array_start = .;
         KEEP(*(.preinit_array))
@@ -39,7 +39,7 @@ SECTIONS
     .tbss (NOLOAD) : { *(.tbss .tbss.*) __tls_end = .; } :data :tls
     __tls_size = __tls_end - __tls_start;
     __tls_align = MAX(16, MAX(ALIGNOF(.tdata), ALIGNOF(.tbss)));
-    .bss (NOLOAD) : { *(.bss .bss.*) *(COMMON) } :data
+    .bss (NOLOAD) : { *(.bss .bss.* .lbss .lbss.*) *(COMMON) } :data
     ASSERT(. <= 0x48000000, "Native image exceeds the executable region")
     /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame*) }
 }
