@@ -13,11 +13,153 @@ typedef uintptr_t memory_word __attribute__((__may_alias__));
 #endif
 
 #if defined(__aarch64__)
-typedef uint64_t memory_vector __attribute__((__vector_size__(16), __may_alias__));
+/* User buffers use Normal memory with unaligned accesses enabled. Every block
+ * stays inside the requested range. Each overlapping copy loads 64 bytes before
+ * storing them and advances in the direction that preserves unread bytes. */
+static __attribute__((always_inline)) inline void *arm64_copy(void *destination, const void *source,
+                                                              size_t count, unsigned backwards)
+{
+    unsigned char *out = destination;
+    const unsigned char *in = source;
+    size_t blocks = count / 128;
+    if (backwards)
+    {
+        out += count;
+        in += count;
+    }
+    if (blocks)
+    {
+#if defined(MEMORY_TEST_ARM64)
+        typedef uint64_t unaligned_word __attribute__((__may_alias__, __aligned__(1)));
+        do
+        {
+            for (unsigned half = 0; half < 2; ++half)
+            {
+                if (backwards)
+                {
+                    out -= 64;
+                    in -= 64;
+                }
+                uint64_t values[8];
+                for (unsigned i = 0; i < 8; ++i)
+                    values[i] = ((const volatile unaligned_word *)in)[i];
+                for (unsigned i = 0; i < 8; ++i)
+                    ((volatile unaligned_word *)out)[i] = values[i];
+                if (!backwards)
+                {
+                    out += 64;
+                    in += 64;
+                }
+            }
+        } while (--blocks);
+#else
+        if (backwards)
+            __asm__ volatile("1:\n\t"
+                             "ldp x3, x4, [%[in], #-16]\n\t"
+                             "ldp x5, x6, [%[in], #-32]\n\t"
+                             "ldp x7, x8, [%[in], #-48]\n\t"
+                             "ldp x9, x10, [%[in], #-64]\n\t"
+                             "stp x3, x4, [%[out], #-16]\n\t"
+                             "stp x5, x6, [%[out], #-32]\n\t"
+                             "stp x7, x8, [%[out], #-48]\n\t"
+                             "stp x9, x10, [%[out], #-64]\n\t"
+                             "ldp x3, x4, [%[in], #-80]\n\t"
+                             "ldp x5, x6, [%[in], #-96]\n\t"
+                             "ldp x7, x8, [%[in], #-112]\n\t"
+                             "ldp x9, x10, [%[in], #-128]\n\t"
+                             "stp x3, x4, [%[out], #-80]\n\t"
+                             "stp x5, x6, [%[out], #-96]\n\t"
+                             "stp x7, x8, [%[out], #-112]\n\t"
+                             "stp x9, x10, [%[out], #-128]\n\t"
+                             "sub %[in], %[in], #128\n\t"
+                             "sub %[out], %[out], #128\n\t"
+                             "subs %[blocks], %[blocks], #1\n\t"
+                             "b.ne 1b"
+                             : [out] "+&r"(out), [in] "+&r"(in), [blocks] "+&r"(blocks)
+                             :
+                             : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "cc", "memory");
+        else
+            __asm__ volatile("1:\n\t"
+                             "ldp x3, x4, [%[in]]\n\t"
+                             "ldp x5, x6, [%[in], #16]\n\t"
+                             "ldp x7, x8, [%[in], #32]\n\t"
+                             "ldp x9, x10, [%[in], #48]\n\t"
+                             "stp x3, x4, [%[out]]\n\t"
+                             "stp x5, x6, [%[out], #16]\n\t"
+                             "stp x7, x8, [%[out], #32]\n\t"
+                             "stp x9, x10, [%[out], #48]\n\t"
+                             "ldp x3, x4, [%[in], #64]\n\t"
+                             "ldp x5, x6, [%[in], #80]\n\t"
+                             "ldp x7, x8, [%[in], #96]\n\t"
+                             "ldp x9, x10, [%[in], #112]\n\t"
+                             "stp x3, x4, [%[out], #64]\n\t"
+                             "stp x5, x6, [%[out], #80]\n\t"
+                             "stp x7, x8, [%[out], #96]\n\t"
+                             "stp x9, x10, [%[out], #112]\n\t"
+                             "add %[in], %[in], #128\n\t"
+                             "add %[out], %[out], #128\n\t"
+                             "subs %[blocks], %[blocks], #1\n\t"
+                             "b.ne 1b"
+                             : [out] "+&r"(out), [in] "+&r"(in), [blocks] "+&r"(blocks)
+                             :
+                             : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "cc", "memory");
+#endif
+    }
+    count &= 127;
+    if (backwards)
+        while (count--)
+            *(volatile unsigned char *)--out = *(const volatile unsigned char *)--in;
+    else
+        while (count--)
+            *(volatile unsigned char *)out++ = *(const volatile unsigned char *)in++;
+    return destination;
+}
+
+static __attribute__((always_inline)) inline void *arm64_set(void *destination, unsigned char value,
+                                                             size_t count)
+{
+    unsigned char *out = destination;
+    uint64_t repeated = (uint64_t)value * UINT64_C(0x0101010101010101);
+    size_t blocks = count / 128;
+    if (blocks)
+    {
+#if defined(MEMORY_TEST_ARM64)
+        typedef uint64_t unaligned_word __attribute__((__may_alias__, __aligned__(1)));
+        do
+        {
+            for (unsigned i = 0; i < 16; ++i)
+                ((volatile unaligned_word *)out)[i] = repeated;
+            out += 128;
+        } while (--blocks);
+#else
+        __asm__ volatile("1:\n\t"
+                         "stp %[fill], %[fill], [%[out], #112]\n\t"
+                         "stp %[fill], %[fill], [%[out], #96]\n\t"
+                         "stp %[fill], %[fill], [%[out], #80]\n\t"
+                         "stp %[fill], %[fill], [%[out], #64]\n\t"
+                         "stp %[fill], %[fill], [%[out], #48]\n\t"
+                         "stp %[fill], %[fill], [%[out], #32]\n\t"
+                         "stp %[fill], %[fill], [%[out], #16]\n\t"
+                         "stp %[fill], %[fill], [%[out]], #128\n\t"
+                         "subs %[blocks], %[blocks], #1\n\t"
+                         "b.ne 1b"
+                         : [out] "+&r"(out), [blocks] "+&r"(blocks)
+                         : [fill] "r"(repeated)
+                         : "cc", "memory");
+#endif
+    }
+    count &= 127;
+    while (count--)
+        *(volatile unsigned char *)out++ = value;
+    return destination;
+}
 #endif
 
 MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
 {
+#if defined(__aarch64__)
+    return arm64_set(destination, (unsigned char)value, count);
+#else
     volatile unsigned char *p = destination;
     unsigned char byte = (unsigned char)value;
 #if defined(__i386__)
@@ -32,27 +174,7 @@ MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
     count &= 3;
 #else
     memory_word repeated = (memory_word)byte * (UINTPTR_MAX / UCHAR_MAX);
-#if defined(__aarch64__)
-    if (count >= 64)
-    {
-        while ((uintptr_t)p & 15)
-        {
-            *p++ = byte;
-            --count;
-        }
-        memory_vector block = {repeated, repeated};
-        while (count >= 64)
-        {
-            volatile memory_vector *out = (volatile memory_vector *)p;
-            out[0] = block;
-            out[1] = block;
-            out[2] = block;
-            out[3] = block;
-            p += 64;
-            count -= 64;
-        }
-    }
-#endif
+
     while (count && ((uintptr_t)p & (sizeof(memory_word) - 1)))
     {
         *p++ = byte;
@@ -68,10 +190,14 @@ MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
     while (count--)
         *p++ = byte;
     return destination;
+#endif
 }
 
 MEMORY_PRIMITIVE void *memcpy(void *destination, const void *source, size_t count)
 {
+#if defined(__aarch64__)
+    return arm64_copy(destination, source, count, 0);
+#else
     volatile unsigned char *out = destination;
     const volatile unsigned char *in = source;
 #if defined(__i386__)
@@ -84,29 +210,7 @@ MEMORY_PRIMITIVE void *memcpy(void *destination, const void *source, size_t coun
     __asm__ volatile("cld\n\trep movsl" : "+D"(out), "+S"(in), "+c"(words) : : "cc", "memory");
     count &= 3;
 #else
-#if defined(__aarch64__)
-    if (count >= 64 && !(((uintptr_t)out ^ (uintptr_t)in) & 15))
-    {
-        while ((uintptr_t)out & 15)
-        {
-            *out++ = *in++;
-            --count;
-        }
-        while (count >= 64)
-        {
-            const memory_vector *from = (const memory_vector *)in;
-            memory_vector a = from[0], b = from[1], c = from[2], d = from[3];
-            memory_vector *to = (memory_vector *)out;
-            to[0] = a;
-            to[1] = b;
-            to[2] = c;
-            to[3] = d;
-            out += 64;
-            in += 64;
-            count -= 64;
-        }
-    }
-#endif
+
     if (!(((uintptr_t)out ^ (uintptr_t)in) & (sizeof(memory_word) - 1)))
     {
         while (count && ((uintptr_t)out & (sizeof(memory_word) - 1)))
@@ -126,10 +230,17 @@ MEMORY_PRIMITIVE void *memcpy(void *destination, const void *source, size_t coun
     while (count--)
         *out++ = *in++;
     return destination;
+#endif
 }
 
 MEMORY_PRIMITIVE void *memmove(void *to, const void *from, size_t n)
 {
+#if defined(__aarch64__)
+    if (!n || to == from)
+        return to;
+    return arm64_copy(to, from, n,
+                      (uintptr_t)to > (uintptr_t)from && (uintptr_t)to - (uintptr_t)from < n);
+#else
     if (!n || to == from)
         return to;
     uintptr_t destination = (uintptr_t)to, source = (uintptr_t)from;
@@ -147,4 +258,5 @@ MEMORY_PRIMITIVE void *memmove(void *to, const void *from, size_t n)
             d[n] = s[n];
         }
     return to;
+#endif
 }

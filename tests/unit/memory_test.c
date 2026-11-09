@@ -151,8 +151,11 @@ static void check_guarded(void)
     assert(lume_memory_copy(out.allocation, in.allocation, 0) == out.allocation);
     assert(lume_memory_set(out.allocation, 0, 0) == out.allocation);
     assert(lume_memory_move(out.allocation, in.allocation, 0) == out.allocation);
-    for (size_t count = 0; count <= 65; ++count)
+    for (size_t count = 0; count <= 513; ++count)
     {
+        assert(lume_memory_copy(out.data, in.data, count) == out.data);
+        for (size_t i = 0; i < count; ++i)
+            assert(out.data[i] == pattern(i));
         unsigned char *end = out.data + out.page - count;
         const unsigned char *start = in.data + in.page - count;
         assert(lume_memory_copy(end, start, count) == end);
@@ -188,6 +191,26 @@ static void check_guarded(void)
 
 int main(void)
 {
+#if defined(MEMORY_TEST_NATIVE)
+    static const size_t sizes[] = {0,  1,  2,   3,   7,   8,   15,  16,  31,  32,  63,
+                                   64, 65, 127, 128, 129, 255, 256, 257, 511, 512, 513};
+    static const unsigned offsets[] = {0, 1, 7, 8, 15};
+    static const int values[] = {0, -1, 0x123};
+    for (unsigned n = 0; n < sizeof(sizes) / sizeof(sizes[0]); ++n)
+        for (unsigned in = 0; in < 16; ++in)
+        {
+            for (unsigned offset = 0; offset < sizeof(offsets) / sizeof(offsets[0]); ++offset)
+            {
+                unsigned out = (in + offsets[offset]) & 15;
+                check_copy(sizes[n], in, out);
+                check_move(sizes[n], in, out);
+            }
+            for (unsigned value = 0; value < sizeof(values) / sizeof(values[0]); ++value)
+                check_set(sizes[n], in, values[value]);
+        }
+    check_guarded();
+    printf("PASS_NATIVE_MEMORY %u cases cover bounds, alignment and overlap\n", cases);
+#else
     static const size_t large[] = {4095, 4096, 4097, 65535, 65536};
     static const int values[] = {0, 1, -1, 0x55, 0x100, 0x123};
     for (size_t count = 0; count <= 257; ++count)
@@ -218,5 +241,6 @@ int main(void)
     printf(
         "PASS_MEMORY %u cases cover alignment, overlap, byte values, bounds and protected pages\n",
         cases);
+#endif
     return 0;
 }
