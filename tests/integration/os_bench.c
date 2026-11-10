@@ -433,7 +433,8 @@ static int benchmark(int argc, char **argv)
             return 2;
     if (strcmp(selection, "all") && strcmp(selection, "cpu") && strcmp(selection, "memory") &&
         strcmp(selection, "syscall") && strcmp(selection, "pipe") &&
-        strcmp(selection, "threads_cpu") && strcmp(selection, "threads_getpid"))
+        strcmp(selection, "threads_cpu") && strcmp(selection, "threads_getpid") &&
+        strcmp(selection, "memcpy") && strcmp(selection, "memset") && strcmp(selection, "pointer"))
         return 2;
     struct timespec precision;
     if (clock_getres(CLOCK_MONOTONIC, &precision))
@@ -449,12 +450,12 @@ static int benchmark(int argc, char **argv)
     fflush(stdout);
     if (selected("cpu"))
         cpu_case();
-    if (selected("memory"))
-    {
+    if (selected("memory") || selected("memcpy"))
         memory_case(0);
+    if (selected("memory") || selected("memset"))
         memory_case(1);
+    if (selected("memory") || selected("pointer"))
         pointer_case();
-    }
     if (selected("syscall"))
         syscall_case();
     if (selected("pipe"))

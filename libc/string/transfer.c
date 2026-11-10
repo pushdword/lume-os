@@ -18,6 +18,40 @@ extern void *__memset_aarch64(void *, int, size_t);
 #define MEMORY_PRIMITIVE
 #endif
 
+#if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+#define ARM64_STREAM_MIN (2u * 1024u * 1024u)
+
+/* Large nonzero fills request non-temporal stores of complete cache lines.
+ * Prefixes and tails use ordinary stores within the requested range. */
+static MEMORY_PRIMITIVE void *arm64_stream_set(void *destination, int value, size_t count)
+{
+    unsigned char *out = destination;
+    while ((uintptr_t)out & 63)
+    {
+        *(volatile unsigned char *)out++ = (unsigned char)value;
+        --count;
+    }
+    size_t blocks = count / 128;
+    count %= 128;
+    if (blocks)
+        __asm__ volatile("dup v0.16b, %w[value]\n\t"
+                         "1:\n\t"
+                         "stnp q0, q0, [%[out]]\n\t"
+                         "stnp q0, q0, [%[out], #32]\n\t"
+                         "stnp q0, q0, [%[out], #64]\n\t"
+                         "stnp q0, q0, [%[out], #96]\n\t"
+                         "add %[out], %[out], #128\n\t"
+                         "subs %[blocks], %[blocks], #1\n\t"
+                         "b.ne 1b"
+                         : [out] "+&r"(out), [blocks] "+&r"(blocks)
+                         : [value] "r"(value)
+                         : "v0", "cc", "memory");
+    while (count--)
+        *(volatile unsigned char *)out++ = (unsigned char)value;
+    return destination;
+}
+#endif
+
 #if defined(__aarch64__) && !defined(LUME_AARCH64_STRING_ASM)
 typedef uint64_t arm64_unaligned_word __attribute__((__may_alias__, __aligned__(1)));
 
@@ -212,6 +246,8 @@ static __attribute__((always_inline)) inline void *arm64_set(void *destination, 
 MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
 {
 #if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+    if (count >= ARM64_STREAM_MIN && (unsigned char)value)
+        return arm64_stream_set(destination, value, count);
     return __memset_aarch64(destination, value, count);
 #elif defined(__aarch64__)
     return arm64_set(destination, (unsigned char)value, count);
