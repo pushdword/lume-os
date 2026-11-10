@@ -10,6 +10,9 @@
 #include "jobs.h"
 static int background_command;
 #endif
+#if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
+#include "boot_menu.h"
+#endif
 extern char **environ;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 extern void lume_native_reap_orphans(void);
@@ -706,6 +709,24 @@ static int dispatch(int argc, char **argv)
         app_puts("\n");
     }
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
+    else if (app_equal(cmd, "boot"))
+    {
+        if (app_equal(arg, "linux"))
+        {
+            if (shell_boot_linux())
+                return 1;
+            last_status = 1;
+        }
+        else if (app_equal(arg, "lume"))
+            return 1;
+        else
+        {
+            app_puts("usage: boot lume|linux\n");
+            last_status = 2;
+        }
+    }
+#endif
     else if (app_equal(cmd, "reboot"))
     {
         last_status = 0;
@@ -757,7 +778,9 @@ int app_main(unsigned initial_argc, char **initial_argv)
         snprintf(terminal_type, sizeof terminal_type, "%s", value("TERM"));
         profile();
 #if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
-        if (lume_syscall(LUME_PID, 0, 0, 0) == 0)
+        if (shell_boot_menu())
+            return 0;
+        if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
         {
             struct lume_boot_request boot = {.version = LUME_IO_VERSION};
             if (app_boot(LUME_BOOT_INFO, &boot) == 0 && (boot.total & LUME_BOOT_STATE_TRIAL))

@@ -314,3 +314,10 @@ $(OUT):
 $(OUT)/configuration: FORCE | $(OUT)
 	$(file >$@.tmp,$(CC) | $(CPPFLAGS) | $(CFLAGS) | $(SDK) | $(SHELL_ELF) | $(SSH_CRYPTO))
 	cmp -s "$@.tmp" "$@" || cp "$@.tmp" "$@"
+
+.PHONY: check-boot-menu
+check-boot-menu: $(OUT)/tests/boot-menu$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/boot-menu$(HOSTEXE): tests/unit/boot_menu_test.c apps/shell/boot_menu.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" "$<" -o "$@"

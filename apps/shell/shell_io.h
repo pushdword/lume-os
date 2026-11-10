@@ -121,6 +121,10 @@ static int shell_restore(const int saved[3], unsigned close_saved)
 
 static int shell_builtin(const char *name)
 {
+#if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
+    if (!strcmp(name, "boot"))
+        return 1;
+#endif
 #ifdef LUME_SHELL_JOB_CONTROL
     if (!strcmp(name, "jobs") || !strcmp(name, "fg") || !strcmp(name, "bg"))
         return 1;

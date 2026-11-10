@@ -261,6 +261,13 @@ MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
         --count;
     }
     uint32_t repeated = (uint32_t)byte * UINT32_C(0x01010101);
+    if (count >= 16)
+        while ((uintptr_t)p & 15)
+        {
+            *(volatile memory_word *)p = repeated;
+            p += 4;
+            count -= 4;
+        }
     size_t words = count / 4;
     __asm__ volatile("cld\n\trep stosl" : "+D"(p), "+c"(words) : "a"(repeated) : "cc", "memory");
     count &= 3;
