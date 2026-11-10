@@ -265,10 +265,16 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             }
         }
     const uint32_t sectors = mib * 1024 * 1024 / 512, reserved = 32;
+    uint32_t sectors_per_cluster = 1;
+    /* Larger data volumes use larger clusters to preserve multi-sector I/O. */
+    while (mbr && sectors_per_cluster < 128 && sectors / (sectors_per_cluster * 2) >= 131072)
+        sectors_per_cluster *= 2;
+    const uint32_t cluster_bytes = sectors_per_cluster * 512;
     /* A FAT sector holds 128 entries. The two FAT copies also consume sectors. */
-    const uint32_t divisor = 128 + 2;
-    const uint32_t fatsectors = (sectors - reserved + 2 + divisor - 1) / divisor;
-    const uint32_t clusters = sectors - reserved - 2 * fatsectors;
+    const uint32_t divisor = 128 * sectors_per_cluster + 2;
+    const uint32_t fatsectors =
+        (sectors - reserved + 2 * sectors_per_cluster + divisor - 1) / divisor;
+    const uint32_t clusters = (sectors - reserved - 2 * fatsectors) / sectors_per_cluster;
     check(clusters >= 65525, "FAT32 cluster count");
     uint32_t first = reserved + 2 * fatsectors, cursor = 2;
     Bytes volume(size_t(sectors) * 512), table(size_t(fatsectors) * 512);
@@ -282,7 +288,8 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
             if (nodes[child].long_name)
                 slots += (nodes[child].name.size() + 12) / 13;
         uint32_t size = n.directory ? uint32_t(slots * 32) : n.size,
-                 count = std::max(1u, (size + 511) / 512);
+                 count = uint32_t(
+                     std::max(uint64_t(1), (uint64_t(size) + cluster_bytes - 1) / cluster_bytes));
         check(uint64_t(cursor) + count <= uint64_t(clusters) + 2, "Root volume is full");
         n.cluster = cursor;
         for (uint32_t j = 0; j < count; j++)
@@ -292,7 +299,8 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
         {
             Bytes b = read(n.source);
             check(b.size() == n.size, "Root file changed during image construction");
-            std::copy(b.begin(), b.end(), volume.begin() + size_t(first + n.cluster - 2) * 512);
+            std::copy(b.begin(), b.end(),
+                      volume.begin() + size_t(first + (n.cluster - 2) * sectors_per_cluster) * 512);
         }
     }
     auto entry = [&](size_t at, const std::string &sn, uint32_t cluster, uint32_t size, bool dir)
@@ -310,7 +318,7 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
         if (nodes[i].directory)
         {
             auto &n = nodes[i];
-            size_t at = size_t(first + n.cluster - 2) * 512;
+            size_t at = size_t(first + (n.cluster - 2) * sectors_per_cluster) * 512;
             if (i)
             {
                 entry(at, shortname("."), n.cluster, 0, true);
@@ -365,7 +373,7 @@ static void fat(const fs::path &root, const fs::path &output, bool mbr, uint32_t
     const unsigned char jump[] = {0xeb, 0x58, 0x90, 'L', 'U', 'M', 'E', 'A', 'P', 'P', ' '};
     std::copy(std::begin(jump), std::end(jump), volume.begin());
     put(volume, 11, 512, 2);
-    volume[13] = 1;
+    volume[13] = uint8_t(sectors_per_cluster);
     put(volume, 14, reserved, 2);
     volume[16] = 2;
     volume[21] = 0xf8;

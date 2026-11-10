@@ -2,7 +2,7 @@ GTK_DIALOG_OUT ?= $(OUT)/gtk-dialog
 GTK_DIALOG_SHELL_QUOTE = '$(subst ','"'"',$(1))'
 .PHONY: gtk-file-dialog
 
-ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64 amd64,$(ARCH)),)
 GTK_DIALOG_BASE_NAMES := libresolver.a libintl.a libpcre2-8.a libffi.a libcharset.a libiconv.a \
     libglib-charset.a libglib-2.0.a libgobject-2.0.a libgthread-2.0.a \
     libgmodule-2.0.a libgio-xdgmime.a libgio-2.0.a

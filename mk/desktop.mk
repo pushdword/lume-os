@@ -29,6 +29,9 @@ DESKTOP_FLAGS_f052cd5f4bce := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CF
 DESKTOP_FLAGS_f9c6d499d30d := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) '--sysroot=$(SYSROOT)' '-O2' '-std=gnu11' '-fno-pic' '-fno-pie' '-fno-stack-protector' '-D_POSIX_THREAD_SAFE_FUNCTIONS=200809L' '-D_POSIX_MONOTONIC_CLOCK=200809L' '-ffunction-sections' '-fdata-sections' '-D_DEFAULT_SOURCE' '-D_POSIX_C_SOURCE=200809L' '-Iinclude/posix' '-Iinclude/lume' '-Iarch/$(ARCH)/include' '-I$(KERNEL)/include/abi/native' '-I$(KERNEL)/include/uapi' '-Iports/x11/include' '-ffile-prefix-map=$(CURDIR)=lume-os' '-Iports/x11/libXfont2' '-Ivendor/libXfont2' '-Ivendor/libXfont2/include' '-Ivendor/libXfont2/src' '-Ivendor/libXfont2/include' '-Ivendor/libXfont2/include/X11/fonts' '-Ivendor/freetype/include' '-Ivendor/zlib' '-DHAVE_CONFIG_H'
 
 DESKTOP_OUT ?= $(OUT)/desktop
+$(DESKTOP_OUT)/programs/obj/common/%.c.o: %.c $(SYSROOT)/include/picolibc.h | headers
+	mkdir -p "$(@D)"
+	$(CC) $(DESKTOP_FLAGS_3a4f254076ed) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 DESKTOP_AR ?= "$(TOOLBIN)llvm-ar$(HOSTEXE)"
 DESKTOP_MEMORY_OBJECTS :=
 ifneq ($(filter aarch64 i686,$(ARCH)),)
@@ -38,6 +41,7 @@ ifeq ($(ARCH),aarch64)
 DESKTOP_MEMORY_FLAGS := -DLUME_AARCH64_STRING_ASM=1
 DESKTOP_MEMORY_OBJECTS += $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_STRING_SOURCES)))
 endif
+DESKTOP_MEMORY_OBJECTS += $(DESKTOP_OUT)/programs/obj/common/libc/posix/mman.c.o
 $(DESKTOP_OUT)/programs/obj/common/libc/string/transfer.c.o: libc/string/transfer.c mk/desktop.mk | headers
 	mkdir -p "$(@D)"
 	$(CC) $(ARCH_CPPFLAGS) $(DESKTOP_MEMORY_FLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -ffunction-sections -fdata-sections -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
@@ -5363,7 +5367,7 @@ $(DESKTOP_OUT)/server/obj/xkb/xkmread.o: vendor/xorg-server/xkb/xkmread.c $(SYSR
 	mkdir -p "$(@D)"
 	$(CC) $(DESKTOP_FLAGS_213a99f08f54) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 
-ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64 amd64,$(ARCH)),)
 $(DESKTOP_LIBCXX_FILESYSTEM_OBJECTS): $(DESKTOP_OUT)/cxx/obj/%.cpp.o: vendor/libcxx/src/%.cpp $(SYSROOT)/include/picolibc.h ports/libcxx/__config_site $(DESKTOP_OUT)/flags/f052cd5f4bce | headers
 	mkdir -p "$(@D)"
 	$(CC) $(DESKTOP_FLAGS_f052cd5f4bce) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"

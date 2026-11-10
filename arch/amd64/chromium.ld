@@ -5,7 +5,7 @@ PHDRS { code PT_LOAD FLAGS(5); ro PT_LOAD FLAGS(4); data PT_LOAD FLAGS(6); tls P
 SECTIONS
 {
     . = 0x4000000000;
-    .text : { __lume_text_start = .; KEEP(*(.text.start)) *(.text .text.* .ltext .ltext.*) __lume_text_end = .; } :code
+    .text : { __lume_text_start = .; KEEP(*(.text.start)) *(.text .text.* .ltext .ltext.*) KEEP(*(malloc_hook malloc_hook.*)) __lume_text_end = .; } :code
     . = ALIGN(4096);
     .rodata : { *(.rodata .rodata.* .lrodata .lrodata.*) } :ro
     . = ALIGN(4096);

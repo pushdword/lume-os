@@ -81,7 +81,9 @@
 /* #undef HAVE_MMAP */
 
 /* Define to 1 if you have the <mmintrin.h> header file. */
-/* #undef HAVE_MMINTRIN_H */
+#if defined(LUME_ARCH_AMD64)
+#define HAVE_MMINTRIN_H 1
+#endif
 
 /* Define to 1 if you have the <paths.h> header file. */
 #define HAVE_PATHS_H 1

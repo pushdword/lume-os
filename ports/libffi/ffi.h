@@ -50,7 +50,9 @@ extern "C" {
 #endif
 
 /* Specify which architecture libffi is configured for. */
-#ifndef AARCH64
+#if defined(__x86_64__)
+#define X86_64
+#elif defined(__aarch64__)
 #define AARCH64
 #endif
 

@@ -49,6 +49,7 @@ static struct lume_graphics_request framebuffer_info;
 static uint32_t *pixels;
 static int input_fd = -1;
 static int gpu_fd = -1;
+static unsigned gpu_copy_area = 65536;
 static DeviceIntPtr keyboard, pointer_device;
 static DamagePtr damage;
 static CloseScreenProcPtr close_screen;
@@ -126,7 +127,7 @@ static void copy_screen_window(WindowPtr window, DDXPointRec previous, RegionPtr
         rectangles[i] = (struct lume_gpu_rect){sx, sy, box->x1, box->y1, width, height};
         area += (uint64_t)width * height;
     }
-    if (!supported || area < (uint64_t)count * 65536)
+    if (!supported || area < (uint64_t)count * gpu_copy_area)
     {
         RegionUninit(&destination);
         copy_window(window, previous, source);
@@ -286,7 +287,9 @@ static Bool screen_init(ScreenPtr screen, int argc, char **argv)
         if (!result)
         {
             gpu_fd = binding.fd;
-            ErrorF("GPU: V3D 7.1 rectangle copies enabled\n");
+            gpu_copy_area = gpu_info.backend == LUME_GPU_BACKEND_QEMU2D ? 4096 : 65536;
+            ErrorF("GPU: %s rectangle copies enabled\n",
+                   gpu_info.backend == LUME_GPU_BACKEND_QEMU2D ? "QEMU 2D" : "V3D 7.1");
         }
         else
             ErrorF("GPU: surface unavailable (%d)\n", result);

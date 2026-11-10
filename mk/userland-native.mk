@@ -2,6 +2,7 @@ CC := "$(TOOLBIN)clang$(HOSTEXE)" --target=$(TARGET)
 LD := "$(TOOLBIN)ld.lld$(HOSTEXE)"
 OBJCOPY := "$(TOOLBIN)llvm-objcopy$(HOSTEXE)"
 SYSROOT ?= $(SDK)/sysroot
+$(OUT)/%.elf: private .EXTRA_PREREQS := arch/$(ARCH)/user.ld $(SYSROOT)/lib/libc.a
 NATIVE_KERNEL_IMAGE := $(if $(filter i686,$(ARCH)),lume-i686.bin,$(if $(filter amd64,$(ARCH)),lume-amd64.bin,lume-pi5.img))
 CMAKE ?= cmake
 PICOLIBC ?=
@@ -84,6 +85,9 @@ endif
 ifeq ($(ARCH),amd64)
 all: $(OUT)/amd64-runtime.elf
 all: $(OUT)/amd64-graphics.elf
+$(OUT)/amd64-gpu.elf: $(OUT)/obj/tests/integration/amd64_gpu.c.o $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/amd64_gpu.c.o: | headers
 $(OUT)/amd64-graphics.elf: $(OUT)/obj/tests/integration/amd64_graphics.c.o $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
 $(OUT)/obj/tests/integration/amd64_graphics.c.o: | headers
@@ -185,7 +189,7 @@ ifneq ($(ARCH),amd64)
 	cp "$(KERNEL)/$(KERNEL_OUT)/modules/bcm2712-hdmi.lkm" "$(OUT)/root/lib/modules/hdmi.lkm"
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
-	$(foreach name,vblk vrng vga ps2 xhci $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
+	$(foreach name,vblk vrng vga ps2 xhci lume2d $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
 ifeq ($(PROFILE),recovery)
 	cp root/profiles/q35-recovery/etc/modules "$(OUT)/root/etc/modules"
