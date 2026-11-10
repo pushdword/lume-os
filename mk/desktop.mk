@@ -34,9 +34,13 @@ DESKTOP_MEMORY_OBJECTS :=
 ifneq ($(filter aarch64 i686,$(ARCH)),)
 DESKTOP_MEMORY_OBJECTS := $(DESKTOP_OUT)/programs/obj/common/libc/string/transfer.c.o
 endif
+ifeq ($(ARCH),aarch64)
+DESKTOP_MEMORY_FLAGS := -DLUME_AARCH64_STRING_ASM=1
+DESKTOP_MEMORY_OBJECTS += $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_STRING_SOURCES)))
+endif
 $(DESKTOP_OUT)/programs/obj/common/libc/string/transfer.c.o: libc/string/transfer.c mk/desktop.mk | headers
 	mkdir -p "$(@D)"
-	$(CC) $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -ffunction-sections -fdata-sections -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+	$(CC) $(ARCH_CPPFLAGS) $(DESKTOP_MEMORY_FLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-pic -fno-pie -fno-stack-protector -ffunction-sections -fdata-sections -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 -include $(DESKTOP_OUT)/programs/obj/common/libc/string/transfer.c.o.d
 .PHONY: desktop desktop-install desktop-resources
 desktop: $(DESKTOP_OUT)/programs/Xlume.elf $(DESKTOP_OUT)/programs/xkbcomp.elf $(DESKTOP_OUT)/programs/icewm.elf $(DESKTOP_OUT)/programs/xterm.elf $(DESKTOP_OUT)/programs/startx.elf

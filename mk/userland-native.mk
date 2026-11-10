@@ -32,6 +32,11 @@ ARM_COMMON_SOURCES += libc/posix/file_lock.c libc/posix/statvfs.c
 ARM_COMMON_SOURCES += libc/posix/tty.c
 ifeq ($(ARCH),aarch64)
 ARM_COMMON_SOURCES += libc/posix/ucontext.c libc/runtime/ucontext.S
+CPPFLAGS += -DLUME_AARCH64_STRING_ASM=1
+ARM_STRING_SOURCES := vendor/arm-optimized-routines/string/aarch64/memcpy-advsimd.S vendor/arm-optimized-routines/string/aarch64/memset.S
+ARM_COMMON_SOURCES += $(ARM_STRING_SOURCES)
+$(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_STRING_SOURCES))): vendor/arm-optimized-routines/string/aarch64/asmdefs.h
+$(addprefix $(OUT)/,$(addsuffix .elf,netd net ping nc update fetch device module tests/module-probe tests/module-net-probe)): vendor/arm-optimized-routines/string/aarch64/asmdefs.h
 endif
 ifeq ($(ARCH),i686)
 ARM_COMMON_SOURCES += arch/i686/builtins.c
@@ -114,19 +119,19 @@ $(OUT)/busybox.elf: $(BB_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
 $(OUT)/htop.elf: $(HTOP_OBJECTS) $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(ARM_COMMON_OBJECTS))
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
-$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
+$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
+$(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/net/%.c apps/net/network_tool.h include/internal/lume/app_support.h arch/$(ARCH)/start_bare.S libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/ping.elf $(OUT)/nc.elf: $(OUT)/%.elf: apps/net/%.c apps/net/network_tool.h include/internal/lume/app_support.h arch/$(ARCH)/start_bare.S libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/update.elf: arch/$(ARCH)/start_bare.S apps/update/update.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/update.elf: arch/$(ARCH)/start_bare.S apps/update/update.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/fetch.elf: arch/$(ARCH)/start_bare.S apps/update/fetch.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/fetch.elf: arch/$(ARCH)/start_bare.S apps/update/fetch.c libc/crypto/sha256.c libc/crypto/sha256.h libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 NATIVE_SDK ?=
@@ -169,6 +174,10 @@ image: all $(OUT)/image-tool$(HOSTEXE)
 	rm -rf -- "$(OUT)/root"
 	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/lib/firmware" "$(OUT)/root/lib/modules" "$(OUT)/root/boot" "$(OUT)/root/etc"
 	cp "$(KERNEL)/$(KERNEL_OUT)/$(NATIVE_KERNEL_IMAGE)" "$(OUT)/root/boot/kernel.img"
+ifeq ($(ARCH),aarch64)
+	mkdir -p "$(OUT)/root/usr/share/licenses/arm-optimized-routines"
+	cp root/usr/share/licenses/arm-optimized-routines/LICENSE "$(OUT)/root/usr/share/licenses/arm-optimized-routines/LICENSE"
+endif
 ifneq ($(ARCH),amd64)
 	cp assets/firmware/cyw43455/* "$(OUT)/root/lib/firmware/"
 	$(foreach name,gic timer watchdog dma uart sd usb display entropy wifi gem,cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
@@ -277,16 +286,16 @@ $(OUT)/tests/update$(HOSTEXE): tests/unit/update_test.c apps/update/update.c lib
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix -I"$(KERNEL)/include/abi/native" tests/unit/update_test.c libc/crypto/sha256.c -o "$@"
 -include $(addsuffix .d,$(ARM_COMMON_OBJECTS) $(BB_OBJECTS) $(VI_OBJECTS) $(HTOP_OBJECTS) $(ARM_APP_OBJECTS))
 
-$(OUT)/device.elf: arch/$(ARCH)/start_bare.S apps/device/device.c libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/device.elf: arch/$(ARCH)/start_bare.S apps/device/device.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/module.elf: arch/$(ARCH)/start_bare.S apps/module/module.c libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/module.elf: arch/$(ARCH)/start_bare.S apps/module/module.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/tests/module-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_probe.c libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/tests/module-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_probe.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
-$(OUT)/tests/module-net-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_net_probe.c libc/string/memory.c libc/string/transfer.c $(I686_BUILTINS) | headers
+$(OUT)/tests/module-net-probe.elf: arch/$(ARCH)/start_bare.S tests/integration/module_net_probe.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 

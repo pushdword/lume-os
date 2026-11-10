@@ -4,6 +4,12 @@
 
 typedef uintptr_t memory_word __attribute__((__may_alias__));
 
+#if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+extern void *__memcpy_aarch64_simd(void *, const void *, size_t);
+extern void *__memmove_aarch64_simd(void *, const void *, size_t);
+extern void *__memset_aarch64(void *, int, size_t);
+#endif
+
 #if defined(__clang__)
 #define MEMORY_PRIMITIVE __attribute__((no_builtin("memcpy", "memset", "memmove")))
 #elif defined(__GNUC__)
@@ -12,7 +18,7 @@ typedef uintptr_t memory_word __attribute__((__may_alias__));
 #define MEMORY_PRIMITIVE
 #endif
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) && !defined(LUME_AARCH64_STRING_ASM)
 typedef uint64_t arm64_unaligned_word __attribute__((__may_alias__, __aligned__(1)));
 
 static __attribute__((always_inline)) inline uint64_t arm64_load_word(const void *address)
@@ -205,7 +211,9 @@ static __attribute__((always_inline)) inline void *arm64_set(void *destination, 
 
 MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
 {
-#if defined(__aarch64__)
+#if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+    return __memset_aarch64(destination, value, count);
+#elif defined(__aarch64__)
     return arm64_set(destination, (unsigned char)value, count);
 #else
     volatile unsigned char *p = destination;
@@ -243,7 +251,9 @@ MEMORY_PRIMITIVE void *memset(void *destination, int value, size_t count)
 
 MEMORY_PRIMITIVE void *memcpy(void *destination, const void *source, size_t count)
 {
-#if defined(__aarch64__)
+#if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+    return __memcpy_aarch64_simd(destination, source, count);
+#elif defined(__aarch64__)
     return arm64_copy(destination, source, count, 0);
 #else
     volatile unsigned char *out = destination;
@@ -283,7 +293,9 @@ MEMORY_PRIMITIVE void *memcpy(void *destination, const void *source, size_t coun
 
 MEMORY_PRIMITIVE void *memmove(void *to, const void *from, size_t n)
 {
-#if defined(__aarch64__)
+#if defined(__aarch64__) && defined(LUME_AARCH64_STRING_ASM)
+    return __memmove_aarch64_simd(to, from, n);
+#elif defined(__aarch64__)
     if (!n || to == from)
         return to;
     return arm64_copy(to, from, n,
