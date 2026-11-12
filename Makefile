@@ -208,7 +208,7 @@ endif
 	"$(OUT)/image-tool$(HOSTEXE)" disk "$(OUT)/root" "$(OUT)/lume.img" "$(IMAGE_MIB)"
 endif
 headers:
-	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) OUT="$(KERNEL_OUT)" headers
+	$(MAKE) -C "$(KERNEL)" ARCH=$(ARCH) OUT="$(KERNEL_OUT)" user-headers
 .PHONY: check-memory
 check-memory: $(OUT)/tests/memory$(HOSTEXE)
 	env "$<"

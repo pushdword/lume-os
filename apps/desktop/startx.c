@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include "lume/syscall_native.h"
 #include "lume/abi.h"
@@ -19,6 +20,23 @@
 
 static volatile sig_atomic_t stopping;
 static volatile sig_atomic_t manager_ready;
+
+static pid_t synchronize_clock(void)
+{
+    struct timespec utc;
+    if (!clock_gettime(CLOCK_REALTIME, &utc))
+        return -1;
+    pid_t child = fork();
+    if (!child)
+    {
+        setpgid(0, 0);
+        execlp("clock", "clock", "sync", (char *)NULL);
+        _exit(127);
+    }
+    if (child > 0)
+        setpgid(child, child);
+    return child;
+}
 
 static const char *server_path(void)
 {
@@ -223,7 +241,7 @@ static int ready(pid_t *server, pid_t *manager, pid_t *terminal, unsigned attemp
     {
         if (exited(server, NULL))
             break;
-        if (manager && (exited(manager, NULL) || exited(terminal, NULL)))
+        if (manager && (exited(manager, NULL) || (terminal && exited(terminal, NULL))))
             break;
         if (exited(&probe, &status))
         {
@@ -266,7 +284,7 @@ int main(int argc, char **argv)
         return 1;
     }
     char cookie_path[128] = "";
-    pid_t server = -1, manager = -1, terminal = -1;
+    pid_t server = -1, manager = -1, terminal = -1, clock = -1;
     int result = 1;
     signal(SIGINT, interrupted);
     signal(SIGTERM, interrupted);
@@ -290,6 +308,7 @@ int main(int argc, char **argv)
     char *server_args[] = {"Xlume", ":0",        "-nolock", "-noreset",
                            "-auth", cookie_path, "-fp",     "/usr/share/fonts/misc,built-ins",
                            "-s",    "0",         NULL};
+    clock = synchronize_clock();
     puts("Starting X11 session...");
     const char *selected_server = server_path();
     server = launch(selected_server, server_args, 1);
@@ -323,10 +342,11 @@ int main(int argc, char **argv)
     manager = launch(manager_path, xfce ? xfce_args : xfwm ? xfwm_args : manager_args, 0);
     char *terminal_args[] = {"xterm",       "-title", "Lume terminal", "-fn", "9x15", "-geometry",
                              "72x24+40+40", "-e",     "/bin/sh",       NULL};
-    terminal = launch("/usr/bin/xterm", terminal_args, 0);
-    if (manager < 0 || terminal < 0)
+    if (!xfce)
+        terminal = launch("/usr/bin/xterm", terminal_args, 0);
+    if (manager < 0 || (!xfce && terminal < 0))
         goto cleanup;
-    if (ready(&server, &manager, &terminal, xfce ? 6000 : xfwm ? 1800 : 600))
+    if (ready(&server, &manager, xfce ? NULL : &terminal, xfce ? 6000 : xfwm ? 1800 : 600))
     {
         fputs("startx: desktop did not become ready\n", stderr);
         goto cleanup;
@@ -334,6 +354,7 @@ int main(int argc, char **argv)
     puts("X11 session ready");
     while (!stopping)
     {
+        exited(&clock, NULL);
         if (exited(&server, NULL))
         {
             fputs("startx: X11 server exited\n", stderr);
@@ -351,6 +372,7 @@ int main(int argc, char **argv)
         poll(NULL, 0, 100);
     }
 cleanup:
+    terminate(&clock);
     terminate(&server);
     terminate(&manager);
     terminate(&terminal);

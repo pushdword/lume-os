@@ -162,7 +162,7 @@ int main(void)
     signal(SIGINT, interrupted);
     signal(SIGTERM, interrupted);
     signal(SIGHUP, interrupted);
-    pid_t bus = -1, daemon = -1, session = -1;
+    pid_t bus = -1, daemon = -1, session = -1, terminal = -1;
     int result = 1;
     const char *directories[] = {"/data/var", "/data/var/lib", "/data/var/lib/dbus"};
     for (unsigned i = 0; i < sizeof(directories) / sizeof(directories[0]); ++i)
@@ -199,8 +199,15 @@ int main(void)
     session = launch("/usr/bin/xfce4-session", session_arguments);
     if (session < 0)
         goto cleanup;
+    char *terminal_arguments[] = {"xterm",   "-title",    "Lume terminal", "-fn",
+                                  "9x15",    "-geometry", "72x24+40+40",   "-e",
+                                  "/bin/sh", NULL};
+    terminal = launch("/usr/bin/xterm", terminal_arguments);
+    if (terminal < 0)
+        goto cleanup;
     while (!stopping)
     {
+        exited(&terminal, NULL);
         int status = 0;
         if (exited(&session, &status))
         {
@@ -220,6 +227,7 @@ int main(void)
         poll(NULL, 0, 100);
     }
 cleanup:
+    terminate(&terminal);
     terminate(&session);
     terminate(&daemon);
     terminate(&bus);

@@ -98,6 +98,25 @@ bool MemoryMappedFile::MapFileRegionToMemory(const MemoryMappedFile::Region &reg
     case READ_WRITE_EXTEND:
         prot |= PROT_READ | PROT_WRITE;
 
+#if BUILDFLAG(IS_LUME)
+        // Check backing support before allocating storage for a shared view.
+        {
+            void *probe = mmap(nullptr, map_size, prot, flags, file_.GetPlatformFile(), map_start);
+            if (probe == MAP_FAILED)
+            {
+                if (errno == ENOTSUP || errno == EOPNOTSUPP)
+                {
+                    DPLOG(ERROR) << "mmap " << file_.GetPlatformFile();
+                    return false;
+                }
+            }
+            else if (munmap(probe, map_size))
+            {
+                DPLOG(ERROR) << "munmap " << file_.GetPlatformFile();
+                return false;
+            }
+        }
+#endif
         if (!AllocateFileRegion(&file_, region.offset, region.size))
         {
             return false;
