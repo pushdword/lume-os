@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
+#define LUME_STAT_IMPLEMENTATION 1
 #include "native_posix.h"
 #include <fd.h>
 #include <fcntl.h>

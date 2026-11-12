@@ -491,6 +491,8 @@ int pthread_create(pthread_t *out, const pthread_attr_t *a, void *(*run)(void *)
 #if !defined(LUME_PTHREAD_COMPAT32) &&                                                             \
     (defined(__aarch64__) || defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64))
     r.value = LUME_THREAD_CREATE_NATIVE64;
+#elif defined(LUME_ARCH_I686)
+    r.value = LUME_THREAD_CREATE_NATIVE32;
 #endif
     int64_t tid = lume_thread_call(LUME_THREAD_CREATE, &r);
     if (tid < 0)

@@ -1,5 +1,5 @@
 CHROMIUM_SOURCE ?=
-CHROMIUM_TARGET_CPU := $(if $(filter amd64,$(ARCH)),x64,arm64)
+CHROMIUM_TARGET_CPU := $(if $(filter amd64,$(ARCH)),x64,$(if $(filter i686,$(ARCH)),x86,arm64))
 CHROMIUM_OUT ?= $(CHROMIUM_SOURCE)/out/lume-$(CHROMIUM_TARGET_CPU)
 CHROMIUM_OVERLAY ?= $(CURDIR)/ports/chromium/overlay
 CHROMIUM_INPUTS ?= $(CURDIR)/ports/chromium/overlay.inputs
@@ -23,10 +23,15 @@ CHROMIUM_X11_INCLUDE_DIR ?= $(X11_NATIVE_OUT)/include
 CHROMIUM_X11_LICENSES ?= $(X11_NATIVE_OUT)/LICENSES.x11-native
 CHROMIUM_VISUAL_STUDIO ?= $(GYP_MSVS_OVERRIDE_PATH)
 CHROMIUM_VISUAL_STUDIO_VERSION ?= 2022
-CHROMIUM_JOBS ?= 1
+CHROMIUM_JOBS ?= 8
+CHROMIUM_FILE_DIALOG ?= $(if $(filter aarch64 amd64,$(ARCH)),1,0)
 CHROMIUM_LOCALES ?= en-US pt-PT
 CHROMIUM_QUALIFIED_LICENSES ?=
 CHROMIUM_QUALIFIED_LICENSES_SHA256 ?=
+CHROMIUM_GRAPHICS_LICENSES ?=
+CHROMIUM_GRAPHICS_LICENSES_SHA256 ?=
+CHROMIUM_NATIVE_EGL ?= $(if $(and $(strip $(MESA_OUT)),$(filter x11,$(MESA_PLATFORMS))),true,)
+CHROMIUM_GRAPHICS_LIBRARY_DIR ?= $(GRAPHICS_OUT)
 CHROMIUM_FONT_DIRECTORY := $(CURDIR)/resources/fonts/dejavu
 CHROMIUM_FONT_NAMES := DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSansMono.ttf
 CHROMIUM_FONT_INPUTS := $(addprefix $(CHROMIUM_FONT_DIRECTORY)/,$(CHROMIUM_FONT_NAMES)) $(CHROMIUM_FONT_DIRECTORY)/LICENSE
@@ -39,9 +44,11 @@ override CHROMIUM_V8_REVISION := 440c1c463e2e528c309af5067952e7b11631507f
 define chromium_lock
 set -eu; \
 test "$(OS)" = Windows_NT || { echo 'Chromium requires Windows'; exit 1; }; \
-case "$(ARCH)" in aarch64|amd64) ;; *) echo 'Chromium requires ARCH=aarch64 or ARCH=amd64'; exit 1 ;; esac; \
+case "$(ARCH)" in aarch64|amd64|i686) ;; *) echo 'Chromium requires ARCH=aarch64, ARCH=amd64 or ARCH=i686'; exit 1 ;; esac; \
 case "$(CHROMIUM_JOBS)" in ''|*[!0-9]*) echo 'CHROMIUM_JOBS must be a positive integer'; exit 1 ;; esac; \
 test "$(CHROMIUM_JOBS)" -gt 0 || { echo 'CHROMIUM_JOBS must be a positive integer'; exit 1; }; \
+case "$(CHROMIUM_FILE_DIALOG)" in 0|1) ;; *) echo 'CHROMIUM_FILE_DIALOG must be zero or one'; exit 1 ;; esac; \
+case "$(CHROMIUM_NATIVE_EGL)" in ''|true|false) ;; *) echo 'CHROMIUM_NATIVE_EGL must be true or false'; exit 1 ;; esac; \
 test -n "$(CHROMIUM_SOURCE)" || { echo 'CHROMIUM_SOURCE must name an external pinned checkout'; exit 1; }; \
 chrome_source=$$(cygpath -am "$(CHROMIUM_SOURCE)"); \
 chrome_source_real=$$(realpath "$$chrome_source"); \
@@ -51,7 +58,7 @@ test "$$(git -C "$$chrome_source" rev-parse HEAD)" = "$(CHROMIUM_REVISION)" || {
 test "$$(git -C "$$chrome_source/v8" rev-parse HEAD)" = "$(CHROMIUM_V8_REVISION)" || { echo 'V8 source revision differs'; exit 1; }; \
 chrome_lock="$$chrome_source/.lume-chromium.lock"; \
 mkdir "$$chrome_lock" || { echo 'Chromium source tree is locked'; exit 1; }; \
-trap 'rm -f -- "$$chrome_lock/normalized" "$$chrome_lock/overlay" "$$chrome_lock/args.gn" "$$chrome_lock/inputs" "$$chrome_lock/listed" "$$chrome_lock/sorted" "$$chrome_lock/unique" "$$chrome_lock/actual-raw" "$$chrome_lock/actual" "$$chrome_lock/LICENSES.chromium"; rmdir -- "$$chrome_lock"' 0; \
+trap 'rm -f -- "$$chrome_lock/normalized" "$$chrome_lock/overlay" "$$chrome_lock/args.gn" "$$chrome_lock/inputs" "$$chrome_lock/listed" "$$chrome_lock/sorted" "$$chrome_lock/unique" "$$chrome_lock/actual-raw" "$$chrome_lock/actual" "$$chrome_lock/LICENSES.chromium" "$$chrome_lock/LICENSES.graphics"; rmdir -- "$$chrome_lock"' 0; \
 trap 'exit 1' 1 2 15;
 endef
 
@@ -159,6 +166,12 @@ if test -n "$(CHROMIUM_NATIVE_CXX_EXTENSION)"; then \
         test -f "$$chrome_file" || { echo "Missing native C++ extension input: $$chrome_file"; exit 1; }; \
     done; \
 fi; \
+chrome_graphics=; \
+if test "$(CHROMIUM_NATIVE_EGL)" = true; then \
+    test -n "$(CHROMIUM_GRAPHICS_LIBRARY_DIR)" || { echo 'Native EGL requires CHROMIUM_GRAPHICS_LIBRARY_DIR'; exit 1; }; \
+    chrome_graphics=$$(cygpath -am "$(CHROMIUM_GRAPHICS_LIBRARY_DIR)"); \
+    test -f "$$chrome_graphics/liblume-gpu.a" || { echo 'Missing native graphics provider archive'; exit 1; }; \
+fi; \
 mkdir -p "$$chrome_out"; \
 { \
     cat "$(CHROMIUM_ARGS)"; \
@@ -171,6 +184,10 @@ mkdir -p "$$chrome_out"; \
     printf 'lume_native_readelf = "%s"\n' "$$(cygpath -am "$(CHROMIUM_READELF)")"; \
     printf 'lume_compiler_builtins = "%s"\n' "$$(cygpath -am "$(CHROMIUM_BUILTINS)")"; \
     printf 'lume_native_sysroot = "%s"\n' "$$chrome_sdk"; \
+    if test -n "$(CHROMIUM_NATIVE_EGL)"; then \
+        printf 'lume_native_egl = %s\n' "$(CHROMIUM_NATIVE_EGL)"; \
+        if test "$(CHROMIUM_NATIVE_EGL)" = true; then printf 'lume_graphics_library_dir = "%s"\n' "$$chrome_graphics"; fi; \
+    fi; \
     printf 'lume_native_cxx_extension = "%s"\n' "$$chrome_cxx_extension"; \
     printf 'lume_x11_library_dir = "%s"\n' "$$(cygpath -am "$(CHROMIUM_X11_LIBRARY_DIR)")"; \
     printf 'lume_x11_include_dir = "%s"\n' "$$(cygpath -am "$(CHROMIUM_X11_INCLUDE_DIR)")"; \
@@ -199,6 +216,11 @@ define chromium_build
 endef
 
 .PHONY: chromium-prepare chromium-gen chromium chromium-install
+ifeq ($(CHROMIUM_NATIVE_EGL),true)
+ifneq ($(strip $(MESA_OUT)),)
+chromium-gen chromium chromium-install: graphics-provider
+endif
+endif
 ifneq ($(filter $(X11_NATIVE_OUT),$(CHROMIUM_X11_LIBRARY_DIR)),)
 chromium-gen chromium chromium-install: X11_NATIVE_SYSROOT = $(CHROMIUM_SYSROOT)
 chromium-gen chromium chromium-install: x11-native
@@ -218,19 +240,34 @@ chromium: $(CHROMIUM_INPUTS) $(CHROMIUM_ARGS)
 	$(chromium_generate) \
 	$(chromium_build)
 
-chromium-install: $(CHROMIUM_INPUTS) $(CHROMIUM_ARGS) $(CHROMIUM_FONT_INPUTS) $(CHROMIUM_FONT_CONFIG) $(CHROMIUM_XCURSOR_LICENSE) $(CHROMIUM_QUALIFIED_LICENSES)
+chromium-install: $(CHROMIUM_INPUTS) $(CHROMIUM_ARGS) $(CHROMIUM_FONT_INPUTS) $(CHROMIUM_FONT_CONFIG) $(CHROMIUM_XCURSOR_LICENSE) $(CHROMIUM_QUALIFIED_LICENSES) $(CHROMIUM_GRAPHICS_LICENSES)
 	@test -n "$(DESTDIR)" && test "$(DESTDIR)" != / || { echo 'DESTDIR staging directory is required'; exit 1; }
 	@chrome_destination=$$(cygpath -am "$(DESTDIR)"); case "$$chrome_destination" in ''|/|?:|?:/) echo 'DESTDIR must be a staging directory'; exit 1 ;; esac
 	@$(chromium_lock) :
+ifeq ($(CHROMIUM_FILE_DIALOG),1)
 ifeq ($(findstring n,$(chromium_make_short_flags)),)
 	@MSYS2_ARG_CONV_EXCL= $(MAKE) --no-print-directory -j$(CHROMIUM_JOBS) gtk-file-dialog ARCH="$(ARCH)" OUT="$(OUT)" SYSROOT="$(CHROMIUM_SYSROOT)"
+endif
 endif
 	@$(chromium_lock) \
 	$(chromium_prepare) \
 	$(chromium_generate) \
+	chrome_native_egl=$$("$(CHROMIUM_GN)" args "$$chrome_out" --root="$$chrome_source" --list=lume_native_egl --short | tr -d '\r' | sed -n 's/^lume_native_egl = \(true\|false\)$$/\1/p'); \
+	case "$$chrome_native_egl" in true|false) ;; *) echo 'Cannot query native graphics configuration'; exit 1 ;; esac; \
+	if test "$$chrome_native_egl" = true; then \
+	    test -s "$(CHROMIUM_GRAPHICS_LICENSES)" || { echo 'Missing native graphics license notices'; exit 1; }; \
+	    chrome_graphics_sha="$(CHROMIUM_GRAPHICS_LICENSES_SHA256)"; \
+	    case "$$chrome_graphics_sha" in *[!0-9a-f]*) echo 'Invalid graphics license SHA256'; exit 1 ;; esac; \
+	    test "$${#chrome_graphics_sha}" -eq 64 || { echo 'Graphics license SHA256 is required'; exit 1; }; \
+	    cp "$(CHROMIUM_GRAPHICS_LICENSES)" "$$chrome_lock/LICENSES.graphics"; \
+	    test "$$(chrome_hash "$$chrome_lock/LICENSES.graphics")" = "$$chrome_graphics_sha" || { echo 'Graphics license notices differ'; exit 1; }; \
+	    mv -f "$$chrome_lock/LICENSES.graphics" "$$chrome_out/LICENSES.graphics"; \
+	fi; \
 	$(chromium_build) \
-	test -f "$(GTK_DIALOG_OUT)/lume-file-dialog.elf" || { echo 'Missing Chromium file dialog helper'; exit 1; }; \
-	test -f "$(GTK_DIALOG_OUT)/LICENSES.lume-file-dialog" || { echo 'Missing file dialog license notices'; exit 1; }; \
+	if test "$(CHROMIUM_FILE_DIALOG)" = 1; then \
+	    test -f "$(GTK_DIALOG_OUT)/lume-file-dialog.elf" || { echo 'Missing Chromium file dialog helper'; exit 1; }; \
+	    test -f "$(GTK_DIALOG_OUT)/LICENSES.lume-file-dialog" || { echo 'Missing file dialog license notices'; exit 1; }; \
+	fi; \
 	test -f "$(CHROMIUM_X11_LICENSES)" || { echo 'Missing X11 library license notices'; exit 1; }; \
 	if test -n "$(CHROMIUM_QUALIFIED_LICENSES)$(CHROMIUM_QUALIFIED_LICENSES_SHA256)"; then \
 	    test -n "$(CHROMIUM_QUALIFIED_LICENSES)" && test -n "$(CHROMIUM_QUALIFIED_LICENSES_SHA256)" || { echo 'Both qualified license input and SHA256 are required'; exit 1; }; \
@@ -257,9 +294,16 @@ endif
 	done; \
 	chrome_install="$(DESTDIR)/data/libexec/chromium"; \
 	mkdir -p "$$chrome_install/locales" "$$chrome_install/fonts"; \
+	if test "$$chrome_native_egl" = true; then printf 'egl=1\n'; else printf 'egl=0\n'; fi > "$$chrome_install/graphics.conf"; \
 	cp "$$chrome_out/chrome" "$$chrome_install/chromium"; \
-	cp "$(GTK_DIALOG_OUT)/lume-file-dialog.elf" "$$chrome_install/lume-file-dialog"; \
-	chmod 0755 "$$chrome_install/chromium" "$$chrome_install/lume-file-dialog"; \
+	chmod 0755 "$$chrome_install/chromium"; \
+	if test "$(CHROMIUM_FILE_DIALOG)" = 1; then \
+	    cp "$(GTK_DIALOG_OUT)/lume-file-dialog.elf" "$$chrome_install/lume-file-dialog"; \
+	    cp "$(GTK_DIALOG_OUT)/LICENSES.lume-file-dialog" "$$chrome_install/"; \
+	    chmod 0755 "$$chrome_install/lume-file-dialog"; \
+	else \
+	    rm -f "$$chrome_install/lume-file-dialog" "$$chrome_install/LICENSES.lume-file-dialog"; \
+	fi; \
 	for chrome_file in "$$chrome_out"/*.pak; do \
 	    test ! -f "$$chrome_file" || cp "$$chrome_file" "$$chrome_install/"; \
 	done; \
@@ -267,7 +311,7 @@ endif
 	    cp "$$chrome_out/locales/$$chrome_locale.pak" "$$chrome_install/locales/"; \
 	done; \
 	cp "$$chrome_out/icudtl.dat" "$$chrome_out/LICENSES.chromium" "$$chrome_install/"; \
-	cp "$(GTK_DIALOG_OUT)/LICENSES.lume-file-dialog" "$$chrome_install/"; \
+	if test "$$chrome_native_egl" = true; then cp "$$chrome_out/LICENSES.graphics" "$$chrome_install/"; fi; \
 	cp "$(CHROMIUM_X11_LICENSES)" "$$chrome_install/LICENSES.x11-native"; \
 	cp "$(CHROMIUM_XCURSOR_LICENSE)" "$$chrome_install/LICENSES.Xcursor"; \
 	cp "$(CHROMIUM_FONT_CONFIG)" "$$chrome_install/fonts.conf"; \

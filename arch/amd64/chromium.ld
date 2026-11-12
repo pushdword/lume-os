@@ -8,6 +8,11 @@ SECTIONS
     .text : { __lume_text_start = .; KEEP(*(.text.start)) *(.text .text.* .ltext .ltext.*) KEEP(*(malloc_hook malloc_hook.*)) __lume_text_end = .; } :code
     . = ALIGN(4096);
     .rodata : { *(.rodata .rodata.* .lrodata .lrodata.*) } :ro
+    .note.gnu.build-id : {
+        __lume_build_id_start = .;
+        KEEP(*(.note.gnu.build-id))
+        __lume_build_id_end = .;
+    } :ro
     . = ALIGN(4096);
     .data : { *(.data .data.* .ldata .ldata.*) } :data
     .preinit_array : {

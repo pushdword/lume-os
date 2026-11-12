@@ -1808,10 +1808,11 @@ cargo_crate("libc") {
     "//third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/libc-0.2.189/src/windows/msvc/mod.rs",
     "//third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/libc-0.2.189/src/xous.rs",
   ]
+  if (is_lume && current_cpu == "x86") {
+    sources += [ "//third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/libc-0.2.189/src/lume/bindings_i686.rs" ]
+  }
   if (is_lume && current_cpu == "x64") {
-    sources += [
-      "//third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/libc-0.2.189/src/lume/bindings_x86_64.rs",
-    ]
+    sources += [ "//third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/libc-0.2.189/src/lume/bindings_x86_64.rs" ]
   }
   inputs = []
   no_std = true

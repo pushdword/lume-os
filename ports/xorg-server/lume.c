@@ -39,6 +39,9 @@ from The Open Group.
 #include "lume/graphics.h"
 #include "lume/gpu.h"
 #include "lume/syscall_native.h"
+#ifdef LUME_XORG_GLAMOR
+#include "lume_glamor.h"
+#endif
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -49,7 +52,7 @@ static struct lume_graphics_request framebuffer_info;
 static uint32_t *pixels;
 static int input_fd = -1;
 static int gpu_fd = -1;
-static unsigned gpu_copy_area = 65536;
+static unsigned gpu_minimum_area = 65536;
 static DeviceIntPtr keyboard, pointer_device;
 static DamagePtr damage;
 static CloseScreenProcPtr close_screen;
@@ -60,8 +63,11 @@ static ValuatorMask *motion;
 static CARD32 last_present;
 static Bool present_valid;
 static CopyWindowProcPtr copy_window;
+static Bool gpu_rendering;
 
+#ifndef LUME_XORG_GLAMOR
 int FakeScreenFps = 60;
+#endif
 
 void DDXRingBell(int volume, int pitch, int duration)
 {
@@ -91,6 +97,43 @@ static void gpu_close(void)
     gpu_fd = -1;
 }
 
+static Bool gpu_copy_boxes(BoxPtr boxes, int count, int dx, int dy)
+{
+    if (gpu_fd < 0)
+        return FALSE;
+    uint64_t area = 0;
+    struct lume_gpu_rect rectangles[LUME_GPU_RECTS];
+    Bool supported = count > 0 && count <= LUME_GPU_RECTS;
+    for (int i = 0; supported && i < count; ++i)
+    {
+        BoxPtr box = boxes + i;
+        int sx = box->x1 + dx, sy = box->y1 + dy;
+        if (box->x1 < 0 || box->y1 < 0 || sx < 0 || sy < 0 || box->x2 <= box->x1 ||
+            box->y2 <= box->y1 || box->x2 > (int)framebuffer_info.width ||
+            box->y2 > (int)framebuffer_info.height || box->x2 + dx > (int)framebuffer_info.width ||
+            box->y2 + dy > (int)framebuffer_info.height)
+        {
+            supported = FALSE;
+            break;
+        }
+        unsigned width = box->x2 - box->x1, height = box->y2 - box->y1;
+        rectangles[i] = (struct lume_gpu_rect){sx, sy, box->x1, box->y1, width, height};
+        area += (uint64_t)width * height;
+    }
+    if (!supported || area < (uint64_t)count * gpu_minimum_area)
+        return FALSE;
+    struct lume_gpu_request request = {
+        .fd = gpu_fd, .count = count, .rectangles = (uintptr_t)rectangles};
+    int result = gpu(LUME_GPU_COPY, &request);
+    if (result == -LUME_EAGAIN)
+        return FALSE;
+    if (result)
+        FatalError("GPU rectangle copy failed (%d)\n", result);
+    return TRUE;
+}
+
+#include "lume_gpu_gc.h"
+
 static void copy_screen_window(WindowPtr window, DDXPointRec previous, RegionPtr source)
 {
     ScreenPtr screen = window->drawable.pScreen;
@@ -106,49 +149,26 @@ static void copy_screen_window(WindowPtr window, DDXPointRec previous, RegionPtr
     RegionCopy(&destination, source);
     RegionTranslate(&destination, -dx, -dy);
     RegionIntersect(&destination, &destination, &window->borderClip);
-    int count = RegionNumRects(&destination);
-    BoxPtr boxes = RegionRects(&destination);
-    uint64_t area = 0;
-    struct lume_gpu_rect rectangles[LUME_GPU_RECTS];
-    Bool supported = count > 0 && count <= LUME_GPU_RECTS;
-    for (int i = 0; supported && i < count; ++i)
-    {
-        BoxPtr box = boxes + i;
-        int sx = box->x1 + dx, sy = box->y1 + dy;
-        if (box->x1 < 0 || box->y1 < 0 || sx < 0 || sy < 0 ||
-            box->x2 > (int)framebuffer_info.width || box->y2 > (int)framebuffer_info.height ||
-            box->x2 + dx > (int)framebuffer_info.width ||
-            box->y2 + dy > (int)framebuffer_info.height)
-        {
-            supported = FALSE;
-            break;
-        }
-        unsigned width = box->x2 - box->x1, height = box->y2 - box->y1;
-        rectangles[i] = (struct lume_gpu_rect){sx, sy, box->x1, box->y1, width, height};
-        area += (uint64_t)width * height;
-    }
-    if (!supported || area < (uint64_t)count * gpu_copy_area)
-    {
-        RegionUninit(&destination);
-        copy_window(window, previous, source);
-        return;
-    }
-    struct lume_gpu_request request = {
-        .fd = gpu_fd, .count = count, .rectangles = (uintptr_t)rectangles};
-    int result = gpu(LUME_GPU_COPY, &request);
+    Bool copied = gpu_copy_boxes(RegionRects(&destination), RegionNumRects(&destination), dx, dy);
     RegionUninit(&destination);
-    if (result == -LUME_EAGAIN)
+    if (!copied)
     {
         copy_window(window, previous, source);
         return;
     }
-    if (result)
-        FatalError("GPU window copy failed (%d)\n", result);
     RegionTranslate(source, -dx, -dy);
 }
 
 static void present(unsigned x, unsigned y, unsigned width, unsigned height)
 {
+#ifdef LUME_XORG_GLAMOR
+    if (gpu_rendering)
+    {
+        if (!lume_glamor_present(screenInfo.screens[0]))
+            FatalError("GPU screen presentation failed (%d)\n", errno);
+        return;
+    }
+#endif
     struct lume_graphics_request request = {
         .fd = input_fd,
         .format = LUME_GRAPHICS_XRGB8888,
@@ -187,7 +207,11 @@ static void flush_screen(void *data, void *timeout)
         for (int i = 0; i < count; ++i)
             area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
     /* Merge nearby damage when the extra pixel work stays within one quarter of its area. */
-    if (count > 128 || bounding_area <= area + area / 4)
+    if (
+#ifdef LUME_XORG_GLAMOR
+        gpu_rendering ||
+#endif
+        count > 128 || bounding_area <= area + area / 4)
         present(bounds->x1, bounds->y1, bounds->x2 - bounds->x1, bounds->y2 - bounds->y1);
     else
         for (int i = 0; i < count; ++i)
@@ -210,6 +234,10 @@ static Bool screen_resources(ScreenPtr screen)
     screen->CreateScreenResources = create_resources;
     if (!screen->CreateScreenResources(screen))
         return FALSE;
+#ifdef LUME_XORG_GLAMOR
+    if (gpu_rendering && !lume_glamor_screen_resources(screen))
+        return FALSE;
+#endif
     damage = DamageCreate(NULL, NULL, DamageReportNone, TRUE, screen, NULL);
     if (!damage)
         return FALSE;
@@ -268,15 +296,28 @@ static Bool screen_init(ScreenPtr screen, int argc, char **argv)
     if (result)
         FatalError("Cannot acquire graphics device (%d)\n", result);
     input_fd = framebuffer_info.fd;
+#ifdef LUME_XORG_GLAMOR
+    gpu_rendering =
+        lume_glamor_prepare(input_fd, &framebuffer_info.width, &framebuffer_info.height);
+    if (gpu_rendering)
+    {
+        framebuffer_info.format = LUME_GRAPHICS_XRGB8888;
+        framebuffer_info.pitch = framebuffer_info.width * 4;
+    }
+#endif
     if (framebuffer_info.format != LUME_GRAPHICS_XRGB8888 ||
         framebuffer_info.pitch != framebuffer_info.width * 4)
         FatalError("Unsupported framebuffer format\n");
     size_t pixel_bytes = (size_t)framebuffer_info.height * framebuffer_info.pitch;
-    if (posix_memalign((void **)&pixels, 4096, (pixel_bytes + 4095) & ~(size_t)4095))
-        FatalError("Cannot allocate screen pixels\n");
-    memset(pixels, 0, pixel_bytes);
+    if (!gpu_rendering)
+    {
+        if (posix_memalign((void **)&pixels, 4096, (pixel_bytes + 4095) & ~(size_t)4095))
+            FatalError("Cannot allocate screen pixels\n");
+        memset(pixels, 0, pixel_bytes);
+    }
     struct lume_gpu_request gpu_info = {.fd = -1};
-    if (!gpu(LUME_GPU_QUERY, &gpu_info) && (gpu_info.capabilities & LUME_GPU_COPY_OVERLAP))
+    if (!gpu_rendering && !gpu(LUME_GPU_QUERY, &gpu_info) &&
+        (gpu_info.capabilities & LUME_GPU_COPY_OVERLAP))
     {
         struct lume_gpu_request binding = {.fd = -1,
                                            .pixels = (uintptr_t)pixels,
@@ -287,7 +328,7 @@ static Bool screen_init(ScreenPtr screen, int argc, char **argv)
         if (!result)
         {
             gpu_fd = binding.fd;
-            gpu_copy_area = gpu_info.backend == LUME_GPU_BACKEND_QEMU2D ? 4096 : 65536;
+            gpu_minimum_area = gpu_info.backend == LUME_GPU_BACKEND_QEMU2D ? 4096 : 65536;
             ErrorF("GPU: %s rectangle copies enabled\n",
                    gpu_info.backend == LUME_GPU_BACKEND_QEMU2D ? "QEMU 2D" : "V3D 7.1");
         }
@@ -300,8 +341,20 @@ static Bool screen_init(ScreenPtr screen, int argc, char **argv)
                       framebuffer_info.width, 32) ||
         !fbPictureInit(screen, NULL, 0))
         return FALSE;
-    copy_window = screen->CopyWindow;
-    screen->CopyWindow = copy_screen_window;
+    if (gpu_rendering)
+    {
+#ifdef LUME_XORG_GLAMOR
+        if (!lume_glamor_screen_init(screen))
+            FatalError("Cannot initialize GPU drawing\n");
+#endif
+    }
+    else
+    {
+        if (!gpu_gc_install(screen))
+            return FALSE;
+        copy_window = screen->CopyWindow;
+        screen->CopyWindow = copy_screen_window;
+    }
     if (!DamageSetup(screen))
         return FALSE;
     screen->blackPixel = 0;

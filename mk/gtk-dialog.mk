@@ -34,9 +34,10 @@ GTK_DIALOG_INCLUDES := -Iinclude -Iinclude/posix -Iinclude/lume \
     -Iports/gdk-pixbuf/aarch64 -Ivendor/gdk-pixbuf -Iports/at-spi2-core/aarch64 \
     -Ivendor/at-spi2-core -Ivendor/freetype/include -Iports/x11/include \
     -Ivendor/pixman/pixman -Iports/fontconfig/aarch64 -Ivendor/fontconfig
-GTK_DIALOG_CFLAGS := -O2 -std=gnu11 --sysroot="$(SYSROOT)" -mcpu=cortex-a76 \
-    -mstrict-align -fno-stack-protector -fno-pic -fno-pie -D__lume__=1 \
-    -DLUME_ARCH_AARCH64=1 -DLUME_NATIVE_ABI=1 -D_DEFAULT_SOURCE \
+GTK_DIALOG_CFLAGS := -O2 -std=gnu11 --sysroot="$(SYSROOT)" $(ARCH_CFLAGS) \
+    $(if $(filter amd64,$(ARCH)),-mcmodel=large,) \
+    -fno-stack-protector -fno-pic -fno-pie -D__lume__=1 \
+    $(ARCH_CPPFLAGS) -DLUME_NATIVE_ABI=1 -D_DEFAULT_SOURCE \
     -D_POSIX_C_SOURCE=200809L -ffunction-sections -fdata-sections \
     -ffile-prefix-map=$(CURDIR)=lume-os -isystem "$(SYSROOT)/include"
 
@@ -60,14 +61,14 @@ $(GTK_DIALOG_OUT)/gtk-file-dialog.o: apps/gtk-file-dialog.c include/lume/file_di
 	mkdir -p "$(@D)"
 	$(CC) $(GTK_DIALOG_CFLAGS) $(GTK_DIALOG_INCLUDES) -Wall -Wextra -MMD -MP -MF "$@.d" -c "$<" -o "$@"
 
-$(GTK_DIALOG_OUT)/lume-file-dialog.elf: $(GTK_DIALOG_OUT)/gtk-file-dialog.o $(GTK_DIALOG_LIBRARIES) $(SYSROOT)/lib/crt0-cxx.o arch/aarch64/user.ld mk/gtk-dialog.mk
+$(GTK_DIALOG_OUT)/lume-file-dialog.elf: $(GTK_DIALOG_OUT)/gtk-file-dialog.o $(GTK_DIALOG_LIBRARIES) $(SYSROOT)/lib/crt0-cxx.o arch/$(ARCH)/user.ld mk/gtk-dialog.mk
 	mkdir -p "$(@D)"
-	@printf '%s\n' $(call GTK_DIALOG_SHELL_QUOTE,--gc-sections --strip-debug --build-id=none -z max-page-size=4096 -T arch/aarch64/user.ld "$(SYSROOT)/lib/crt0-cxx.o" "$(GTK_DIALOG_OUT)/gtk-file-dialog.o" --start-group $(foreach library,$(GTK_DIALOG_LIBRARIES),"$(library)") --end-group -o "$@") > "$@.rsp"
+	@printf '%s\n' $(call GTK_DIALOG_SHELL_QUOTE,--gc-sections --strip-debug --build-id=none -z max-page-size=4096 -T arch/$(ARCH)/user.ld "$(SYSROOT)/lib/crt0-cxx.o" "$(GTK_DIALOG_OUT)/gtk-file-dialog.o" --start-group $(foreach library,$(GTK_DIALOG_LIBRARIES),"$(library)") --end-group -o "$@") > "$@.rsp"
 	$(LD) "@$@.rsp"
 
 -include $(GTK_DIALOG_OUT)/gtk-file-dialog.o.d
 else
 gtk-file-dialog:
-	@echo 'The file dialog requires ARCH=aarch64'
+	@echo 'The GTK file dialog requires ARCH=aarch64 or ARCH=amd64'
 	@exit 1
 endif

@@ -321,3 +321,28 @@ check-boot-menu: $(OUT)/tests/boot-menu$(HOSTEXE)
 $(OUT)/tests/boot-menu$(HOSTEXE): tests/unit/boot_menu_test.c apps/shell/boot_menu.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
+
+.PHONY: check-xorg-gpu
+check-xorg-gpu: $(OUT)/tests/xorg-gpu-gc$(HOSTEXE)
+	env "$(OUT)/tests/xorg-gpu-gc$(HOSTEXE)"
+$(OUT)/tests/xorg-gpu-gc$(HOSTEXE): tests/unit/xorg_gpu_gc_test.c tests/fixtures/xorg/gcstruct.h ports/xorg-server/lume_gpu_gc.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Itests/fixtures/xorg "$<" -o "$@"
+
+include mk/graphics.mk
+include mk/mesa.mk
+include mk/glamor.mk
+
+.PHONY: check-pthread-timed
+check-pthread-timed: $(OUT)/tests/pthread-timed$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/pthread-timed$(HOSTEXE): tests/unit/pthread_timed_test.c libc/posix/pthread_timed.c libc/posix/absolute_time.h include/lume/pthread_timed.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Wno-attributes -Iinclude -Iinclude/lume -Iinclude/posix -I"$(KERNEL)/include/uapi" tests/unit/pthread_timed_test.c libc/posix/pthread_timed.c -o "$@"
+
+.PHONY: check-directory-sort
+check-directory-sort: $(OUT)/tests/directory-sort$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/directory-sort$(HOSTEXE): tests/unit/directory_sort_test.c libc/posix/directory_sort.c
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG "$<" -o "$@"

@@ -708,11 +708,11 @@ impl FileAttr {
 #[cfg(target_os = "lume")]
 impl FileAttr {
     pub fn modified(&self) -> io::Result<SystemTime> {
-        SystemTime::new(self.stat.st_mtim.tv_sec, self.stat.st_mtim.tv_nsec)
+        SystemTime::new(self.stat.st_mtim.tv_sec, self.stat.st_mtim.tv_nsec.into())
     }
 
     pub fn accessed(&self) -> io::Result<SystemTime> {
-        SystemTime::new(self.stat.st_atim.tv_sec, self.stat.st_atim.tv_nsec)
+        SystemTime::new(self.stat.st_atim.tv_sec, self.stat.st_atim.tv_nsec.into())
     }
 
     pub fn created(&self) -> io::Result<SystemTime> {

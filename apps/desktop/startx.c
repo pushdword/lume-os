@@ -15,9 +15,49 @@
 #include "lume/syscall_native.h"
 #include "lume/abi.h"
 #include "lume/process.h"
+#include "lume/render.h"
 
 static volatile sig_atomic_t stopping;
 static volatile sig_atomic_t manager_ready;
+
+static const char *server_path(void)
+{
+    const char *fallback = "/usr/bin/Xlume";
+    if (access("/usr/bin/Xlume-gpu", X_OK))
+        return fallback;
+    struct lume_system_features features = {0};
+    if (lume_native_call(LUME_SYS_FEATURES, (uintptr_t)&features, sizeof(features),
+                         LUME_FEATURE_VERSION) < 0 ||
+        !(features.features & LUME_FEATURE_SHARED_WORD_WAIT))
+        return fallback;
+#if defined(LUME_ARCH_I686)
+    uint32_t a = 1, b, c = 0, d;
+    __asm__ volatile("cpuid" : "+a"(a), "=b"(b), "+c"(c), "=d"(d));
+    if (!(c & 1) || !(features.features & LUME_FEATURE_SIMD_CONTEXT))
+        return fallback;
+#endif
+    int fd = open("/dev/dri/renderD128", O_RDWR | O_CLOEXEC);
+    if (fd < 0)
+        return fallback;
+    struct lume_render_info info = {0};
+    struct lume_render_request query = {.version = LUME_RENDER_VERSION,
+                                        .bytes = sizeof(query),
+                                        .fd = fd,
+                                        .data = (uintptr_t)&info,
+                                        .length = sizeof(info)};
+    int64_t result =
+        lume_native_call(LUME_SYS_GPU, LUME_RENDER_INFO, (uintptr_t)&query, sizeof(query));
+    close(fd);
+    uint64_t needed =
+        LUME_RENDER_OPERATION(LUME_RENDER_DISPLAY) | LUME_RENDER_OPERATION(LUME_RENDER_PRESENT) |
+        LUME_RENDER_OPERATION(LUME_RENDER_PRIME_IMPORT) |
+        LUME_RENDER_OPERATION(LUME_RENDER_PRIME_EXPORT) |
+        LUME_RENDER_OPERATION(LUME_RENDER_SUBMIT) | LUME_RENDER_OPERATION(LUME_RENDER_WAIT);
+    if (result || !info.backend || info.version != LUME_RENDER_VERSION ||
+        info.bytes != sizeof(info) || (info.operations & needed) != needed)
+        return fallback;
+    return "/usr/bin/Xlume-gpu";
+}
 
 static void interrupted(int signal_number)
 {
@@ -217,6 +257,14 @@ int main(int argc, char **argv)
         fputs("Usage: startx [icewm|xfwm4|xfce]\n", stderr);
         return 2;
     }
+    const char *manager_path = xfce   ? "/usr/bin/lume-xfce-session"
+                               : xfwm ? "/usr/bin/xfwm4"
+                                      : "/usr/bin/icewm";
+    if (access(manager_path, X_OK))
+    {
+        fprintf(stderr, "startx: desktop is unavailable: %s\n", manager_path);
+        return 1;
+    }
     char cookie_path[128] = "";
     pid_t server = -1, manager = -1, terminal = -1;
     int result = 1;
@@ -243,10 +291,28 @@ int main(int argc, char **argv)
                            "-auth", cookie_path, "-fp",     "/usr/share/fonts/misc,built-ins",
                            "-s",    "0",         NULL};
     puts("Starting X11 session...");
-    server = launch("/usr/bin/Xlume", server_args, 1);
-    if (server < 0 || ready(&server, NULL, NULL, 600))
+    const char *selected_server = server_path();
+    server = launch(selected_server, server_args, 1);
+    int server_ready = server > 0 ? ready(&server, NULL, NULL, 600) : -1;
+    if (server_ready && !stopping && strcmp(selected_server, "/usr/bin/Xlume"))
+    {
+        terminate(&server);
+        fputs("startx: accelerated X11 server unavailable\n", stderr);
+        selected_server = "/usr/bin/Xlume";
+        server = launch(selected_server, server_args, 1);
+        server_ready = server > 0 ? ready(&server, NULL, NULL, 600) : -1;
+    }
+    if (server_ready)
     {
         fputs("startx: X11 server did not become ready\n", stderr);
+        goto cleanup;
+    }
+    int graphics_environment = !strcmp(selected_server, "/usr/bin/Xlume-gpu")
+                                   ? setenv("LUME_GL_DISPLAY", getenv("DISPLAY"), 1)
+                                   : unsetenv("LUME_GL_DISPLAY");
+    if (graphics_environment)
+    {
+        perror("startx: graphics environment");
         goto cleanup;
     }
     char *manager_args[] = {"icewm", "--notify", "--config=/etc/icewm/preferences", NULL};
@@ -254,13 +320,7 @@ int main(int argc, char **argv)
     char *xfce_args[] = {"lume-xfce-session", NULL};
     if (xfwm || xfce)
         manager_ready = 1;
-    manager = launch(xfce   ? "/usr/bin/lume-xfce-session"
-                     : xfwm ? "/usr/bin/xfwm4"
-                            : "/usr/bin/icewm",
-                     xfce   ? xfce_args
-                     : xfwm ? xfwm_args
-                            : manager_args,
-                     0);
+    manager = launch(manager_path, xfce ? xfce_args : xfwm ? xfwm_args : manager_args, 0);
     char *terminal_args[] = {"xterm",       "-title", "Lume terminal", "-fn", "9x15", "-geometry",
                              "72x24+40+40", "-e",     "/bin/sh",       NULL};
     terminal = launch("/usr/bin/xterm", terminal_args, 0);

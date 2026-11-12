@@ -70,7 +70,7 @@ int uname(struct utsname *out)
     strcpy(out->release, "1.0");
     strcpy(out->version, "Native ABI 1.0");
 #if defined(LUME_ARCH_AMD64)
-    strcpy(out->machine, "amd64");
+    strcpy(out->machine, "x86_64");
 #elif defined(LUME_ARCH_AARCH64)
     strcpy(out->machine, "aarch64");
 #elif defined(LUME_ARCH_I686)

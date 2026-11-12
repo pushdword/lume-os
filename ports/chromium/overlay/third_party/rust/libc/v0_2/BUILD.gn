@@ -410,6 +410,11 @@ cargo_crate("lib") {
       "//third_party/rust/chromium_crates_io/vendor/libc-v0_2/src/lume/bindings_x86_64.rs",
     ]
   }
+  if (is_lume && current_cpu == "x86") {
+    sources += [
+      "//third_party/rust/chromium_crates_io/vendor/libc-v0_2/src/lume/bindings_i686.rs",
+    ]
+  }
   inputs = []
 
   build_native_rust_unit_tests = false

@@ -1,3 +1,5 @@
+#define LUME_STAT_IMPLEMENTATION 1
+#define _LARGEFILE64_SOURCE 1
 #ifndef LUME_USER_HOST_TEST
 #include "lume/syscall_native.h"
 #endif
@@ -159,6 +161,36 @@ int32_t lume_native_stat_at(int64_t directory, const char *path, unsigned flags,
     output->st_blocks = (blkcnt_t)(metadata.size / 512 + !!(metadata.size % 512));
     return 0;
 }
+
+#if defined(_PICOLIBC__) && __LARGEFILE64_VISIBLE
+int32_t lume_native_stat64_at(int64_t directory, const char *path, unsigned flags,
+                              struct stat64 *output)
+{
+    if (!output)
+        return -LUME_EFAULT;
+    struct lume_native_stat metadata;
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = directory,
+                                         .buffer = (uintptr_t)&metadata,
+                                         .count = sizeof(metadata),
+                                         .flags = flags};
+    int64_t result = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (result < 0)
+        return (int32_t)result;
+    if (metadata.size > INT64_MAX)
+        return -LUME_EOVERFLOW;
+    _Static_assert(sizeof(output->st_ino) == sizeof(metadata.inode), "64-bit inode identity");
+    _Static_assert(sizeof(output->st_size) == sizeof(int64_t), "64-bit file size");
+    memset(output, 0, sizeof(*output));
+    output->st_size = (int64_t)metadata.size;
+    output->st_ino = metadata.inode;
+    output->st_mode = (mode_t)result;
+    output->st_nlink = 1;
+    output->st_blksize = 512;
+    output->st_blocks = metadata.size / 512 + !!(metadata.size % 512);
+    return 0;
+}
+#endif
 
 int32_t lume_aarch64_posix_seek(int fd, int32_t offset, unsigned whence)
 {

@@ -11,3 +11,17 @@ set(__IO_LONG_LONG ON CACHE BOOL "64-bit stdio")
 set(__MB_CAPABLE ON CACHE BOOL "Multibyte characters" FORCE)
 set(__MB_EXTENDED_CHARSETS_ISO ON CACHE BOOL "ISO character sets" FORCE)
 set(TESTS OFF CACHE BOOL "Picolibc tests")
+
+option(LUME_NATIVE_LFS64 "Use 64-bit native file positions" OFF)
+if(LUME_NATIVE_LFS64)
+    string(APPEND CMAKE_C_FLAGS_INIT " -DLUME_NATIVE_LFS64=1 -DLUME_LIBC_BUILD=1 -I${CMAKE_CURRENT_LIST_DIR}/include")
+endif()
+
+if(LUME_NATIVE_LFS64)
+    set(LUME_LIBC_OFF_T_BITS 64)
+else()
+    set(LUME_LIBC_OFF_T_BITS 32)
+endif()
+file(WRITE "${CMAKE_BINARY_DIR}/lume_libc_config.h"
+    "#ifndef LUME_LIBC_CONFIG_H\n#define LUME_LIBC_CONFIG_H\n#define LUME_LIBC_OFF_T_BITS ${LUME_LIBC_OFF_T_BITS}\n#endif\n")
+install(FILES "${CMAKE_BINARY_DIR}/lume_libc_config.h" DESTINATION include)

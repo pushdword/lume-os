@@ -1,0 +1,3 @@
+#ifndef LUME_TEST_GCSTRUCT_H
+#define LUME_TEST_GCSTRUCT_H
+#endif

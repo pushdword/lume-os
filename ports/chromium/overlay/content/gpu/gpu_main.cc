@@ -125,6 +125,7 @@
 #if BUILDFLAG(IS_LUME)
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
+#include "sandbox/policy/switches.h"
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -223,6 +224,9 @@ class ContentSandboxHelper : public gpu::GpuSandboxHelper
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
         return StartSandboxLinux(watchdog_thread, gpu_info, gpu_prefs);
 #elif BUILDFLAG(IS_LUME)
+        if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                sandbox::policy::switches::kDisableGpuSandbox))
+            return false;
         return sandbox::policy::Sandbox::Initialize(sandbox::mojom::Sandbox::kGpu);
 #elif BUILDFLAG(IS_WIN)
         return StartSandboxWindows(sandbox_info_);
@@ -372,6 +376,14 @@ int GpuMain(MainFunctionParams parameters)
 #endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
     base::PlatformThread::SetDefaultThreadType(base::ThreadType::kPresentation);
+
+#if BUILDFLAG(IS_LUME)
+    if (!command_line.HasSwitch(sandbox::policy::switches::kNoSandbox) &&
+        !command_line.HasSwitch(sandbox::policy::switches::kDisableGpuSandbox))
+    {
+        CHECK(sandbox::policy::Sandbox::Initialize(sandbox::mojom::Sandbox::kGpu));
+    }
+#endif
 
     // Picks GpuInitLegacy or GpuInit2 based on features::kGpuInitOptimization.
     auto gpu_init = gpu::GpuInit::Create();

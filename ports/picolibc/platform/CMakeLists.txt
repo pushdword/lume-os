@@ -356,6 +356,8 @@ define_property(GLOBAL PROPERTY PICOLIBC_HEADERS
 
 add_subdirectory(libc)
 add_subdirectory(libm)
+target_sources(c PRIVATE libm/common/math_denorm.c libm/common/math_denormf.c
+  libm/common/math_denorml.c libm/ld/s_finitel.c)
 
 install(TARGETS c
   LIBRARY DESTINATION lib

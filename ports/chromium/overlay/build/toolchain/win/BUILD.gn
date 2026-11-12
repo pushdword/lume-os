@@ -32,6 +32,14 @@ if (is_win && current_toolchain == default_toolchain) {
 }
 
 if (target_os == "lume") {
+  if (target_cpu == "x86" && host_cpu != "x86") {
+    win_toolchains("x86") {
+      toolchain_arch = "x86"
+      toolchain_args = {
+        symbol_level = lume_host_symbol_level
+      }
+    }
+  }
   win_toolchains(host_cpu) {
     toolchain_arch = host_cpu
     toolchain_args = {

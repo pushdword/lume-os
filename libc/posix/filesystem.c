@@ -1,3 +1,4 @@
+#define LUME_STAT_IMPLEMENTATION 1
 #include "api.h"
 #include "errno_map.h"
 #include <sys/stat.h>
@@ -203,7 +204,7 @@ int ftruncate(int fd, off_t length)
 }
 #endif
 
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 int fchmodat(int directory, const char *path, mode_t mode, int flags)
 {
     if (!path)

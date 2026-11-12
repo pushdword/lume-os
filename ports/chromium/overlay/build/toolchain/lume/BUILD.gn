@@ -7,6 +7,7 @@ foreach(cpu,
         [
           "arm64",
           "x64",
+          "x86",
         ]) {
   gcc_toolchain(cpu) {
     assert(lume_toolchain_root != "")

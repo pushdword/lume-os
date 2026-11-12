@@ -10,7 +10,14 @@ extern "C"
 {
 #endif
     int64_t lume_native_files_call(unsigned, struct lume_files_request *);
-    int32_t lume_native_stat_at(int64_t, const char *, unsigned, struct stat *);
+#ifdef LUME_POSIX_STAT64
+#define lume_native_stat_at lume_native_stat64_at
+#else
+int32_t lume_native_stat_at(int64_t, const char *, unsigned, struct stat *);
+#endif
+#if defined(_PICOLIBC__) && __LARGEFILE64_VISIBLE
+    int32_t lume_native_stat64_at(int64_t, const char *, unsigned, struct stat64 *);
+#endif
 #ifdef __cplusplus
 }
 #endif

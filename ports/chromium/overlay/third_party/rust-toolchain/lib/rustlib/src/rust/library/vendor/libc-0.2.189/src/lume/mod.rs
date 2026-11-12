@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
-#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
-core::compile_error!("Lume libc bindings require AArch64 or x86_64");
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "x86")))]
+core::compile_error!("Lume libc bindings require AArch64, x86_64 or x86");
 
 #[cfg(target_arch = "aarch64")]
 #[allow(missing_copy_implementations, missing_debug_implementations)]
@@ -10,7 +10,15 @@ mod bindings;
 #[path = "bindings_x86_64.rs"]
 #[allow(missing_copy_implementations, missing_debug_implementations)]
 mod bindings;
+#[cfg(target_arch = "x86")]
+#[path = "bindings_i686.rs"]
+#[allow(missing_copy_implementations, missing_debug_implementations)]
+mod bindings;
 pub use self::bindings::*;
+pub use self::bindings::{fstat64 as fstat, stat64 as stat};
+
+pub type ino_t = bindings::__ino64_t;
+pub type blkcnt_t = bindings::__blkcnt64_t;
 
 pub type size_t = usize;
 pub type ssize_t = isize;
@@ -55,6 +63,17 @@ impl Default for timespec {
 }
 
 unsafe extern "C" {
+    #[link_name = "lstat64"]
+    pub fn lstat(path: *const core::ffi::c_char, metadata: *mut stat) -> core::ffi::c_int;
+
+    #[link_name = "fstatat64"]
+    pub fn fstatat(
+        directory: core::ffi::c_int,
+        path: *const core::ffi::c_char,
+        metadata: *mut stat,
+        flags: core::ffi::c_int,
+    ) -> core::ffi::c_int;
+
     pub fn renameat(
         source_directory: core::ffi::c_int,
         source: *const core::ffi::c_char,
@@ -134,7 +153,10 @@ pub unsafe fn CMSG_NXTHDR(message: *const msghdr, header: *const cmsghdr) -> *mu
     let bytes = unsafe { (*message).msg_controllen };
     let current = header as usize;
     let length = unsafe { (*header).cmsg_len };
-    if current < base || length < core::mem::size_of::<cmsghdr>() || length > usize::MAX - 7 {
+    if current < base
+        || length < core::mem::size_of::<cmsghdr>()
+        || length > usize::MAX - (core::mem::size_of::<size_t>() - 1)
+    {
         return core::ptr::null_mut();
     }
     let core::option::Option::Some(next) = current.checked_add(cmsg_align(length)) else {
@@ -151,22 +173,32 @@ pub unsafe fn CMSG_NXTHDR(message: *const msghdr, header: *const cmsghdr) -> *mu
 }
 
 pub unsafe fn FD_ZERO(set: *mut fd_set) {
-    unsafe { (*set).__fds_bits = [0; 4] };
+    unsafe { (*set).__fds_bits.fill(0) };
 }
 
 pub unsafe fn FD_SET(fd: core::ffi::c_int, set: *mut fd_set) {
     let fd = fd as usize;
-    unsafe { (*set).__fds_bits[fd / 64] |= 1u64 << (fd % 64) };
+    unsafe {
+        (*set).__fds_bits[fd / (8 * core::mem::size_of::<__fd_mask>())] |=
+            (1 as __fd_mask) << (fd % (8 * core::mem::size_of::<__fd_mask>()))
+    };
 }
 
 pub unsafe fn FD_CLR(fd: core::ffi::c_int, set: *mut fd_set) {
     let fd = fd as usize;
-    unsafe { (*set).__fds_bits[fd / 64] &= !(1u64 << (fd % 64)) };
+    unsafe {
+        (*set).__fds_bits[fd / (8 * core::mem::size_of::<__fd_mask>())] &=
+            !((1 as __fd_mask) << (fd % (8 * core::mem::size_of::<__fd_mask>())))
+    };
 }
 
 pub unsafe fn FD_ISSET(fd: core::ffi::c_int, set: *const fd_set) -> bool {
     let fd = fd as usize;
-    unsafe { (*set).__fds_bits[fd / 64] & (1u64 << (fd % 64)) != 0 }
+    unsafe {
+        (*set).__fds_bits[fd / (8 * core::mem::size_of::<__fd_mask>())]
+            & ((1 as __fd_mask) << (fd % (8 * core::mem::size_of::<__fd_mask>())))
+            != 0
+    }
 }
 
 pub unsafe fn killpg(group: pid_t, signal: core::ffi::c_int) -> core::ffi::c_int {
@@ -202,6 +234,24 @@ pub unsafe fn lume_exepath(buffer: *mut core::ffi::c_char, bytes: usize) -> isiz
             in("rdx") bytes,
             options(nostack),
         );
+    }
+    #[cfg(target_arch = "x86")]
+    unsafe {
+        let request = [
+            LUME_SYS_EXEPATH as u64,
+            0,
+            buffer as usize as u64,
+            bytes as u64,
+        ];
+        let low: u32;
+        let high: u32;
+        core::arch::asm!(
+            "int 0x80",
+            inlateout("eax") request.as_ptr() as usize => low,
+            lateout("edx") high,
+            options(nostack),
+        );
+        result = (((high as u64) << 32) | low as u64) as i64;
     }
     if result < 0 {
         unsafe extern "C" {

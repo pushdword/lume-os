@@ -189,7 +189,7 @@ ifneq ($(ARCH),amd64)
 	cp "$(KERNEL)/$(KERNEL_OUT)/modules/bcm2712-hdmi.lkm" "$(OUT)/root/lib/modules/hdmi.lkm"
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
-	$(foreach name,vblk vrng vga ps2 xhci lume2d $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
+	$(foreach name,vblk vrng vga ps2 xhci lume2d vgpu $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
 ifeq ($(PROFILE),recovery)
 	cp root/profiles/q35-recovery/etc/modules "$(OUT)/root/etc/modules"

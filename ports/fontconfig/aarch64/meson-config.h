@@ -5,9 +5,13 @@
 
 #pragma once
 
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_DOUBLE 4
+#else
 #define ALIGNOF_DOUBLE 8
+#endif
 
-#define ALIGNOF_VOID_P 8
+#define ALIGNOF_VOID_P __SIZEOF_POINTER__
 
 #define CONFIGDIR "/etc/fonts/conf.d"
 
@@ -148,7 +152,7 @@
 
 #define PACKAGE_VERSION "2.18.3"
 
-#define SIZEOF_VOID_P 8
+#define SIZEOF_VOID_P __SIZEOF_POINTER__
 
 #define USE_ICONV 0
 

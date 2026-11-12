@@ -7,6 +7,21 @@ import("//build/config/win/visual_studio_version.gni")
 if (target_os == "lume") {
   assert(host_os == "win" && host_cpu == "x64")
 
+  if (target_cpu == "x86") {
+    declare_args() {
+      win_toolchain_data_x86 =
+          exec_script("//build/toolchain/win/setup_toolchain.py",
+                      [
+                        visual_studio_path,
+                        windows_sdk_path,
+                        visual_studio_runtime_dirs,
+                        "win",
+                        "x86",
+                        "environment.x86",
+                      ],
+                      "scope")
+    }
+  }
   declare_args() {
     win_toolchain_data_x64 =
         exec_script("//build/toolchain/win/setup_toolchain.py",

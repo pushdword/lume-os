@@ -4,6 +4,12 @@
 
 #include "gpu/config/gpu_info_collector.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+#include "lume/abi.h"
+#include "lume/render.h"
+#include "lume/syscall_native.h"
+
 #include "base/check.h"
 #include "base/trace_event/trace_event.h"
 #include "ui/gl/gl_display.h"
@@ -16,8 +22,24 @@ namespace gpu
 bool CollectBasicGraphicsInfo(GPUInfo *gpu_info)
 {
     DCHECK(gpu_info);
-    // The native display interface does not expose graphics-device identification.
-    return false;
+    int fd = open("/dev/dri/renderD128", O_RDWR | O_CLOEXEC);
+    if (fd < 0)
+        return false;
+    struct lume_render_pci pci = {};
+    struct lume_render_request request = {.version = LUME_RENDER_VERSION,
+                                          .bytes = sizeof(request),
+                                          .fd = fd,
+                                          .data = reinterpret_cast<uintptr_t>(&pci),
+                                          .length = sizeof(pci)};
+    int64_t result = lume_native_call(LUME_SYS_GPU, LUME_RENDER_PCI,
+                                      reinterpret_cast<uintptr_t>(&request), sizeof(request));
+    close(fd);
+    if (result || !(pci.vendor_product & 65535u) || (pci.vendor_product & 65535u) == 65535u)
+        return false;
+    gpu_info->gpu.vendor_id = pci.vendor_product & 65535u;
+    gpu_info->gpu.device_id = pci.vendor_product >> 16;
+    gpu_info->gpu.active = true;
+    return true;
 }
 
 bool CollectContextGraphicsInfo(GPUInfo *gpu_info)

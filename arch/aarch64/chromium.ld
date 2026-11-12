@@ -4,9 +4,14 @@ PHDRS { code PT_LOAD FLAGS(5); ro PT_LOAD FLAGS(4); data PT_LOAD FLAGS(6); tls P
 SECTIONS
 {
     . = 0x4000000000;
-    .text : { __lume_text_start = .; KEEP(*(.text.start)) *(.text .text.*) __lume_text_end = .; } :code
+    .text : { __lume_text_start = .; KEEP(*(.text.start)) *(.text .text.*) KEEP(*(malloc_hook malloc_hook.*)) __lume_text_end = .; } :code
     . = ALIGN(4096);
     .rodata : { *(.rodata .rodata.*) } :ro
+    .note.gnu.build-id : {
+        __lume_build_id_start = .;
+        KEEP(*(.note.gnu.build-id))
+        __lume_build_id_end = .;
+    } :ro
     . = ALIGN(4096);
     .data : { *(.data .data.*) } :data
     .preinit_array : {

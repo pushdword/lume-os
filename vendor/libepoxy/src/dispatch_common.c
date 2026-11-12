@@ -174,6 +174,22 @@
 
 #include "dispatch_common.h"
 
+#if defined(LUME_EPOXY_STATIC_EGL)
+extern __eglMustCastToProperFunctionPointerType
+lume_egl_get_proc_address(const char *) __asm__("eglGetProcAddress");
+
+static void *lume_egl_symbol(const char *name, bool required)
+{
+    void *symbol = (void *)lume_egl_get_proc_address(name);
+    if (!symbol && required)
+    {
+        fprintf(stderr, "EGL provider has no symbol %s\n", name);
+        abort();
+    }
+    return symbol;
+}
+#endif
+
 #if defined(__APPLE__)
 #define GLX_LIB "/opt/X11/lib/libGL.1.dylib"
 #define OPENGL_LIB "/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL"
@@ -647,7 +663,11 @@ epoxy_conservative_has_gl_extension(const char *ext)
 bool
 epoxy_load_egl(bool exit_if_fails, bool load)
 {
-#if PLATFORM_HAS_EGL
+#if defined(LUME_EPOXY_STATIC_EGL)
+    (void)exit_if_fails;
+    (void)load;
+    return true;
+#elif PLATFORM_HAS_EGL
     return get_dlopen_handle(&api.egl_handle, EGL_LIB, exit_if_fails, load);
 #else
     return false;
@@ -657,7 +677,9 @@ epoxy_load_egl(bool exit_if_fails, bool load)
 void *
 epoxy_conservative_egl_dlsym(const char *name, bool exit_if_fails)
 {
-#if PLATFORM_HAS_EGL
+#if defined(LUME_EPOXY_STATIC_EGL)
+    return lume_egl_symbol(name, exit_if_fails);
+#elif PLATFORM_HAS_EGL
     if (epoxy_load_egl(exit_if_fails, exit_if_fails))
         return do_dlsym(&api.egl_handle, name, exit_if_fails);
 #endif
@@ -713,31 +735,43 @@ epoxy_load_gl(void)
 void *
 epoxy_gl_dlsym(const char *name)
 {
+#if defined(LUME_EPOXY_STATIC_EGL)
+    return lume_egl_symbol(name, true);
+#else
     epoxy_load_gl();
 
     return do_dlsym(&api.gl_handle, name, true);
+#endif
 }
 
 void *
 epoxy_gles1_dlsym(const char *name)
 {
+#if defined(LUME_EPOXY_STATIC_EGL)
+    return lume_egl_symbol(name, true);
+#else
     if (epoxy_current_context_is_glx()) {
         return epoxy_get_proc_address(name);
     } else {
         get_dlopen_handle(&api.gles1_handle, GLES1_LIB, true, true);
         return do_dlsym(&api.gles1_handle, name, true);
     }
+#endif
 }
 
 void *
 epoxy_gles2_dlsym(const char *name)
 {
+#if defined(LUME_EPOXY_STATIC_EGL)
+    return lume_egl_symbol(name, true);
+#else
     if (epoxy_current_context_is_glx()) {
         return epoxy_get_proc_address(name);
     } else {
         get_dlopen_handle(&api.gles2_handle, GLES2_LIB, true, true);
         return do_dlsym(&api.gles2_handle, name, true);
     }
+#endif
 }
 
 /**
@@ -822,6 +856,9 @@ epoxy_egl_get_current_gl_context_api(void)
 void *
 epoxy_get_bootstrap_proc_address(const char *name)
 {
+#if defined(LUME_EPOXY_STATIC_EGL)
+    return lume_egl_symbol(name, true);
+#else
     /* If we already have a library that links to libglapi loaded,
      * use that.
      */
@@ -858,6 +895,7 @@ epoxy_get_bootstrap_proc_address(const char *name)
 
     /* Fall back to GLX */
     return epoxy_gl_dlsym(name);
+#endif
 }
 
 void *

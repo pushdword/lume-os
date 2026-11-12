@@ -2,6 +2,8 @@ load /lib/modules/vblk.lkm
 probe q35-virtio-blk retain
 load /lib/modules/vga.lkm
 probe q35-vga
+load /lib/modules/vgpu.lkm
+probe q35-virtio-gpu
 load /lib/modules/lume2d.lkm
 probe q35-lume-2d
 load /lib/modules/ps2.lkm

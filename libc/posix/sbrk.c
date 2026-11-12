@@ -1,26 +1,26 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-#if !defined(__aarch64__) && !defined(__x86_64__)
-#include "api.h"
-#endif
 #include "errno_map.h"
 #include <errno.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <unistd.h>
-#if defined(__aarch64__) || defined(__x86_64__)
+#if defined(__aarch64__) || defined(__x86_64__) || defined(LUME_ARCH_I686)
 #include "lume/abi.h"
 #include "lume/break.h"
 #include "lume/syscall_native.h"
+#else
+#include "api.h"
 #endif
 
 static int64_t request_break(uintptr_t address)
 {
-#if defined(__aarch64__) || defined(__x86_64__)
-#if defined(__aarch64__) || defined(__x86_64__)
-    /* High executable images use a heap outside the legacy address window. */
-    uint64_t flags = (uintptr_t)&sbrk > UINT32_MAX ? LUME_BRK_EXTENDED : 0;
+#if defined(__aarch64__) || defined(__x86_64__) || defined(LUME_ARCH_I686)
+#if defined(LUME_ARCH_I686)
+    uintptr_t code = (uintptr_t)&sbrk;
+    uint64_t flags =
+        code >= UINT32_C(0x70000000) && code < UINT32_C(0x90000000) ? LUME_BRK_EXTENDED : 0;
 #else
-    uint64_t flags = 0;
+    uint64_t flags = (uintptr_t)&sbrk > UINT32_MAX ? LUME_BRK_EXTENDED : 0;
 #endif
     return lume_native_call(LUME_SYS_BRK, address, flags, 0);
 #else

@@ -15,6 +15,8 @@ declare_args() {
   lume_linker_script = ""
   lume_linker_threads = 0
   lume_host_gperf = ""
+  lume_native_egl = false
+  lume_graphics_library_dir = ""
 }
 
 if (lume_x11_library_dir == "") {
@@ -29,6 +31,8 @@ if (current_cpu == "arm64") {
   lume_target_triple = "aarch64-unknown-none-elf"
 } else if (current_cpu == "x64") {
   lume_target_triple = "x86_64-unknown-none-elf"
+} else if (current_cpu == "x86") {
+  lume_target_triple = "i686-unknown-none-elf"
 } else {
   lume_target_triple = ""
 }

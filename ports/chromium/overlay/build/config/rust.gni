@@ -205,6 +205,8 @@ if (is_lume) {
     rust_abi_target = "aarch64-unknown-lume"
   } else if (current_cpu == "x64") {
     rust_abi_target = "x86_64-unknown-lume"
+  } else if (current_cpu == "x86") {
+    rust_abi_target = "i686-unknown-lume"
   } else {
     assert(false, "Rust requires a native target specification for this CPU")
   }

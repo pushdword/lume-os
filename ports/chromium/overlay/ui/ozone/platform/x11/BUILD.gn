@@ -4,6 +4,9 @@
 
 import("//gpu/vulkan/features.gni")
 import("//ui/base/ui_features.gni")
+if (is_lume) {
+  import("//build/config/lume/lume.gni")
+}
 
 visibility = [ "//ui/ozone/*" ]
 
@@ -51,6 +54,11 @@ source_set("x11") {
   ]
 
   if (is_lume) {
+    if (lume_native_egl) {
+      defines = [ "LUME_NATIVE_EGL=1" ]
+    } else {
+      defines = [ "LUME_NATIVE_EGL=0" ]
+    }
     sources -= [
       "client_native_pixmap_factory_x11.cc",
       "gl_egl_utility_x11.cc",

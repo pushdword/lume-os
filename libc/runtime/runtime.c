@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Picolibc services for a private Lume ring3 process. No bare-metal BSP. */
 #define _DEFAULT_SOURCE
+#define LUME_STAT_IMPLEMENTATION 1
+#define _LARGEFILE64_SOURCE 1
 #include "api.h"
 #include "fd_client.h"
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
@@ -353,7 +355,8 @@ int close(int fd)
 
 off_t lseek(int fd, off_t offset, int whence)
 {
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) ||                                      \
+    (defined(LUME_ARCH_I686) && defined(LUME_NATIVE_LFS64))
     _Static_assert(sizeof(off_t) == 8, "native file offsets require 64 bits");
     extern int64_t lume_native_seek64(int, int64_t, unsigned);
     int64_t adjusted = offset;
@@ -451,6 +454,8 @@ int fstat(int fd, struct stat *out)
     return 0;
 #endif
 }
+
+#include "stat64.h"
 
 int isatty(int fd)
 {

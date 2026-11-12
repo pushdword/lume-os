@@ -35,7 +35,7 @@
 #endif
 #define V8_HAS_PKU_JIT_WRITE_PROTECT V8_HAS_PKU_SUPPORT
 
-#if defined(V8_OS_LUME) && (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_X64))
+#if defined(V8_OS_LUME) && (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_X64) || defined(V8_HOST_ARCH_IA32))
 #define V8_HAS_LUME_JIT_WRITE_PROTECT 1
 #else
 #define V8_HAS_LUME_JIT_WRITE_PROTECT 0

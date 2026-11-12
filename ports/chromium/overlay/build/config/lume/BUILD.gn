@@ -20,6 +20,12 @@ config("compiler") {
     defines += [ "LUME_ARCH_AARCH64=1" ]
   } else if (current_cpu == "x64") {
     defines += [ "LUME_ARCH_AMD64=1" ]
+  } else if (current_cpu == "x86") {
+    defines += [
+      "LUME_ARCH_I686=1",
+      "FD_SETSIZE=256",
+      "LUME_NATIVE_LFS64=1",
+    ]
   }
   _native_include_dirs = [
     "$lume_os_source/include/posix",
@@ -41,6 +47,9 @@ config("compiler") {
     "-fno-pic",
     "-fno-pie",
     "-fno-omit-frame-pointer",
+    # Load the metadata ABI before application forward declarations.
+    "-include",
+    "sys/stat.h",
   ]
   foreach(directory, _native_include_dirs) {
     cflags += [
@@ -58,6 +67,14 @@ config("compiler") {
       "-mcmodel=large",
       "-ftls-model=local-exec",
     ]
+  } else if (current_cpu == "x86") {
+    cflags += [
+      "-m32",
+      "-march=i686",
+      "-msse3",
+      "-mfpmath=sse",
+      "-ftls-model=local-exec",
+    ]
   }
   asmflags = [
     "--target=$lume_target_triple",
@@ -68,6 +85,13 @@ config("compiler") {
       "-m64",
       "-mno-red-zone",
       "-mcmodel=large",
+    ]
+  }
+  if (current_cpu == "x86") {
+    asmflags += [
+      "-m32",
+      "-march=i686",
+      "-msse3",
     ]
   }
   cflags_cc = [ "-nostdinc++" ]
