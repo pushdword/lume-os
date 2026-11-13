@@ -1,5 +1,8 @@
 #ifndef LUME_OPENSSH_CONFIG_H
 #define LUME_OPENSSH_CONFIG_H
+#define _FILE_OFFSET_BITS 64
+#define _LARGEFILE64_SOURCE 1
+#define LUME_NATIVE_LFS64 1
 #define _POSIX_MONOTONIC_CLOCK 200809L
 #define _POSIX_SAVED_IDS 1
 #define HAVE___func__ 1
@@ -229,6 +232,12 @@
 #define HAVE_FSTATVFS 1
 #define HAVE_SYS_STATVFS_H 1
 #define HAVE_NL_LANGINFO 1
+#define HAVE_MKDTEMP 1
+#define HAVE_RAISE 1
+#define HAVE_TCGETPGRP 1
+#define HAVE_TRUNCATE 1
+#define HAVE_UNLINKAT 1
+#define HAVE_UTIMENSAT 1
 #ifndef NSIG
 #define NSIG 32
 #endif

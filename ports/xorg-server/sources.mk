@@ -227,4 +227,5 @@ XSERVER_SOURCES := vendor/xorg-server/dix/atom.c \
     vendor/xorg-server/miext/damage/damage.c \
     vendor/xorg-server/miext/sync/misync.c \
     vendor/xorg-server/miext/sync/misyncfd.c \
+    vendor/xorg-server/Xext/shm.c \
     ports/xorg-server/lume.c

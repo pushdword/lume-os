@@ -64,9 +64,11 @@ class AudioManagerLume final : public AudioManagerBase
 
   protected:
     AudioParameters GetPreferredOutputStreamParameters(const std::string &,
-                                                       const AudioParameters &) override
+                                                       const AudioParameters &input) override
     {
-        return AudioParameters::UnavailableDeviceParams();
+        AudioParameters output = input;
+        output.set_format(AudioParameters::AUDIO_FAKE);
+        return output;
     }
 
     std::string GetDefaultInputDeviceID() override

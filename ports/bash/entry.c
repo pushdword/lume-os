@@ -46,7 +46,11 @@ static int bridge(int master, pid_t child)
     int status = 0;
     for (;;)
     {
-        int exited = waitpid(child, &status, WNOHANG);
+        int exited;
+        do
+        {
+            exited = waitpid(-1, &status, WNOHANG);
+        } while (exited > 0 && exited != child);
         ssize_t count;
         while ((count = read(master, output, sizeof(output))) > 0)
             if (app_write_all(1, output, (unsigned)count) < 0)

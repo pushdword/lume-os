@@ -53,6 +53,16 @@ int32_t lume_syscall(uint32_t n, uint32_t a, uint32_t b, uint32_t c)
         return a == LUME_CORES ? 2 : a == LUME_UPTIME ? (int32_t)ticks_ms : 0;
     if (n == LUME_PERF)
     {
+        if (c == LUME_PERF_TASK_PAGE)
+        {
+            assert(b == sizeof(struct lume_perf_task_page));
+            struct lume_perf_task_page *page = (void *)(uintptr_t)a;
+            assert(!page->cursor);
+            *page = (struct lume_perf_task_page){.count = injected.process_count,
+                                                 .slots = LUME_PERF_PROCESSES};
+            memcpy(page->processes, injected.processes, sizeof(injected.processes));
+            return 0;
+        }
         assert(b == sizeof injected);
         if (auto_sample)
         {

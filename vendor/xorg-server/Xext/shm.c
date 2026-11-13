@@ -33,8 +33,10 @@ in this Software without prior written authorization from The Open Group.
 #endif
 
 #include <sys/types.h>
+#ifndef LUME_XSHM_FD_ONLY
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#endif
 #ifdef HAVE_MEMFD_CREATE
 #include <sys/mman.h>
 #endif
@@ -62,6 +64,7 @@ in this Software without prior written authorization from The Open Group.
 #include "busfault.h"
 
 /* Needed for Solaris cross-zone shared memory extension */
+#ifndef LUME_XSHM_FD_ONLY
 #ifdef HAVE_SHMCTL64
 #include <sys/ipc_impl.h>
 #define SHMSTAT(id, buf)	shmctl64(id, IPC_STAT64, buf)
@@ -86,6 +89,8 @@ in this Software without prior written authorization from The Open Group.
 #define SHMPERM_GID(p)		p->gid
 #define SHMPERM_CGID(p)		p->cgid
 #define SHMPERM_MODE(p)		p->mode
+#endif
+
 #endif
 
 #ifdef PANORAMIX
@@ -306,6 +311,7 @@ ProcShmQueryVersion(ClientPtr client)
  * Simulate the access() system call for a shared memory segment,
  * using the credentials from the client if available.
  */
+#ifndef LUME_XSHM_FD_ONLY
 static int
 shm_access(ClientPtr client, SHMPERM_TYPE * perm, int readonly)
 {
@@ -368,9 +374,16 @@ shm_access(ClientPtr client, SHMPERM_TYPE * perm, int readonly)
     return (SHMPERM_MODE(perm) & mask) == mask ? 0 : -1;
 }
 
+#endif
+
 static int
 ProcShmAttach(ClientPtr client)
 {
+#ifdef LUME_XSHM_FD_ONLY
+    REQUEST(xShmAttachReq);
+    REQUEST_SIZE_MATCH(xShmAttachReq);
+    return BadImplementation;
+#else
     SHMSTAT_TYPE buf;
     ShmDescPtr shmdesc;
 
@@ -425,6 +438,7 @@ ProcShmAttach(ClientPtr client)
     if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc))
         return BadAlloc;
     return Success;
+#endif
 }
 
  /*ARGSUSED*/ static int
@@ -438,12 +452,18 @@ ShmDetachSegment(void *value, /* must conform to DeleteType */
         return TRUE;
 #if SHM_FD_PASSING
     if (shmdesc->is_fd) {
+#ifdef BUSFAULT
         if (shmdesc->busfault)
             busfault_unregister(shmdesc->busfault);
+#endif
         munmap(shmdesc->addr, shmdesc->size);
     } else
 #endif
+    {
+#ifndef LUME_XSHM_FD_ONLY
         shmdt(shmdesc->addr);
+#endif
+    }
     for (prev = &Shmsegs; *prev != shmdesc; prev = &(*prev)->next);
     *prev = shmdesc->next;
     free(shmdesc);
@@ -1130,6 +1150,7 @@ ProcShmCreatePixmap(ClientPtr client)
 
 #ifdef SHM_FD_PASSING
 
+#ifdef BUSFAULT
 static void
 ShmBusfaultNotify(void *context)
 {
@@ -1141,6 +1162,8 @@ ShmBusfaultNotify(void *context)
     shmdesc->busfault = NULL;
     FreeResource (shmdesc->resource, RT_NONE);
 }
+
+#endif
 
 static int
 ProcShmAttachFd(ClientPtr client)
@@ -1161,7 +1184,15 @@ ProcShmAttachFd(ClientPtr client)
     if (fd < 0)
         return BadMatch;
 
-    if (fstat(fd, &statb) < 0 || statb.st_size == 0) {
+#ifdef LUME_XSHM_FD_ONLY
+    int seals = fcntl(fd, F_GET_SEALS);
+    if (seals < 0 || !(seals & F_SEAL_SHRINK)) {
+        close(fd);
+        return BadAccess;
+    }
+#endif
+
+    if (fstat(fd, &statb) < 0 || statb.st_size <= 0 || (uint64_t) statb.st_size > SIZE_MAX) {
         close(fd);
         return BadMatch;
     }
@@ -1188,18 +1219,24 @@ ProcShmAttachFd(ClientPtr client)
     shmdesc->size = statb.st_size;
     shmdesc->resource = stuff->shmseg;
 
+#ifdef BUSFAULT
     shmdesc->busfault = busfault_register_mmap(shmdesc->addr, shmdesc->size, ShmBusfaultNotify, shmdesc);
     if (!shmdesc->busfault) {
         munmap(shmdesc->addr, shmdesc->size);
         free(shmdesc);
         return BadAlloc;
     }
+#else
+    shmdesc->busfault = NULL;
+#endif
 
     shmdesc->next = Shmsegs;
     Shmsegs = shmdesc;
 
-    if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc))
+    if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc)) {
+        ShmDetachSegment(shmdesc, 0);
         return BadAlloc;
+    }
     return Success;
 }
 
@@ -1216,10 +1253,17 @@ shm_tmpfile(void)
 #ifdef HAVE_MEMFD_CREATE
     fd = memfd_create("xorg", MFD_CLOEXEC|MFD_ALLOW_SEALING);
     if (fd != -1) {
-        fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK);
+        if (fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK) < 0) {
+            close(fd);
+            return -1;
+        }
         DebugF ("Using memfd_create\n");
         return fd;
     }
+#endif
+
+#ifdef LUME_XSHM_FD_ONLY
+    return -1;
 #endif
 
 #ifdef O_TMPFILE
@@ -1304,6 +1348,7 @@ ProcShmCreateSegment(ClientPtr client)
     shmdesc->writable = !stuff->readOnly;
     shmdesc->size = stuff->size;
 
+#ifdef BUSFAULT
     shmdesc->busfault = busfault_register_mmap(shmdesc->addr, shmdesc->size, ShmBusfaultNotify, shmdesc);
     if (!shmdesc->busfault) {
         close(fd);
@@ -1311,12 +1356,16 @@ ProcShmCreateSegment(ClientPtr client)
         free(shmdesc);
         return BadAlloc;
     }
+#else
+    shmdesc->busfault = NULL;
+#endif
 
     shmdesc->next = Shmsegs;
     Shmsegs = shmdesc;
 
     if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc)) {
         close(fd);
+        ShmDetachSegment(shmdesc, 0);
         return BadAlloc;
     }
 

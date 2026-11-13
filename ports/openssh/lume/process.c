@@ -272,44 +272,6 @@ static int signal_request(unsigned operation, struct lume_signal_request *r)
     return native_result(native_call(LUME_SYS_SIGNAL, operation, (uintptr_t)r, sizeof(*r)));
 }
 
-int sigaction(int number, const struct sigaction *action, struct sigaction *old)
-{
-    struct lume_signal_request r = {.number = number, .operation = action != NULL};
-    if (action)
-    {
-        r.handler = (uintptr_t)action->sa_handler;
-        r.restorer = (uintptr_t)signal_restorer;
-        r.mask = action->sa_mask;
-        r.flags = action->sa_flags;
-    }
-    if (signal_request(LUME_SIGNAL_ACTION, &r))
-        return -1;
-    if (old)
-    {
-        old->sa_handler = (void (*)(int))(uintptr_t)r.handler;
-        old->sa_mask = r.mask;
-        old->sa_flags = r.flags;
-    }
-    return 0;
-}
-
-int sigprocmask(int operation, const sigset_t *set, sigset_t *old)
-{
-    struct lume_signal_request r = {
-        .operation = operation, .flags = set != NULL, .mask = set ? *set : 0};
-    if (signal_request(LUME_SIGNAL_MASK, &r))
-        return -1;
-    if (old)
-        *old = r.mask;
-    return 0;
-}
-
-int kill(pid_t pid, int number)
-{
-    struct lume_signal_request r = {.pid = pid, .number = number};
-    return signal_request(LUME_SIGNAL_SEND, &r);
-}
-
 static int process_id(unsigned operation, pid_t pid, pid_t group)
 {
     struct lume_signal_request r = {.pid = pid, .group = group};
@@ -367,10 +329,4 @@ int setitimer(int which, const struct itimerval *timer, struct itimerval *old)
         old->it_interval = (struct timeval){r.interval_ms / 1000, (r.interval_ms % 1000) * 1000};
     }
     return 0;
-}
-
-unsigned alarm(unsigned seconds)
-{
-    struct itimerval timer = {.it_value.tv_sec = seconds}, old;
-    return setitimer(ITIMER_REAL, &timer, &old) ? 0 : old.it_value.tv_sec + !!old.it_value.tv_usec;
 }

@@ -67,7 +67,8 @@
 #undef HASXDMAUTH
 
 /* Support SHM */
-#undef HAS_SHM
+#define HAS_SHM 1
+#define LUME_XSHM_FD_ONLY 1
 
 /* Has backtrace support */
 #undef HAVE_BACKTRACE
@@ -144,13 +145,13 @@
 #undef HAVE_LINUX_FB_H
 
 /* Define to 1 if you have the `memfd_create' function. */
-#undef HAVE_MEMFD_CREATE
+#define HAVE_MEMFD_CREATE 1
 
 /* Define to 1 if you have the `mkostemp' function. */
 #undef HAVE_MKOSTEMP
 
 /* Define to 1 if you have the `mmap' function. */
-#undef HAVE_MMAP
+#define HAVE_MMAP 1
 
 /* Define to 1 if you have the function pthread_setname_np(const char*) */
 #undef HAVE_PTHREAD_SETNAME_NP_WITHOUT_TID
@@ -269,7 +270,7 @@
 #undef LOCALCONN
 
 /* Support MIT-SHM Extension */
-#undef MITSHM
+#define MITSHM 1
 
 /* Enable some debugging code */
 #undef DEBUG
@@ -389,7 +390,9 @@
 #undef XVENDORNAME
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-#undef _FILE_OFFSET_BITS
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
 
 /* Enable GNU and other extensions to the C environment for GLIBC */
 #undef _GNU_SOURCE
@@ -470,7 +473,7 @@
 #undef HAVE_XSHMFENCE
 
 /* Use XTrans FD passing support */
-#undef XTRANS_SEND_FDS
+#define XTRANS_SEND_FDS 1
 
 /* Wrap SIGBUS to catch MIT-SHM faults */
 #undef BUSFAULT

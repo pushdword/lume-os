@@ -117,6 +117,7 @@ static unsigned next_account, next_group;
 
 struct passwd *getpwnam(const char *name)
 {
+    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     for (unsigned i = 0; i < 2; ++i)
         if (!strcmp(name, accounts[i].pw_name))
             return &accounts[i];
@@ -125,6 +126,7 @@ struct passwd *getpwnam(const char *name)
 
 struct passwd *getpwuid(uid_t uid)
 {
+    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     for (unsigned i = 0; i < 2; ++i)
         if (accounts[i].pw_uid == uid)
             return &accounts[i];
@@ -143,6 +145,7 @@ void endpwent(void)
 
 struct passwd *getpwent(void)
 {
+    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     return next_account < 2 ? &accounts[next_account++] : NULL;
 }
 
@@ -240,18 +243,6 @@ int fchown(int fd, uid_t uid, gid_t gid)
                        gid == (gid_t)-1 ? 0 : gid);
 }
 
-int lchown(const char *path, uid_t uid, gid_t gid)
-{
-    return chown(path, uid, gid);
-}
-
-int fchmodat(int directory, const char *path, mode_t mode, int flags)
-{
-    if (flags || (directory != AT_FDCWD && *path != '/'))
-        return unsupported();
-    return chmod(path, mode);
-}
-
 int fchownat(int directory, const char *path, uid_t uid, gid_t gid, int flags)
 {
     if (flags || (directory != AT_FDCWD && *path != '/'))
@@ -274,36 +265,6 @@ int link(const char *old, const char *path)
     return unsupported();
 }
 
-int symlink(const char *target, const char *path)
-{
-    (void)target;
-    (void)path;
-    return unsupported();
-}
-
-ssize_t readlink(const char *path, char *buffer, size_t bytes)
-{
-    (void)path;
-    (void)buffer;
-    (void)bytes;
-    errno = EINVAL;
-    return -1;
-}
-
-int utimes(const char *path, const struct timeval times[2])
-{
-    (void)path;
-    (void)times;
-    return unsupported();
-}
-
-int futimes(int fd, const struct timeval times[2])
-{
-    (void)fd;
-    (void)times;
-    return unsupported();
-}
-
 int statvfs(const char *path, struct statvfs *out)
 {
     (void)path;
@@ -316,71 +277,6 @@ int fstatvfs(int fd, struct statvfs *out)
     (void)fd;
     (void)out;
     return unsupported();
-}
-
-char *realpath(const char *path, char *resolved)
-{
-    char input[LUME_PATH_MAX], result[LUME_PATH_MAX];
-    if (!path || !*path)
-    {
-        errno = ENOENT;
-        return NULL;
-    }
-    if (*path == '/')
-    {
-        if (strlen(path) >= sizeof(input))
-        {
-            errno = ENAMETOOLONG;
-            return NULL;
-        }
-        strcpy(input, path);
-    }
-    else
-    {
-        char cwd[LUME_PATH_MAX];
-        if (!getcwd(cwd, sizeof(cwd)))
-            return NULL;
-        if (snprintf(input, sizeof(input), "%s/%s", cwd, path) >= (int)sizeof(input))
-        {
-            errno = ENAMETOOLONG;
-            return NULL;
-        }
-    }
-    strcpy(result, "/");
-    char *save, *part = strtok_r(input, "/", &save);
-    while (part)
-    {
-        if (!strcmp(part, ".."))
-        {
-            char *slash = strrchr(result, '/');
-            if (slash == result)
-                result[1] = 0;
-            else
-                *slash = 0;
-        }
-        else if (strcmp(part, "."))
-        {
-            if (result[1])
-                strcat(result, "/");
-            strcat(result, part);
-            struct stat metadata;
-            if (stat(result, &metadata))
-                return NULL;
-            if (save && *save && !S_ISDIR(metadata.st_mode))
-            {
-                errno = ENOTDIR;
-                return NULL;
-            }
-        }
-        part = strtok_r(NULL, "/", &save);
-    }
-    if (!resolved && !(resolved = malloc(strlen(result) + 1)))
-    {
-        errno = ENOMEM;
-        return NULL;
-    }
-    strcpy(resolved, result);
-    return resolved;
 }
 
 int gethostname(char *name, size_t bytes)
@@ -424,107 +320,6 @@ void syslog(int priority, const char *format, ...)
     vfprintf(stderr, format, ap);
     va_end(ap);
     fputc('\n', stderr);
-}
-
-int nanosleep(const struct timespec *delay, struct timespec *remaining)
-{
-    if (!delay || delay->tv_sec < 0 || delay->tv_nsec < 0 || delay->tv_nsec >= 1000000000)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    struct timespec before, after;
-    clock_gettime(CLOCK_MONOTONIC, &before);
-    uint64_t ms = (uint64_t)delay->tv_sec * 1000 + (delay->tv_nsec + 999999) / 1000000;
-    while (ms)
-    {
-        unsigned step = ms > 60000 ? 60000 : (unsigned)ms;
-        if (native_result(native_call(LUME_SYS_SLEEP, step, 0, 0)) < 0)
-        {
-            if (remaining)
-            {
-                clock_gettime(CLOCK_MONOTONIC, &after);
-                int64_t ns =
-                    (int64_t)delay->tv_sec * 1000000000 + delay->tv_nsec -
-                    ((after.tv_sec - before.tv_sec) * 1000000000 + after.tv_nsec - before.tv_nsec);
-                if (ns < 0)
-                    ns = 0;
-                *remaining = (struct timespec){ns / 1000000000, ns % 1000000000};
-            }
-            return -1;
-        }
-        ms -= step;
-    }
-    if (remaining)
-        memset(remaining, 0, sizeof(*remaining));
-    return 0;
-}
-
-int usleep(useconds_t usec)
-{
-    struct timespec delay = {usec / 1000000, (usec % 1000000) * 1000};
-    return nanosleep(&delay, NULL);
-}
-
-int select(int maximum, fd_set *reads, fd_set *writes, fd_set *errors, struct timeval *timeout)
-{
-    if (maximum < 0 || maximum > LUME_FD_MAX ||
-        (timeout && (timeout->tv_sec < 0 || timeout->tv_usec < 0 || timeout->tv_usec >= 1000000)))
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    struct pollfd p[LUME_FD_MAX];
-    unsigned count = 0;
-    for (int i = 0; i < maximum; ++i)
-        if ((reads && FD_ISSET(i, reads)) || (writes && FD_ISSET(i, writes)) ||
-            (errors && FD_ISSET(i, errors)))
-            p[count++] = (struct pollfd){.fd = i,
-                                         .events = (reads && FD_ISSET(i, reads) ? POLLIN : 0) |
-                                                   (writes && FD_ISSET(i, writes) ? POLLOUT : 0)};
-    int64_t ms = timeout ? (int64_t)timeout->tv_sec * 1000 + (timeout->tv_usec + 999) / 1000 : -1;
-    int ready;
-    do
-    {
-        ready = poll(p, count, ms < 0 ? -1 : ms > 60000 ? 60000 : (int)ms);
-        if (ms > 60000)
-            ms -= 60000;
-        else
-            break;
-    } while (!ready);
-    if (ready < 0)
-        return -1;
-    if (reads)
-        FD_ZERO(reads);
-    if (writes)
-        FD_ZERO(writes);
-    if (errors)
-        FD_ZERO(errors);
-    int total = 0;
-    for (unsigned i = 0; i < count; ++i)
-    {
-        if (p[i].revents & POLLNVAL)
-        {
-            errno = EBADF;
-            return -1;
-        }
-        if (reads && (p[i].events & POLLIN) && (p[i].revents & (POLLIN | POLLHUP | POLLERR)))
-        {
-            FD_SET(p[i].fd, reads);
-            ++total;
-        }
-        if (writes && (p[i].events & POLLOUT) && (p[i].revents & (POLLOUT | POLLERR)))
-        {
-            FD_SET(p[i].fd, writes);
-            ++total;
-        }
-        if (errors && (p[i].revents & POLLERR))
-        {
-            FD_SET(p[i].fd, errors);
-            ++total;
-        }
-    }
-    return total;
 }
 
 int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, const sigset_t *mask)
@@ -613,49 +408,6 @@ int pclose(FILE *file)
     return -1;
 }
 
-int openpty(int *master, int *slave, char *name, const struct termios *term,
-            const struct winsize *size)
-{
-    (void)master;
-    (void)slave;
-    (void)name;
-    (void)term;
-    (void)size;
-    return unsupported();
-}
-
-int ioctl(int fd, unsigned long request, ...)
-{
-    (void)fd;
-    (void)request;
-    errno = ENOTTY;
-    return -1;
-}
-
-char *ttyname(int fd)
-{
-    (void)fd;
-    errno = ENOTTY;
-    return NULL;
-}
-
-int tcgetattr(int fd, struct termios *t)
-{
-    (void)fd;
-    (void)t;
-    errno = ENOTTY;
-    return -1;
-}
-
-int tcsetattr(int fd, int when, const struct termios *t)
-{
-    (void)fd;
-    (void)when;
-    (void)t;
-    errno = ENOTTY;
-    return -1;
-}
-
 int tcsendbreak(int fd, int duration)
 {
     (void)fd;
@@ -669,16 +421,4 @@ int tcdrain(int fd)
     (void)fd;
     errno = ENOTTY;
     return -1;
-}
-
-int cfsetispeed(struct termios *t, speed_t speed)
-{
-    t->c_ispeed = speed;
-    return 0;
-}
-
-int cfsetospeed(struct termios *t, speed_t speed)
-{
-    t->c_ospeed = speed;
-    return 0;
 }

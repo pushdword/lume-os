@@ -59,7 +59,6 @@ component("x") {
   ]
 
   if (is_lume) {
-    sources -= [ "x11_shm_image_pool.cc" ]
     libs = [ "Xcursor" ]
   }
 

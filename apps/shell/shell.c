@@ -3,6 +3,7 @@
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "../utils/sysctl_config.h"
 #include "resource_defaults.h"
+#include "lume/process.h"
 #endif
 #if defined(LUME_ARCH_AARCH64)
 #include "lume/io.h"
@@ -809,6 +810,28 @@ int app_main(unsigned initial_argc, char **initial_argv)
             (void)assign("TERM", terminal_type, 1);
         (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
         (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+        const char *preferred = value("SHELL");
+        if (preferred[0] == '/' && strcmp(preferred, "/bin/sh") && executable(preferred))
+        {
+            (void)assign("PS1", "root@lume:\\w# ", 1);
+            lume_stdio_raw(0);
+            const char *arguments[] = {preferred, "--login", "-i"};
+            char data[LUME_ENV_BYTES];
+            const char *env[LUME_ENVS + 1];
+            int count = environment(data, env);
+            if (count >= 0)
+            {
+                struct lume_run_request request = {.path = (uintptr_t)preferred,
+                                                   .argv = (uintptr_t)arguments,
+                                                   .argc = 3,
+                                                   .envp = (uintptr_t)env,
+                                                   .envc = (unsigned)count};
+                (void)lume_native_call(LUME_SYS_EXEC, (uintptr_t)&request, sizeof(request), 0);
+            }
+            lume_native_reap_orphans();
+        }
+#endif
     }
     if (!command_mode && script < 0)
 #if defined(LUME_ARCH_I686)

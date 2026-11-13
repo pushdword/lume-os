@@ -22,9 +22,7 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkSurface.h"
-#if !BUILDFLAG(IS_LUME)
 #include "ui/base/x/x11_shm_image_pool.h"
-#endif
 #include "ui/base/x/x11_util.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/gfx/x/atom_cache.h"
@@ -156,10 +154,8 @@ X11SoftwareBitmapPresenter::X11SoftwareBitmapPresenter(x11::Connection &connecti
         return;
     }
 
-#if !BUILDFLAG(IS_LUME)
     shm_pool_ = std::make_unique<ui::XShmImagePool>(&connection_.get(), widget_, visual_, depth_,
                                                     MaxFramesPending(), enable_multibuffering_);
-#endif
 
     // TODO(thomasanderson): Avoid going through the X11 server to plumb this
     // property in.
@@ -177,11 +173,7 @@ X11SoftwareBitmapPresenter::~X11SoftwareBitmapPresenter()
 
 bool X11SoftwareBitmapPresenter::ShmPoolReady() const
 {
-#if BUILDFLAG(IS_LUME)
-    return false;
-#else
     return shm_pool_ && shm_pool_->Ready();
-#endif
 }
 
 void X11SoftwareBitmapPresenter::Resize(const gfx::Size &pixel_size)
@@ -196,14 +188,12 @@ void X11SoftwareBitmapPresenter::Resize(const gfx::Size &pixel_size)
     // happens for status icon windows that are typically 16x16px.  It's possible
     // to add a shm codepath, but it wouldn't be buying much since it would only
     // affect windows that are tiny and infrequently updated.
-#if !BUILDFLAG(IS_LUME)
     if (!composite_ && shm_pool_ && shm_pool_->Resize(pixel_size))
     {
         needs_swap_ = false;
         surface_ = nullptr;
     }
     else
-#endif
     {
         SkColorType color_type = ColorTypeForVisual(visual_);
         if (color_type == kUnknown_SkColorType)
@@ -221,14 +211,11 @@ void X11SoftwareBitmapPresenter::Resize(const gfx::Size &pixel_size)
 SkCanvas *X11SoftwareBitmapPresenter::GetSkCanvas()
 {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if !BUILDFLAG(IS_LUME)
     if (ShmPoolReady())
     {
         return shm_pool_->CurrentCanvas();
     }
-    else
-#endif
-        if (surface_)
+    else if (surface_)
     {
         return surface_->getCanvas();
     }
@@ -247,7 +234,6 @@ void X11SoftwareBitmapPresenter::EndPaint(const gfx::Rect &damage_rect)
 
     SkPixmap skia_pixmap;
 
-#if !BUILDFLAG(IS_LUME)
     if (ShmPoolReady())
     {
         // TODO(thomasanderson): Investigate direct rendering with DRI3 to avoid any
@@ -276,7 +262,6 @@ void X11SoftwareBitmapPresenter::EndPaint(const gfx::Rect &damage_rect)
         connection_->Flush();
         return;
     }
-#endif
     if (surface_)
     {
         surface_->peekPixels(&skia_pixmap);
@@ -309,13 +294,11 @@ void X11SoftwareBitmapPresenter::EndPaint(const gfx::Rect &damage_rect)
 void X11SoftwareBitmapPresenter::OnSwapBuffers(SwapBuffersCallback swap_ack_callback)
 {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if !BUILDFLAG(IS_LUME)
     if (enable_multibuffering_ && ShmPoolReady() && needs_swap_)
     {
         shm_pool_->SwapBuffers(std::move(swap_ack_callback));
     }
     else
-#endif
     {
         std::move(swap_ack_callback).Run(viewport_pixel_size_);
     }

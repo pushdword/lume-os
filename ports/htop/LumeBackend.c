@@ -12,11 +12,13 @@
 #include "SysArchMeter.h"
 #include "api.h"
 #include "perf.h"
+#include "perf_client.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 static struct lume_perf_snapshot sample, previous;
+static struct lume_perf_task_list task_sample, task_previous;
 static struct lume_memory_info memory;
 static bool valid, have_previous, memory_valid;
 
@@ -57,6 +59,9 @@ bool Platform_init(void)
 
 void Platform_done(void)
 {
+    free(task_sample.entries);
+    free(task_previous.entries);
+    task_sample = task_previous = (struct lume_perf_task_list){0};
 }
 
 void Platform_setBindings(Htop_Action *keys)
@@ -207,6 +212,9 @@ void Machine_scan(Machine *m)
     if (m->settings)
         for (size_t s = 0; s < m->settings->nScreens; s++)
             m->settings->screens[s]->treeView = false;
+    struct lume_perf_task_list temporary = task_previous;
+    task_previous = task_sample;
+    task_sample = temporary;
     previous = sample;
     have_previous = valid;
     int n = lume_syscall(LUME_PERF, (uint32_t)(uintptr_t)&sample, sizeof sample, LUME_PERF_VERSION);
@@ -219,8 +227,12 @@ void Machine_scan(Machine *m)
         errno = EIO;
         CRT_fatalError("Lume telemetry unavailable or incompatible");
     }
-    for (unsigned i = 0; i < sample.process_count; i++)
-        sample.processes[i].name[sizeof sample.processes[i].name - 1] = 0;
+    if (lume_perf_tasks_read(&task_sample, &sample))
+    {
+        valid = have_previous = false;
+        errno = EIO;
+        CRT_fatalError("Lume process enumeration failed");
+    }
     if (have_previous &&
         (sample.core_count != previous.core_count || sample.clock_hz != previous.clock_hz ||
          !delta(sample.uptime_ms, previous.uptime_ms) ||
@@ -256,13 +268,23 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
     if (!valid)
         return;
     uint32_t wall = have_previous ? delta(sample.cores[0].counter, previous.cores[0].counter) : 0;
-    for (unsigned i = 0; i < sample.process_count; i++)
+    unsigned *threads = xCalloc(task_sample.count ? task_sample.count : 1, sizeof(*threads));
+    for (unsigned i = 0; i < task_sample.count; ++i)
+        if (task_sample.entries[i].state & LUME_PERF_THREAD)
+        {
+            const struct lume_perf_process *parent =
+                lume_perf_process_find(&task_sample, task_sample.entries[i].parent);
+            if (parent && !(parent->state & LUME_PERF_THREAD))
+                ++threads[parent - task_sample.entries];
+        }
+    for (unsigned i = 0; i < task_sample.count; i++)
     {
-        const struct lume_perf_process *a = &sample.processes[i], *b = NULL;
+        const struct lume_perf_process *a = &task_sample.entries[i], *b = NULL;
         if (have_previous)
-            for (unsigned j = 0; j < previous.process_count; j++)
-                if (previous.processes[j].pid == a->pid)
-                    b = &previous.processes[j];
+            b = lume_perf_process_find(&task_previous, a->pid);
+        if (b && (a->parent != b->parent || strcmp(a->name, b->name) ||
+                  ((a->state ^ b->state) & LUME_PERF_THREAD) || a->dispatches < b->dispatches))
+            b = NULL;
         bool exists;
         Process *p = ProcessTable_getProcess(t, (pid_t)a->pid, &exists, UnsupportedProcess_new);
         Process_setParent(p, a->parent == UINT32_MAX ? 0 : (pid_t)a->parent);
@@ -283,12 +305,7 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
         p->st_uid = 0;
         p->user = "root";
         p->nice = PROCESS_NICE_UNKNOWN;
-        p->nlwp = 1;
-        if (!thread)
-            for (unsigned j = 0; j < sample.process_count; ++j)
-                if ((sample.processes[j].state & LUME_PERF_THREAD) &&
-                    sample.processes[j].parent == a->pid)
-                    ++p->nlwp;
+        p->nlwp = thread ? 1 : 1 + threads[i];
         uint64_t ticks = b ? (uint64_t)delta(a->user_ticks, b->user_ticks) +
                                  delta(a->kernel_ticks, b->kernel_ticks)
                            : 0;
@@ -311,6 +328,7 @@ void ProcessTable_goThroughEntries(ProcessTable *t)
         if (!exists)
             ProcessTable_add(t, p);
     }
+    free(threads);
 }
 
 /* htop uses monotonic time for refresh and highlighting. This profile does not provide a

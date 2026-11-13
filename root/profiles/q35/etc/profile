@@ -1,5 +1,6 @@
 export PATH=/data/bin:/bin:/usr/bin
 export HOME=/data/home
 export USER=root
+export SHELL=/data/bin/bash
 export TERM=vt100
 export TMPDIR=/tmp

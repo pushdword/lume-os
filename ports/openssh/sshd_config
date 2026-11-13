@@ -14,7 +14,7 @@ AuthorizedKeysFile /data/etc/ssh/authorized_keys
 StrictModes yes
 UseDNS no
 DisableForwarding yes
-PermitTTY no
+PermitTTY yes
 PermitUserEnvironment no
 MaxSessions 1
 MaxStartups 2:30:2

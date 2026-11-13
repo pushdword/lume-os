@@ -1,8 +1,11 @@
 /* Native process and per-core CPU monitor. */
 #include "api.h"
+#include "fd_client.h"
 #include "perf.h"
+#include "perf_client.h"
 
 static struct lume_perf_snapshot samples[2];
+static struct lume_perf_task_list task_samples[2];
 static char screen[3072];
 static unsigned used;
 
@@ -66,6 +69,17 @@ static int write_screen(void)
         int n = app_write(1, screen + at, used - at);
         if (n == -4)
             continue;
+        if (n == -11)
+        {
+            int flags = app_fd_flags(1, LUME_FD_GETFL, 0);
+            if (flags >= 0 && !(flags & LUME_FD_NONBLOCK))
+            {
+                struct lume_pollfd ready = {.fd = 1, .events = LUME_POLLOUT};
+                int wait = app_poll(&ready, 1, UINT32_MAX);
+                if (wait >= 0 || wait == -4)
+                    continue;
+            }
+        }
         if (n <= 0 || (unsigned)n > used - at)
             return 0;
         at += (unsigned)n;
@@ -106,16 +120,13 @@ static int snapshot(struct lume_perf_snapshot *s)
         app_puts("top: unsupported telemetry layout\n");
         return 0;
     }
+    n = lume_perf_tasks_read(&task_samples[s == &samples[1]], s);
+    if (n)
+    {
+        app_error("top: process enumeration", n);
+        return 0;
+    }
     return 1;
-}
-
-static const struct lume_perf_process *previous_process(const struct lume_perf_snapshot *s,
-                                                        uint32_t pid)
-{
-    for (unsigned i = 0; i < s->process_count; i++)
-        if (s->processes[i].pid == pid)
-            return &s->processes[i];
-    return 0;
 }
 
 static void metric(const char *label, uint32_t after, uint32_t before)
@@ -177,10 +188,18 @@ static int render(const struct lume_perf_snapshot *now, const struct lume_perf_s
     }
     text("  PID STATE MASK    CPU%   LOCK% READYms MAXms RUNS NAME\n");
     uint32_t wall_ticks = delta(now->cores[0].counter, old->cores[0].counter);
-    for (unsigned i = 0; i < now->process_count; i++)
+    const struct lume_perf_task_list *tasks = &task_samples[now == &samples[1]];
+    const struct lume_perf_task_list *before = &task_samples[old == &samples[1]];
+    for (unsigned i = 0; i < tasks->count; i++)
     {
-        const struct lume_perf_process *a = &now->processes[i];
-        const struct lume_perf_process *b = previous_process(old, a->pid);
+        if (used + 192 > sizeof screen)
+        {
+            if (!write_screen())
+                return 0;
+            used = 0;
+        }
+        const struct lume_perf_process *a = &tasks->entries[i];
+        const struct lume_perf_process *b = lume_perf_process_find(before, a->pid);
         number(a->pid, 5);
         text(" ");
         text(state(a->state));

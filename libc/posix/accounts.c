@@ -17,11 +17,13 @@ static struct passwd root = {.pw_name = "root",
 
 struct passwd *getpwuid(uid_t uid)
 {
+    root.pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     return uid == 0 ? &root : NULL;
 }
 
 struct passwd *getpwnam(const char *name)
 {
+    root.pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     return name && !strcmp(name, root.pw_name) ? &root : NULL;
 }
 
@@ -37,6 +39,7 @@ struct passwd *getpwent(void)
     if (account_cursor)
         return NULL;
     account_cursor = 1;
+    root.pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
     return &root;
 }
 
