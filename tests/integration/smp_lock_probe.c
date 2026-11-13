@@ -94,6 +94,7 @@ int main(void)
         call(LUME_SYS_TELEMETRY, (uintptr_t)&before, sizeof(before), LUME_PERF_VERSION))
         return 1;
     pid = (uint64_t)call(LUME_SYS_GETPID, 0, 0, 0);
+    uint64_t started = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
     unsigned cores = 0;
     for (unsigned round = 0; round < ROUNDS; ++round)
     {
@@ -142,6 +143,7 @@ int main(void)
             cores |= results[i].cores;
         }
     }
+    uint64_t elapsed = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) - started;
     if (cores != 15 ||
         call(LUME_SYS_TELEMETRY, (uintptr_t)&after, sizeof(after), LUME_PERF_VERSION))
         return 7;
@@ -159,6 +161,9 @@ int main(void)
                before.cores[i].ticks[LUME_PERF_LOCKWAIT]);
         puts("\n");
     }
+    puts("SMP_LOCK_ELAPSED_MS=");
+    number(elapsed);
+    puts("\n");
     puts("SMP_LOCK_PASS threads=8 rounds=2 iterations=32768 cores=15\n");
     return 0;
 }
