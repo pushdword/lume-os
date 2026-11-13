@@ -311,7 +311,10 @@ int setrlimit(int which, const struct rlimit *limit)
 
 int getdtablesize(void)
 {
-    return LUME_FD_LIMIT;
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit))
+        return -1;
+    return limit.rlim_cur > INT_MAX ? INT_MAX : (int)limit.rlim_cur;
 }
 
 #include "lume/signal_native.h"

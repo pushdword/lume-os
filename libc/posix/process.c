@@ -13,7 +13,7 @@
 #include "lume/spawn.h"
 #include "fd.h"
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-#define SPAWN_FD_LIMIT LUME_FD_LIMIT
+#define SPAWN_FD_LIMIT LUME_FD_DESCRIPTOR_LIMIT
 #else
 #define SPAWN_FD_LIMIT 16
 #endif
@@ -94,8 +94,8 @@ pid_t waitpid(pid_t pid, int *status, int options)
     return result;
 #else
     struct lume_wait_status child;
-    int result = lume_app_call(LUME_WAITPID, (uint32_t)pid, (uintptr_t)&child,
-                              !!(options & WNOHANG));
+    int result =
+        lume_app_call(LUME_WAITPID, (uint32_t)pid, (uintptr_t)&child, !!(options & WNOHANG));
     if (result < 0)
     {
         errno = lume_errno_from_syscall((unsigned)-result);
@@ -331,7 +331,7 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
     if (extended)
         request.base.version = LUME_SPAWN_OPTIONS_VERSION;
     result = lume_app_call(LUME_SPAWN_ACTIONS, (uintptr_t)&request,
-                         extended ? sizeof(request) : sizeof(request.base), 0);
+                           extended ? sizeof(request) : sizeof(request.base), 0);
 #else
     if (attribute && (*attribute)->flags)
         return ENOTSUP;
@@ -346,8 +346,7 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
                                                      .actions = (uintptr_t)(*actions)->action,
                                                      .count = (*actions)->count,
                                                      .version = LUME_SPAWN_VERSION};
-        result =
-            lume_app_call(LUME_SPAWN_ACTIONS, (uintptr_t)&request, sizeof(request), 0);
+        result = lume_app_call(LUME_SPAWN_ACTIONS, (uintptr_t)&request, sizeof(request), 0);
     }
     else
         result =

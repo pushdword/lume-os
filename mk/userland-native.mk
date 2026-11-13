@@ -61,7 +61,7 @@ all: desktop
 endif
 include mk/busybox.mk
 include mk/htop.mk
-ARM_APPS := shell ls dir less top worker probe fstest libctest video smpdemo iostat iobench cp touch tar base64
+ARM_APPS := sysctl shell ls dir less top worker probe fstest libctest video smpdemo iostat iobench cp touch tar base64
 ARM_APPLETS := basename cat dirname echo false head printenv pwd true wc sort cut cmp cksum crc32 expand unexpand mkdir rmdir
 ARM_APP_TARGETS := $(addprefix $(OUT)/,$(addsuffix .elf,$(ARM_APPS)))
 include mk/vim-native.mk
@@ -73,7 +73,7 @@ $(BB_OBJECTS): CPPFLAGS += -Iports/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
 $(OUT)/obj/apps/diagnostics/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
 ifeq ($(ARCH),i686)
-all: headers $(addprefix $(OUT)/,$(addsuffix .elf,shell ls dir worker libctest cp touch video)) $(OUT)/busybox.elf $(OUT)/device.elf kernel
+all: headers $(addprefix $(OUT)/,$(addsuffix .elf,sysctl shell ls dir worker libctest cp touch video)) $(OUT)/busybox.elf $(OUT)/device.elf kernel
 all: $(OUT)/i686-video-test.elf
 all: $(OUT)/vi.elf $(OUT)/htop.elf
 $(OUT)/obj/tests/integration/i686_video.c.o: | headers
@@ -196,7 +196,7 @@ ifeq ($(PROFILE),recovery)
 endif
 endif
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
-	$(foreach app,busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(foreach app,sysctl busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
 ifneq ($(strip $(NATIVE_SDK)),)
 	cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg"
 	cp "$(OUT)/service.elf" "$(OUT)/root/bin/service"
@@ -310,3 +310,7 @@ check-directory: $(OUT)/tests/directory$(HOSTEXE)
 $(OUT)/tests/directory$(HOSTEXE): tests/unit/directory_test.c libc/posix/directory.c include/posix/sys/dirent.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -DLUME_USER_HOST_TEST=1 $(ARCH_CPPFLAGS) -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -I"$(KERNEL)/include/uapi" -I"$(KERNEL)/include/abi/native" tests/unit/directory_test.c -o "$@"
+
+$(OUT)/obj/apps/utils/sysctl.c.o $(OUT)/obj/apps/shell/shell.c.o: apps/utils/sysctl_config.h
+
+$(OUT)/obj/apps/shell/shell.c.o: apps/shell/resource_defaults.h

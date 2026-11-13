@@ -17,6 +17,7 @@ APP_SOURCE_service := services/svcd/service.c
 APP_SOURCE_shell := apps/shell/shell.c
 APP_SOURCE_smpdemo := apps/diagnostics/smpdemo.c
 APP_SOURCE_tar := apps/utils/tar.c
+APP_SOURCE_sysctl := apps/utils/sysctl.c
 APP_SOURCE_top := apps/utils/top.c
 APP_SOURCE_touch := apps/utils/touch.c
 APP_SOURCE_update := apps/update/update.c

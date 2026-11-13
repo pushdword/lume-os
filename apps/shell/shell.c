@@ -1,5 +1,9 @@
 #include "api.h"
 #include "fd_client.h"
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+#include "../utils/sysctl_config.h"
+#include "resource_defaults.h"
+#endif
 #if defined(LUME_ARCH_AARCH64)
 #include "lume/io.h"
 #endif
@@ -776,6 +780,14 @@ int app_main(unsigned initial_argc, char **initial_argv)
     {
         char terminal_type[128];
         snprintf(terminal_type, sizeof terminal_type, "%s", value("TERM"));
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+        if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
+        {
+            (void)lume_sysctl_load("/etc/sysctl.conf", 1, 0);
+            (void)lume_sysctl_load("/data/etc/sysctl.conf", 1, 0);
+            shell_resource_defaults();
+        }
+#endif
         profile();
 #if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
         if (shell_boot_menu())
