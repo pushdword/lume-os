@@ -330,6 +330,8 @@ $(OUT)/tests/xorg-gpu-gc$(HOSTEXE): tests/unit/xorg_gpu_gc_test.c tests/fixtures
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG -Itests/fixtures/xorg "$<" -o "$@"
 
 include mk/graphics.mk
+include mk/wayland.mk
+include mk/weston.mk
 include mk/mesa.mk
 include mk/glamor.mk
 

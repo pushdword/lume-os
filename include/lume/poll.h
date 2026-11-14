@@ -19,6 +19,11 @@ extern "C"
 #define POLLHUP 0x010
 #define POLLNVAL 0x020
     int poll(struct pollfd *, nfds_t, int);
+#ifdef _GNU_SOURCE
+#include <time.h>
+#include <signal.h>
+    int ppoll(struct pollfd *, nfds_t, const struct timespec *, const sigset_t *);
+#endif
 #ifdef __cplusplus
 }
 #endif

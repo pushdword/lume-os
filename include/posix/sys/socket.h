@@ -30,6 +30,8 @@ extern "C"
 #define PF_INET6 AF_INET6
 #define PF_UNSPEC AF_UNSPEC
 #define PF_UNIX AF_UNIX
+#define AF_LOCAL AF_UNIX
+#define PF_LOCAL AF_UNIX
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
 #define SOCK_SEQPACKET 5

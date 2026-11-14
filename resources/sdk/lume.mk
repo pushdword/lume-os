@@ -11,7 +11,7 @@ LUME_SDK_CFLAGS += -mcpu=cortex-a76 -mstrict-align
 else ifeq ($(LUME_SDK_ARCH),amd64)
 LUME_SDK_CFLAGS += -m64 -march=x86-64 -mcmodel=large -mno-red-zone
 else ifeq ($(LUME_SDK_ARCH),i686)
-LUME_SDK_CFLAGS += -m32 -march=i686
+LUME_SDK_CFLAGS += -m32 -march=i686 -DLUME_NATIVE_LFS64=1
 else
 $(error Unsupported SDK architecture)
 endif

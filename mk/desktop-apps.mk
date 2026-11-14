@@ -9,6 +9,12 @@ DESKTOP_APP_BASE := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --s
 DESKTOP_APP_CXX := -std=c++17 -nostdinc++ -fno-exceptions -frtti -U__BITINT_MAXWIDTH__ -DLUME_NATIVE_CXX -Iports/libcxx -Ivendor/libcxx/include -Ivendor/libcxxabi/include
 DESKTOP_APP_FLTK := -Iports/fltk -Ivendor/fltk -Ivendor/libpng -Iports/x11/libpng -Ivendor/zlib
 DESKTOP_APP_TLS := -Ivendor/mbedtls/include -Ivendor/mbedtls/library -Iports/mbedtls -DMBEDTLS_CONFIG_FILE='"lume_tls_config.h"'
+
+$(DESKTOP_OUT)/programs/obj/common/%.c.o: %.c mk/native-runtime.mk | headers
+	mkdir -p "$(@D)"
+	$(CC) $(DESKTOP_APP_BASE) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
+-include $(DESKTOP_APP_RUNTIME:=.d)
+
 DESKTOP_APP_DILLO := -Iports/dillo -Ivendor/dillo -Ivendor/dillo/src -Ivendor/stb $(DESKTOP_APP_FLTK) $(DESKTOP_APP_TLS) -DHAVE_CONFIG_H
 DESKTOP_APP_LIBS := $(DESKTOP_APPS_OUT)/libfltk.a $(DESKTOP_APPS_OUT)/libmbedtls.a $(DESKTOP_OUT)/libraries/lib/libXpm.a $(DESKTOP_OUT)/libraries/lib/libXext.a $(DESKTOP_OUT)/libraries/lib/libXrender.a $(DESKTOP_OUT)/libraries/lib/libXcomposite.a $(DESKTOP_OUT)/libraries/lib/libXdamage.a $(DESKTOP_OUT)/libraries/lib/libXfixes.a $(DESKTOP_OUT)/libraries/lib/libXcursor.a $(DESKTOP_OUT)/libraries/lib/libX11.a $(DESKTOP_OUT)/libraries/lib/libxcb.a $(DESKTOP_OUT)/libraries/lib/libXau.a $(DESKTOP_OUT)/libraries/lib/libXdmcp.a $(DESKTOP_OUT)/libraries/lib/libpng.a $(DESKTOP_OUT)/libraries/lib/zlib.a $(DESKTOP_OUT)/cxx/libc++.a $(SYSROOT)/lib/libc.a
 $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/native-allocator.c.o: ports/picolibc/native-allocator.c vendor/libffi/src/dlmalloc.c mk/desktop-apps.mk | headers

@@ -54,6 +54,8 @@ extern "C" {
 #define X86_64
 #elif defined(__aarch64__)
 #define AARCH64
+#elif defined(__i386__)
+#define X86
 #endif
 
 /* ---- System configuration information --------------------------------- */

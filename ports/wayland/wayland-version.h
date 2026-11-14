@@ -1,0 +1,8 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+#ifndef WAYLAND_VERSION_H
+#define WAYLAND_VERSION_H
+#define WAYLAND_VERSION_MAJOR 1
+#define WAYLAND_VERSION_MINOR 26
+#define WAYLAND_VERSION_MICRO 0
+#define WAYLAND_VERSION "1.26.0"
+#endif
