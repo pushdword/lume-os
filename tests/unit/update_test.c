@@ -10,6 +10,7 @@
 static unsigned char wire[9000], image[1048576], installed[1048576];
 static unsigned wire_bytes, cursor, written, activations, aborted, closed;
 static bool verify_failure;
+static unsigned source_kind, file_closed;
 
 static void put(unsigned char *p, unsigned n)
 {
@@ -19,6 +20,31 @@ static void put(unsigned char *p, unsigned n)
 
 int64_t call(uint64_t number, uint64_t op, uint64_t pointer, uint64_t bytes)
 {
+    if (number == LUME_SYS_OPEN)
+        return 8;
+    if (number == LUME_SYS_STAT)
+    {
+        struct lume_stat *info = (void *)(uintptr_t)pointer;
+        *info = (struct lume_stat){.kind = source_kind, .size = wire_bytes};
+        return 0;
+    }
+    if (number == LUME_SYS_CLOSE)
+    {
+        assert(op == 8);
+        ++file_closed;
+        return 0;
+    }
+    if (number == LUME_SYS_READ)
+    {
+        unsigned count = wire_bytes - cursor;
+        if (count > bytes)
+            count = (unsigned)bytes;
+        if (count > 113)
+            count = 113;
+        memcpy((void *)(uintptr_t)pointer, wire + cursor, count);
+        cursor += count;
+        return count;
+    }
     if (number == LUME_SYS_WRITE)
         return (int64_t)bytes;
     if (number == LUME_SYS_STREAM)
@@ -91,6 +117,9 @@ static void reset(void)
     memset(&stream, 0, sizeof(stream));
     memset(&boot, 0, sizeof(boot));
     opened = staging = false;
+    source_fd = -1;
+    source_kind = LUME_NODE_FILE;
+    file_closed = 0;
     cursor = written = activations = aborted = closed = 0;
     verify_failure = false;
     memset(image, 0, sizeof(image));
@@ -141,6 +170,18 @@ int main(void)
     reset();
     wire[0] = 'X';
     assert(updater_main(3, args) == 1 && !activations && !aborted && closed == 1);
+    args[1] = "/data/tmp/system.lup";
+    reset();
+    assert(!updater_main(3, args) && activations == 1 && !aborted && !closed && file_closed == 1);
+    reset();
+    expected[0] = expected[0] == '0' ? '1' : '0';
+    assert(updater_main(3, args) == 1 && !activations && aborted == 1 && file_closed == 1);
+    reset();
+    wire_bytes = 500;
+    assert(updater_main(3, args) == 1 && !activations && aborted == 1 && file_closed == 1);
+    reset();
+    source_kind = LUME_NODE_CHAR;
+    assert(updater_main(3, args) == 1 && !activations && !aborted && file_closed == 1);
     puts(
         "PASS updater fragmented TCP, sparse gaps, SHA rejection, malformed/truncated stream and readback failure");
 }

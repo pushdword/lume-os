@@ -6,6 +6,7 @@ static struct lume_stream_request stream;
 static struct lume_boot_request boot;
 static struct lume_sha256 hash;
 static bool opened, staging;
+static int source_fd = -1;
 
 static int net(unsigned op)
 {
@@ -24,7 +25,8 @@ static bool receive(void *out, unsigned count)
     while (count)
     {
         stream.count = count > LUME_IO_BYTES ? LUME_IO_BYTES : count;
-        int n = net(LUME_STREAM_RECEIVE);
+        int n = source_fd >= 0 ? (int)read(source_fd, stream.data, stream.count)
+                               : net(LUME_STREAM_RECEIVE);
         if (n == -LUME_EAGAIN && retries++ < 3)
             continue;
         if (n <= 0 || (unsigned)n > stream.count)
@@ -97,22 +99,45 @@ static bool block(unsigned count)
 
 static int update(const char *host, const unsigned char expected[32])
 {
-    if (!address(host) || net(LUME_STREAM_CONNECT) < 0)
-        return 1;
-    opened = true;
-    static const char request[] = "LUP1 GET\n";
-    for (unsigned i = 0; i < sizeof(request) - 1; ++i)
-        stream.data[i] = (unsigned char)request[i];
-    stream.count = sizeof(request) - 1;
-    if (net(LUME_STREAM_SEND) != (int)(sizeof(request) - 1))
-        return 1;
+    if (host[0] == '/')
+    {
+        source_fd = (int)open(host, LUME_O_RDONLY);
+        struct lume_stat info;
+        if (source_fd < 0 || call(LUME_SYS_STAT, (unsigned)source_fd, (uintptr_t)&info, 0) < 0 ||
+            info.kind != LUME_NODE_FILE || info.size < 20 || info.size > 65u * 1024u * 1024u)
+        {
+            puts("update: invalid local stream file\n");
+            return 1;
+        }
+    }
+    else
+    {
+        if (!address(host) || net(LUME_STREAM_CONNECT) < 0)
+            return 1;
+        opened = true;
+        static const char request[] = "LUP1 GET\n";
+        for (unsigned i = 0; i < sizeof(request) - 1; ++i)
+            stream.data[i] = (unsigned char)request[i];
+        stream.count = sizeof(request) - 1;
+        if (net(LUME_STREAM_SEND) != (int)(sizeof(request) - 1))
+            return 1;
+    }
     unsigned char header[12];
     if (!receive(header, sizeof(header)) || header[0] != 'L' || header[1] != 'U' ||
         header[2] != 'P' || header[3] != '1' || word(header + 8) != 4096)
+    {
+        puts("update: invalid stream header\n");
         return 1;
+    }
     boot.total = word(header + 4);
-    if (disk(LUME_BOOT_BEGIN) < 0)
+    int begin_result = disk(LUME_BOOT_BEGIN);
+    if (begin_result < 0)
+    {
+        puts("update: cannot stage boot image, error ");
+        number((unsigned)-begin_result);
+        puts("\n");
         return 1;
+    }
     staging = true;
     puts("update: receiving kernel and programs\n");
     lume_sha256_init(&hash);
@@ -191,7 +216,7 @@ int main(int argc, char **argv)
     unsigned char expected[32];
     if (argc != 3 || len(argv[2]) != 64)
     {
-        puts("usage: update status | update IPv4:port SHA256\n");
+        puts("usage: update status | update IPv4:port|/FILE SHA256\n");
         return 1;
     }
     for (unsigned i = 0; i < 32; ++i)
@@ -206,6 +231,8 @@ int main(int argc, char **argv)
         (void)disk(LUME_BOOT_ABORT);
     if (opened)
         (void)net(LUME_STREAM_CLOSE);
+    if (source_fd >= 0)
+        (void)close(source_fd);
     if (result)
         puts("update: failed; check boot status before reboot\n");
     return result;
