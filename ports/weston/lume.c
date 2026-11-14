@@ -24,6 +24,7 @@
 #include "lume/syscall_native.h"
 #include "../wayland/runtime.h"
 #include "shell.h"
+#include "gpu.h"
 
 struct lume_compositor
 {
@@ -40,11 +41,12 @@ struct lume_compositor
     struct weston_view *background_view;
     struct weston_desktop *desktop;
     struct weston_renderbuffer *renderbuffer;
+    struct lume_weston_gpu *gpu;
     struct wl_event_source *finish_timer, *input_source;
     uint32_t *pixels;
     uint32_t width, height, pitch, buttons;
     unsigned windows;
-    int fd;
+    int fd, exit_code;
     bool held[256];
     uint64_t frames, damaged_pixels, render_ns, present_ns;
 };
@@ -90,7 +92,13 @@ static int repaint(struct weston_output *output)
     pixman_region32_init(&damage);
     weston_output_flush_damage_for_primary_plane(output, &damage);
     uint64_t started = monotonic_ns();
+    if (lume->gpu)
+        lume->renderbuffer = lume_weston_gpu_next(lume->gpu);
     output->compositor->renderer->repaint_output(output, &damage, lume->renderbuffer);
+#ifdef LUME_WESTON_RENDER_CHECK
+    extern void lume_weston_render_check(struct weston_output *, uint64_t);
+    lume_weston_render_check(output, lume->frames);
+#endif
     lume->render_ns += monotonic_ns() - started;
     int count;
     pixman_box32_t *boxes = pixman_region32_rectangles(&damage, &count);
@@ -110,7 +118,7 @@ static int repaint(struct weston_output *output)
             continue;
         uint32_t width = box.x2 - box.x1, height = box.y2 - box.y1;
         lume->damaged_pixels += (uint64_t)width * height;
-        if (lume->fd >= 0)
+        if (lume->fd >= 0 && !lume->gpu)
         {
             struct lume_graphics_request request = {
                 .fd = lume->fd,
@@ -124,11 +132,20 @@ static int repaint(struct weston_output *output)
             if (graphics(LUME_GRAPHICS_PRESENT, &request) < 0)
             {
                 fprintf(stderr, "wayland: screen presentation failed\n");
+                lume->exit_code = 1;
                 wl_display_terminate(lume->display);
                 pixman_region32_fini(&damage);
                 return -1;
             }
         }
+    }
+    if (lume->gpu && lume_weston_gpu_present(lume->gpu))
+    {
+        fprintf(stderr, "wayland: GPU presentation failed: %s\n", strerror(errno));
+        lume->exit_code = 1;
+        wl_display_terminate(lume->display);
+        pixman_region32_fini(&damage);
+        return -1;
     }
     lume->present_ns += monotonic_ns() - started;
     ++lume->frames;
@@ -140,6 +157,17 @@ static int repaint(struct weston_output *output)
 static int output_enable(struct weston_output *output)
 {
     struct lume_compositor *lume = output->compositor->user_data;
+    if (lume->gpu)
+    {
+        if (lume_weston_gpu_output_create(lume->gpu, output))
+            return -1;
+        lume->finish_timer =
+            wl_event_loop_add_timer(wl_display_get_event_loop(lume->display), finish_frame, lume);
+        if (lume->finish_timer)
+            return 0;
+        lume_weston_gpu_output_destroy(lume->gpu);
+        return -1;
+    }
     const struct pixman_renderer_interface *renderer = output->compositor->renderer->pixman;
     const struct pixman_renderer_output_options options = {
         .use_shadow = false,
@@ -167,6 +195,15 @@ static int output_enable(struct weston_output *output)
 static int output_disable(struct weston_output *output)
 {
     struct lume_compositor *lume = output->compositor->user_data;
+    if (lume->gpu)
+    {
+        if (lume->finish_timer)
+            wl_event_source_remove(lume->finish_timer);
+        lume->finish_timer = NULL;
+        lume->renderbuffer = NULL;
+        lume_weston_gpu_output_destroy(lume->gpu);
+        return 0;
+    }
     if (!lume->renderbuffer)
         return 0;
     wl_event_source_remove(lume->finish_timer);
@@ -437,6 +474,7 @@ int main(int argc, char **argv)
     bool headless = false;
     int duration = 0;
     const char *socket = "wayland-0";
+    const char *renderer = "auto";
     char **command = NULL;
     for (int i = 1; i < argc; ++i)
     {
@@ -447,6 +485,12 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--headless"))
             headless = true;
+        else if (!strcmp(argv[i], "--renderer") && i + 1 < argc)
+        {
+            renderer = argv[++i];
+            if (strcmp(renderer, "auto") && strcmp(renderer, "gl") && strcmp(renderer, "pixman"))
+                return 2;
+        }
         else if (!strcmp(argv[i], "--socket") && i + 1 < argc)
             socket = argv[++i];
         else if (!strcmp(argv[i], "--run-for-ms") && i + 1 < argc)
@@ -461,7 +505,7 @@ int main(int argc, char **argv)
         {
             fprintf(
                 stderr,
-                "Usage: wayland [--headless] [--socket NAME] [--run-for-ms N] [-- COMMAND...]\n");
+                "Usage: wayland [--headless] [--renderer auto|gl|pixman] [--socket NAME] [--run-for-ms N] [-- COMMAND...]\n");
             return 2;
         }
     }
@@ -487,10 +531,6 @@ int main(int argc, char **argv)
     }
     if (!lume.width || !lume.height || lume.width > 16384 || lume.height > 16384)
         goto fail;
-    lume.pitch = lume.width * 4;
-    if (posix_memalign((void **)&lume.pixels, 4096, (size_t)lume.pitch * lume.height))
-        goto fail;
-    memset(lume.pixels, 0, (size_t)lume.pitch * lume.height);
     lume.display = wl_display_create();
     struct weston_log_context *log = weston_log_ctx_create();
     if (!lume.display || !log)
@@ -503,8 +543,20 @@ int main(int argc, char **argv)
     lume.backend.destroy = backend_destroy;
     lume.backend.supported_presentation_clocks = WESTON_PRESENTATION_CLOCKS_SOFTWARE;
     wl_list_insert(&lume.compositor->backend_list, &lume.backend.link);
-    if (pixman_renderer_init(lume.compositor) < 0 ||
-        weston_compositor_backends_loaded(lume.compositor) < 0)
+    if (strcmp(renderer, "pixman"))
+        lume.gpu = lume_weston_gpu_create(lume.compositor, lume.fd, &lume.width, &lume.height);
+    if (!lume.gpu && (!strcmp(renderer, "gl") || (strcmp(renderer, "pixman") && errno == EIO)))
+        goto fail;
+    if (!lume.gpu)
+    {
+        if (pixman_renderer_init(lume.compositor) < 0)
+            goto fail;
+        lume.pitch = lume.width * 4;
+        if (posix_memalign((void **)&lume.pixels, 4096, (size_t)lume.pitch * lume.height))
+            goto fail;
+        memset(lume.pixels, 0, (size_t)lume.pitch * lume.height);
+    }
+    if (weston_compositor_backends_loaded(lume.compositor) < 0)
         goto fail;
     weston_head_init(&lume.head, "Lume");
     lume.head.backend = &lume.backend;
@@ -582,8 +634,10 @@ int main(int argc, char **argv)
     if (!interrupt || !terminate || !children)
         goto fail;
     weston_compositor_wake(lume.compositor);
-    printf("WAYLAND_READY socket=%s renderer=pixman width=%u height=%u\n", socket, lume.width,
-           lume.height);
+    printf("WAYLAND_READY socket=%s renderer=%s width=%u height=%u\n", socket,
+           lume.gpu ? "gl" : "pixman", lume.width, lume.height);
+    if (lume.gpu)
+        printf("WAYLAND_GPU device=%s buffers=2 readback=0\n", lume_weston_gpu_name(lume.gpu));
     fflush(stdout);
     if (command)
     {
@@ -616,12 +670,13 @@ int main(int argc, char **argv)
     weston_layer_fini(&lume.background_layer);
     weston_seat_release(&lume.seat);
     weston_compositor_destroy(lume.compositor);
+    lume_weston_gpu_destroy(lume.gpu);
     wl_display_destroy(lume.display);
     weston_log_ctx_destroy(log);
     free(lume.pixels);
     if (lume.fd >= 0)
         close(lume.fd);
-    return 0;
+    return lume.exit_code;
 fail:
     fprintf(stderr, "wayland: initialization failed: %s\n", strerror(errno));
     if (lume.fd >= 0)

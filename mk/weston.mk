@@ -15,13 +15,36 @@ WESTON_XKB_BASE := -Iports/libxkbcommon -Ivendor/libxkbcommon -Ivendor/libxkbcom
     $(filter-out -Iports/wayland -Ivendor/wayland,$(WAYLAND_BASE))
 WESTON_SHARED_SOURCES := $(filter-out vendor/weston/shared/os-compatibility.c,$(WESTON_SHARED_SOURCES)) \
     ports/weston/overlay/shared/os-compatibility.c
+WESTON_GL ?= $(if $(strip $(MESA_OUT)),1,0)
+WESTON_GPU_LIBRARIES ?= $(GRAPHICS_OUT)/liblume-gpu.a
+WESTON_CXX_LIBRARY ?= $(WAYLAND_SDK)/lib/libc++.a
+WESTON_RENDER_CHECK ?= 0
+ifeq ($(WESTON_RENDER_CHECK),1)
+WESTON_BASE += -DLUME_WESTON_RENDER_CHECK=1
+WESTON_CHECK_OBJECTS := $(WESTON_OUT)/obj/tests/integration/wayland_renderer.c.o
+endif
+ifeq ($(WESTON_GL),1)
+WESTON_BASE += -DENABLE_EGL=1 -DLUME_WESTON_GL=1 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1 \
+    -I$(MESA_SOURCE)/include -I$(MESA_SOURCE)/src/gbm/main -Iports/weston/shaders
+WESTON_RENDERER_SOURCES := $(wildcard vendor/weston/libweston/renderer-gl/*.c) \
+    vendor/weston/libweston/vertex-clipping.c
+WESTON_RENDERER_LIBRARIES := $(WESTON_GPU_LIBRARIES) $(WESTON_CXX_LIBRARY)
+endif
 WESTON_SOURCES := $(WESTON_CORE_SOURCES) $(WESTON_DESKTOP_SOURCES) \
-    $(WESTON_SHARED_SOURCES) $(WESTON_PROTOCOL_SOURCES)
+    $(WESTON_SHARED_SOURCES) $(WESTON_PROTOCOL_SOURCES) $(WESTON_RENDERER_SOURCES)
 WESTON_OBJECTS := $(addprefix $(WESTON_OUT)/obj/,$(WESTON_SOURCES:=.o))
 WESTON_XKB_SOURCES := $(filter-out vendor/libxkbcommon/src/utils.c,$(WESTON_XKB_SOURCES)) ports/libxkbcommon/overlay/src/utils.c
 WESTON_XKB_OBJECTS := $(addprefix $(WESTON_OUT)/xkb/,$(WESTON_XKB_SOURCES:=.o))
+.PHONY: weston-configuration-force
+weston-configuration-force:
+$(WESTON_OUT)/configuration: weston-configuration-force
+	mkdir -p "$(@D)"
+	@printf '%s\n' '$(CC) $(WESTON_BASE) $(WESTON_XKB_BASE) $(WESTON_GL)' > "$@.tmp"
+	@cmp -s "$@.tmp" "$@" || cp "$@.tmp" "$@"
+	@rm -f "$@.tmp"
+$(WESTON_OBJECTS) $(WESTON_XKB_OBJECTS): $(WESTON_OUT)/configuration
 
-$(WESTON_OUT)/obj/%.c.o: %.c mk/weston.mk ports/weston/config.h $(WAYLAND_PROTOCOL_HEADERS)
+$(WESTON_OUT)/obj/%.c.o: %.c mk/weston.mk ports/weston/config.h $(WAYLAND_PROTOCOL_HEADERS) $(WESTON_OUT)/configuration
 	mkdir -p "$(@D)"
 	$(CC) $(WESTON_BASE) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 $(WESTON_OUT)/xkb/%.c.o: %.c mk/weston.mk ports/libxkbcommon/config.h
@@ -61,18 +84,18 @@ weston-sdk-install: weston-libraries
         'Libs: -L$${libdir} -lxkbcommon' 'Cflags: -I$${includedir}' > "$(DESTDIR)/lib/pkgconfig/xkbcommon.pc"
 .PHONY: wayland
 wayland: $(WESTON_OUT)/wayland.elf $(WESTON_OUT)/wayland-window.elf
-$(WESTON_OUT)/wayland-window.elf: $(WESTON_OUT)/obj/tests/integration/wayland_window.c.o $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o $(WAYLAND_LIBRARIES)
+$(WESTON_OUT)/wayland-window.elf: $(WESTON_OUT)/obj/tests/integration/wayland_window.c.o $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o $(WESTON_OUT)/obj/ports/weston/protocol/viewporter-protocol.c.o $(WAYLAND_LIBRARIES)
 	$(CC) $(WESTON_BASE) -nostdlib -static \
         -Wl,--gc-sections,--build-id=none,-z,max-page-size=4096,-T,arch/$(ARCH)/native.ld \
-        "$(WAYLAND_SDK)/lib/crt0.o" "$<" $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o \
+        "$(WAYLAND_SDK)/lib/crt0.o" "$<" $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o $(WESTON_OUT)/obj/ports/weston/protocol/viewporter-protocol.c.o \
         -Wl,--start-group $(WAYLAND_LIBRARIES) "$(WAYLAND_SDK)/lib/liblume.a" \
         "$(WAYLAND_SDK)/lib/libc.a" $(wildcard $(WAYLAND_SDK)/lib/libcompiler-rt.a) \
         -Wl,--end-group -o "$@"
-$(WESTON_OUT)/wayland.elf: $(WESTON_OUT)/obj/ports/weston/lume.c.o $(WESTON_OUT)/obj/ports/weston/shell.c.o $(WESTON_OUT)/obj/libc/lume/render.c.o $(WESTON_OUT)/libweston.a $(WESTON_OUT)/libxkbcommon.a $(WAYLAND_LIBRARIES) $(WESTON_PIXMAN) $(WESTON_DRM_LIBRARY)
+$(WESTON_OUT)/wayland.elf: $(WESTON_OUT)/obj/ports/weston/lume.c.o $(WESTON_OUT)/obj/ports/weston/gpu.c.o $(WESTON_OUT)/obj/ports/weston/shell.c.o $(WESTON_OUT)/obj/libc/lume/render.c.o $(WESTON_OUT)/libweston.a $(WESTON_OUT)/libxkbcommon.a $(WAYLAND_LIBRARIES) $(WESTON_PIXMAN) $(WESTON_DRM_LIBRARY) $(WESTON_RENDERER_LIBRARIES) $(WESTON_CHECK_OBJECTS)
 	$(CC) $(WESTON_BASE) -nostdlib -static \
         -Wl,--gc-sections,--build-id=none,-z,max-page-size=4096,-T,arch/$(ARCH)/native.ld \
-        "$(WAYLAND_SDK)/lib/crt0.o" "$<" $(WESTON_OUT)/obj/ports/weston/shell.c.o $(WESTON_OUT)/obj/libc/lume/render.c.o -Wl,--start-group $(WESTON_OUT)/libweston.a \
-        $(WESTON_OUT)/libxkbcommon.a $(WAYLAND_LIBRARIES) "$(WESTON_PIXMAN)" \
+        "$(WAYLAND_SDK)/lib/crt0.o" "$<" $(WESTON_OUT)/obj/ports/weston/gpu.c.o $(WESTON_OUT)/obj/ports/weston/shell.c.o $(WESTON_OUT)/obj/libc/lume/render.c.o $(WESTON_CHECK_OBJECTS) -Wl,--start-group $(WESTON_OUT)/libweston.a \
+        $(WESTON_OUT)/libxkbcommon.a $(WAYLAND_LIBRARIES) $(WESTON_RENDERER_LIBRARIES) "$(WESTON_PIXMAN)" \
         "$(WESTON_DRM_LIBRARY)" "$(WAYLAND_SDK)/lib/liblume.a" "$(WAYLAND_SDK)/lib/libc.a" \
         $(wildcard $(WAYLAND_SDK)/lib/libcompiler-rt.a) -Wl,--end-group -o "$@"
 -include $(WESTON_OBJECTS:=.d) $(WESTON_XKB_OBJECTS:=.d)
