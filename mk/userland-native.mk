@@ -22,17 +22,9 @@ ifeq ($(DEBUG),1)
 CFLAGS += -g -fno-omit-frame-pointer
 ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
 endif
-ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c libc/posix/sbrk.c libc/posix/errno_map.c libc/lume/thread.c libc/posix/mman.c arch/$(ARCH)/tls.c libc/runtime/locks.c libc/posix/pthread.c
-ARM_COMMON_SOURCES += libc/runtime/init.c
-ifneq ($(filter aarch64 i686,$(ARCH)),)
-ARM_COMMON_SOURCES += libc/string/transfer.c
-endif
-ARM_COMMON_SOURCES += libc/posix/atfork.c libc/posix/sigwait.c libc/posix/getrandom.c
-ARM_COMMON_SOURCES += libc/posix/time.c libc/posix/positioned_io.c libc/posix/semaphore.c
-ARM_COMMON_SOURCES += libc/posix/file_lock.c libc/posix/statvfs.c
-ARM_COMMON_SOURCES += libc/posix/tty.c
+include mk/native-runtime.mk
+ARM_COMMON_SOURCES := arch/$(ARCH)/crt0.S $(NATIVE_CORE_SOURCES)
 ifeq ($(ARCH),aarch64)
-ARM_COMMON_SOURCES += libc/posix/ucontext.c libc/runtime/ucontext.S
 CPPFLAGS += -DLUME_AARCH64_STRING_ASM=1
 ARM_STRING_SOURCES := vendor/arm-optimized-routines/string/aarch64/memcpy-advsimd.S vendor/arm-optimized-routines/string/aarch64/memset.S
 ARM_COMMON_SOURCES += $(ARM_STRING_SOURCES)
@@ -56,6 +48,7 @@ include mk/xfce.mk
 include mk/gtk-dialog.mk
 include mk/x11-native.mk
 include mk/chromium.mk
+include mk/native-sdk.mk
 ifeq ($(DESKTOP),1)
 all: desktop
 endif

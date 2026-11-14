@@ -1,9 +1,4 @@
 include ports/vim/sources.mk
-NATIVE_POSIX_SOURCES := libc/posix/fd.c libc/posix/process.c libc/posix/process_native.c \
-    libc/posix/directory.c libc/posix/filesystem.c libc/posix/socket.c libc/posix/signals.c \
-    libc/posix/main.c libc/posix/system_native.c libc/posix/uio.c libc/posix/path_native.c \
-    libc/posix/accounts.c libc/posix/words.c vendor/posix-glob/glob.c \
-    ports/standalone/file_mode.c ports/standalone/stream_pipe.c ports/standalone/limits.c
 VIM_NATIVE_OBJECTS := $(addprefix $(OUT)/obj/vendor/vim/src/,$(addsuffix .o,$(VIM_SOURCES))) \
     $(OUT)/obj/ports/vim/native.c.o $(OUT)/obj/ports/vim/pathdef.c.o
 NATIVE_POSIX_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(NATIVE_POSIX_SOURCES)))

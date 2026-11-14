@@ -1,21 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 DESKTOP_APPS ?= $(if $(filter aarch64 amd64,$(ARCH)),1,0)
 DESKTOP_APPS_OUT ?= $(DESKTOP_OUT)/apps
-DESKTOP_APP_RUNTIME := $(DESKTOP_OUT)/programs/obj/common/libc/posix/getrandom.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/atfork.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/sigwait.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/file_lock.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/statvfs.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/api.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/runtime.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/sbrk.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/errno_map.c.o $(DESKTOP_OUT)/programs/obj/common/libc/lume/thread.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/mman.c.o $(DESKTOP_OUT)/programs/obj/common/arch/$(ARCH)/tls.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/locks.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/pthread.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/time.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/tty.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/fd.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/process.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/process_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/directory.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/positioned_io.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/semaphore.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/filesystem.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/socket.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/signals.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/main.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/system_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/uio.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/path_native.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/accounts.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/words.c.o $(DESKTOP_OUT)/programs/obj/common/vendor/posix-glob/glob.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/file_mode.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/stream_pipe.c.o $(DESKTOP_OUT)/programs/obj/common/ports/standalone/limits.c.o $(DESKTOP_OUT)/programs/obj/common/ports/xorg-server/sha1.c.o $(DESKTOP_OUT)/programs/obj/common/vendor/openssh/openbsd-compat/sha1.c.o $(DESKTOP_OUT)/programs/obj/5f8c9d766f97/arch/$(ARCH)/crt0.S.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/ports/llvm/cxxabi.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/private_typeinfo.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/abort_message.cpp.o $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/vendor/libcxxabi/src/cxa_demangle.cpp.o
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/runtime/init.c.o
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/native-allocator.c.o
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/posix/directory_sort.c.o
-ifneq ($(filter aarch64 i686,$(ARCH)),)
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/string/transfer.c.o
-endif
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/posix/pause.c.o $(DESKTOP_OUT)/programs/obj/common/libc/posix/pthread_timed.c.o
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/platform/libm/common/math_denorm.c.o $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/platform/libm/common/math_denormf.c.o $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/platform/libm/common/math_denorml.c.o $(DESKTOP_OUT)/programs/obj/common/ports/picolibc/platform/libm/ld/s_finitel.c.o
-ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o $(DESKTOP_OUT)/programs/obj/common/vendor/picolibc/libm/ld/s_fpclassifyl.c.o
-endif
-ifeq ($(ARCH),aarch64)
-DESKTOP_APP_RUNTIME += $(DESKTOP_OUT)/programs/obj/common/libc/posix/ucontext.c.o $(DESKTOP_OUT)/programs/obj/common/libc/runtime/ucontext.S.o
-endif
+DESKTOP_APP_RUNTIME := $(addprefix $(DESKTOP_OUT)/programs/obj/common/,$(NATIVE_DESKTOP_C_SOURCES:=.o)) \
+    $(DESKTOP_OUT)/programs/obj/5f8c9d766f97/arch/$(ARCH)/crt0.S.o \
+    $(addprefix $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/,$(NATIVE_CXX_SOURCES:=.o)) \
+    $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o
 DESKTOP_APP_BASE := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -ffunction-sections -fdata-sections -fno-pic -fno-pie -fno-stack-protector -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -D_POSIX_MONOTONIC_CLOCK=200809L -D_POSIX_TIMERS=200809L -D__lume__=1 -Iinclude/posix -Iinclude/lume -Iinclude/internal -Iarch/$(ARCH)/include -I$(KERNEL)/include/abi/native -I$(KERNEL)/include/uapi -Iports/x11/include -Ilibc/posix -ffile-prefix-map=$(CURDIR)=lume-os
 DESKTOP_APP_CXX := -std=c++17 -nostdinc++ -fno-exceptions -frtti -U__BITINT_MAXWIDTH__ -DLUME_NATIVE_CXX -Iports/libcxx -Ivendor/libcxx/include -Ivendor/libcxxabi/include
 DESKTOP_APP_FLTK := -Iports/fltk -Ivendor/fltk -Ivendor/libpng -Iports/x11/libpng -Ivendor/zlib
@@ -1873,7 +1862,7 @@ $(DESKTOP_OUT)/programs/obj/common/libc/posix/pthread_timed.c.o: libc/posix/pthr
 	$(CC) $(DESKTOP_APP_BASE) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 -include $(DESKTOP_OUT)/programs/obj/common/libc/posix/pthread_timed.c.o.d
 
-DESKTOP_MATH_HELPERS := ports/picolibc/platform/libm/common/math_denorm.c ports/picolibc/platform/libm/common/math_denormf.c ports/picolibc/platform/libm/common/math_denorml.c ports/picolibc/platform/libm/ld/s_finitel.c
+DESKTOP_MATH_HELPERS := $(filter-out vendor/%,$(NATIVE_MATH_SOURCES))
 DESKTOP_MATH_OBJECTS := $(addprefix $(DESKTOP_OUT)/programs/obj/common/,$(DESKTOP_MATH_HELPERS:=.o))
 $(DESKTOP_MATH_OBJECTS): $(DESKTOP_OUT)/programs/obj/common/%.o: % mk/desktop-apps.mk | headers
 	mkdir -p "$(@D)"
