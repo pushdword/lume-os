@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/mman.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -689,8 +690,37 @@ static int responsiveness(unsigned rep)
     return discard(fd, "response.bin");
 }
 
+static int memory_pressure(unsigned *operations)
+{
+    for (unsigned iteration = 0; iteration < 128; ++iteration)
+    {
+        unsigned char *memory =
+            mmap(NULL, 2u * MIB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (memory == MAP_FAILED)
+            return -1;
+        memset(memory, (int)(iteration + 1), 2u * MIB);
+        for (unsigned offset = 0; offset < 2u * MIB; offset += 4096)
+            if (*(volatile unsigned char *)(memory + offset) != iteration + 1)
+            {
+                (void)munmap(memory, 2u * MIB);
+                errno = EIO;
+                return -1;
+            }
+        if (munmap(memory, 2u * MIB))
+            return -1;
+        *operations += 2;
+        if (now() >= deadline)
+        {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int control_responsiveness(unsigned rep)
 {
+    bool memory = !strcmp(selection, "vm-control");
     int ready[2], go[2], done[2], local[2];
     if (pipe(ready) || pipe(go) || pipe(done) || pipe(local))
         return -1;
@@ -700,31 +730,34 @@ static int control_responsiveness(unsigned rep)
     if (!writer)
     {
         char byte = 1;
-        int fd = new_file("control.bin");
-        if (fd < 0 || write(ready[1], &byte, 1) != 1 || read(go[0], &byte, 1) != 1)
+        int fd = memory ? -1 : new_file("control.bin");
+        if ((!memory && fd < 0) || write(ready[1], &byte, 1) != 1 || read(go[0], &byte, 1) != 1)
             _exit(1);
-        struct sample sample = {.name = "write-with-fd-control",
+        struct sample sample = {.name =
+                                    memory ? "vm-release-with-fd-control" : "write-with-fd-control",
                                 .repetition = rep,
                                 .workers = 2,
-                                .block = 65536,
-                                .bytes = file_bytes};
+                                .block = memory ? 2u * MIB : 65536,
+                                .bytes = memory ? 256u * MIB : file_bytes};
         begin(&sample);
-        int error = transfer(fd, expected, file_bytes, 0, true, &sample.operations);
+        int error = memory ? memory_pressure(&sample.operations)
+                           : transfer(fd, expected, file_bytes, 0, true, &sample.operations);
         uint64_t started = now();
-        if (!error)
+        if (!error && !memory)
             error = fsync(fd);
         sample.sync_ns = now() - started;
         end(&sample);
         if (write(done[1], &byte, 1) != 1)
             error = -1;
         started = now();
-        if (!error)
+        if (!error && !memory)
             error = check_file(fd);
         sample.verify_ns = now() - started;
         if (!error)
         {
-            report(&sample, checksum(observed, file_bytes));
-            error = discard(fd, "control.bin");
+            report(&sample, memory ? 0 : checksum(observed, file_bytes));
+            if (!memory)
+                error = discard(fd, "control.bin");
         }
         fflush(stdout);
         _exit(error ? 1 : 0);
@@ -809,7 +842,8 @@ static int control_responsiveness(unsigned rep)
         errno = EIO;
         return -1;
     }
-    transferred += file_bytes;
+    if (!memory)
+        transferred += file_bytes;
     int *channels[] = {ready, go, done, local};
     for (unsigned n = 0; n < sizeof(channels) / sizeof(channels[0]); ++n)
         if (close(channels[n][0]) || close(channels[n][1]))
@@ -841,7 +875,8 @@ static int run(void)
     {
         if (!strcmp(selection, "responsiveness") && responsiveness(rep))
             return -1;
-        if ((!strcmp(selection, "control") || !strcmp(selection, "control-detail")) &&
+        if ((!strcmp(selection, "control") || !strcmp(selection, "control-detail") ||
+             !strcmp(selection, "vm-control")) &&
             control_responsiveness(rep))
             return -1;
         for (unsigned block = 4096; block <= MIB; block *= 16)
@@ -918,7 +953,7 @@ int main(int argc, char **argv)
         strcmp(selection, "sync") && strcmp(selection, "vector") && strcmp(selection, "stdio") &&
         strcmp(selection, "parallel") && strcmp(selection, "metadata") &&
         strcmp(selection, "responsiveness") && strcmp(selection, "control") &&
-        strcmp(selection, "control-detail"))
+        strcmp(selection, "control-detail") && strcmp(selection, "vm-control"))
         return 2;
     struct timespec clock_resolution;
     if (clock_getres(CLOCK_MONOTONIC, &clock_resolution))
