@@ -13,6 +13,7 @@
 #include <sys/statvfs.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #ifdef __lume__
@@ -687,6 +688,100 @@ static int responsiveness(unsigned rep)
     return discard(fd, "response.bin");
 }
 
+static int control_responsiveness(unsigned rep)
+{
+    int ready[2], go[2], done[2], local[2];
+    if (pipe(ready) || pipe(go) || pipe(done) || pipe(local))
+        return -1;
+    pid_t writer = fork();
+    if (writer < 0)
+        return -1;
+    if (!writer)
+    {
+        char byte = 1;
+        int fd = new_file("control.bin");
+        if (fd < 0 || write(ready[1], &byte, 1) != 1 || read(go[0], &byte, 1) != 1)
+            _exit(1);
+        struct sample sample = {.name = "write-with-fd-control",
+                                .repetition = rep,
+                                .workers = 2,
+                                .block = 65536,
+                                .bytes = file_bytes};
+        begin(&sample);
+        int error = transfer(fd, expected, file_bytes, 0, true, &sample.operations);
+        uint64_t started = now();
+        if (!error)
+            error = fsync(fd);
+        sample.sync_ns = now() - started;
+        end(&sample);
+        if (write(done[1], &byte, 1) != 1)
+            error = -1;
+        started = now();
+        if (!error)
+            error = check_file(fd);
+        sample.verify_ns = now() - started;
+        if (!error)
+        {
+            report(&sample, checksum(observed, file_bytes));
+            error = discard(fd, "control.bin");
+        }
+        fflush(stdout);
+        _exit(error ? 1 : 0);
+    }
+    char byte;
+    if (read(ready[0], &byte, 1) != 1 || fcntl(done[0], F_SETFL, O_NONBLOCK) < 0)
+        return -1;
+    struct timespec interval = {.tv_nsec = 1000000};
+    unsigned samples = 0;
+    uint64_t started = now(), last = started, maximum_gap = 0, maximum_control = 0;
+    if (write(go[1], &byte, 1) != 1)
+        return -1;
+    for (;;)
+    {
+        ssize_t received = read(done[0], &byte, 1);
+        if (received == 1)
+            break;
+        if (received >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK))
+            return -1;
+        uint64_t before = now();
+        int copy = dup(local[0]);
+        if (copy < 0 || fcntl(copy, F_GETFL) < 0 || close(copy))
+            return -1;
+        uint64_t after = now(), gap = after - last, control = after - before;
+        if (gap > maximum_gap)
+            maximum_gap = gap;
+        if (control > maximum_control)
+            maximum_control = control;
+        last = after;
+        ++samples;
+        if (after - started > SAMPLE_NS)
+        {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+        nanosleep(&interval, NULL);
+    }
+    uint64_t elapsed = now() - started;
+    int status;
+    if (waitpid(writer, &status, 0) != writer || !WIFEXITED(status) || WEXITSTATUS(status) ||
+        !samples)
+    {
+        errno = EIO;
+        return -1;
+    }
+    transferred += file_bytes;
+    int *channels[] = {ready, go, done, local};
+    for (unsigned n = 0; n < sizeof(channels) / sizeof(channels[0]); ++n)
+        if (close(channels[n][0]) || close(channels[n][1]))
+            return -1;
+    printf("{\"type\":\"control-responsiveness\",\"sample\":%u,\"samples\":%u,"
+           "\"elapsed_ns\":%llu,\"maximum_gap_ns\":%llu,\"maximum_control_ns\":%llu,"
+           "\"status\":\"verified\"}\n",
+           rep, samples, (unsigned long long)elapsed, (unsigned long long)maximum_gap,
+           (unsigned long long)maximum_control);
+    return 0;
+}
+
 static int selected(const char *name)
 {
     return !strcmp(selection, "all") || !strcmp(selection, name);
@@ -699,6 +794,8 @@ static int run(void)
     for (unsigned rep = 1; rep <= repetitions; ++rep)
     {
         if (!strcmp(selection, "responsiveness") && responsiveness(rep))
+            return -1;
+        if (!strcmp(selection, "control") && control_responsiveness(rep))
             return -1;
         for (unsigned block = 4096; block <= MIB; block *= 16)
         {
@@ -773,7 +870,7 @@ int main(int argc, char **argv)
         strcmp(selection, "random-read") && strcmp(selection, "random-write") &&
         strcmp(selection, "sync") && strcmp(selection, "vector") && strcmp(selection, "stdio") &&
         strcmp(selection, "parallel") && strcmp(selection, "metadata") &&
-        strcmp(selection, "responsiveness"))
+        strcmp(selection, "responsiveness") && strcmp(selection, "control"))
         return 2;
     struct timespec clock_resolution;
     if (clock_getres(CLOCK_MONOTONIC, &clock_resolution))
