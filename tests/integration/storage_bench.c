@@ -20,6 +20,7 @@
 #include "lume/abi.h"
 #include "lume/syscall_native.h"
 #include "perf.h"
+#include "lume/fd_timing.h"
 #endif
 
 #define MIB (1024u * 1024u)
@@ -736,6 +737,12 @@ static int control_responsiveness(unsigned rep)
     uint64_t started = now(), last = started, maximum_gap = 0, maximum_control = 0;
     bool detailed = !strcmp(selection, "control-detail");
     uint64_t maximum_dup = 0, maximum_flags = 0, maximum_close = 0;
+#ifdef __lume__
+    struct lume_fd_timing_snapshot timing = {0};
+    if (detailed && lume_native_call(LUME_SYS_TELEMETRY, (uintptr_t)&timing, sizeof(timing),
+                                     LUME_FD_TIMING_START))
+        return -1;
+#endif
     if (write(go[1], &byte, 1) != 1)
         return -1;
     for (;;)
@@ -776,6 +783,25 @@ static int control_responsiveness(unsigned rep)
         nanosleep(&interval, NULL);
     }
     uint64_t elapsed = now() - started;
+#ifdef __lume__
+    if (detailed)
+    {
+        if (lume_native_call(LUME_SYS_TELEMETRY, (uintptr_t)&timing, sizeof(timing),
+                             LUME_FD_TIMING_STOP))
+            return -1;
+        printf("{\"type\":\"control-kernel-timing\",\"sample\":%u,\"clock_hz\":%llu,"
+               "\"calls\":%llu,\"inline\":%llu,\"queued\":%llu,\"max_entry_wait\":%llu,"
+               "\"max_body\":%llu,\"max_queue\":%llu,\"max_return\":%llu,\"fallback\":[",
+               rep, (unsigned long long)timing.clock_hz, (unsigned long long)timing.calls,
+               (unsigned long long)timing.inline_calls, (unsigned long long)timing.queued_calls,
+               (unsigned long long)timing.maximum_entry_wait,
+               (unsigned long long)timing.maximum_body, (unsigned long long)timing.maximum_queue,
+               (unsigned long long)timing.maximum_return);
+        for (unsigned reason = 0; reason < LUME_FD_TIMING_REASONS; ++reason)
+            printf("%s%llu", reason ? "," : "", (unsigned long long)timing.fallback[reason]);
+        puts("]}");
+    }
+#endif
     int status;
     if (waitpid(writer, &status, 0) != writer || !WIFEXITED(status) || WEXITSTATUS(status) ||
         !samples)
