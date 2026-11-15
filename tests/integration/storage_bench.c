@@ -591,6 +591,102 @@ static int metadata(unsigned rep)
     return 0;
 }
 
+struct heartbeat
+{
+    uint32_t ready, go, done;
+    int descriptors[2], error;
+    unsigned samples;
+    uint64_t last, maximum_gap, maximum_io;
+};
+
+static void *heartbeat(void *context)
+{
+    struct heartbeat *beat = context;
+    struct timespec interval = {.tv_nsec = 1000000};
+    __atomic_store_n(&beat->ready, 1, __ATOMIC_RELEASE);
+    while (!__atomic_load_n(&beat->go, __ATOMIC_ACQUIRE))
+        nanosleep(&interval, NULL);
+    while (!__atomic_load_n(&beat->done, __ATOMIC_ACQUIRE))
+    {
+        char sent = 'i', received = 0;
+        uint64_t before = now();
+        if (write(beat->descriptors[1], &sent, 1) != 1 ||
+            read(beat->descriptors[0], &received, 1) != 1 || received != sent)
+        {
+            beat->error = EIO;
+            break;
+        }
+        uint64_t after = now();
+        if (__atomic_load_n(&beat->done, __ATOMIC_ACQUIRE))
+            break;
+        uint64_t gap = after - beat->last, io = after - before;
+        if (gap > beat->maximum_gap)
+            beat->maximum_gap = gap;
+        if (io > beat->maximum_io)
+            beat->maximum_io = io;
+        beat->last = after;
+        ++beat->samples;
+        nanosleep(&interval, NULL);
+    }
+    return NULL;
+}
+
+static int responsiveness(unsigned rep)
+{
+    struct heartbeat beat = {0};
+    pthread_t thread;
+    int fd = new_file("response.bin");
+    if (fd < 0 || pipe(beat.descriptors))
+        return -1;
+    int result = pthread_create(&thread, NULL, heartbeat, &beat);
+    if (result)
+    {
+        errno = result;
+        return -1;
+    }
+    struct timespec interval = {.tv_nsec = 1000000};
+    while (!__atomic_load_n(&beat.ready, __ATOMIC_ACQUIRE))
+        nanosleep(&interval, NULL);
+    struct sample sample = {.name = "write-with-heartbeat",
+                            .repetition = rep,
+                            .workers = 2,
+                            .block = 65536,
+                            .bytes = file_bytes};
+    begin(&sample);
+    beat.last = sample.started;
+    __atomic_store_n(&beat.go, 1, __ATOMIC_RELEASE);
+    result = transfer(fd, expected, file_bytes, 0, true, &sample.operations);
+    uint64_t started = now();
+    if (!result)
+        result = fsync(fd);
+    sample.sync_ns = now() - started;
+    end(&sample);
+    __atomic_store_n(&beat.done, 1, __ATOMIC_RELEASE);
+    uint64_t finished = now();
+    int joined = pthread_join(thread, NULL);
+    close(beat.descriptors[0]);
+    close(beat.descriptors[1]);
+    if (result || joined || beat.error || !beat.samples)
+    {
+        errno = result ? errno : joined ? joined : beat.error ? beat.error : EBUSY;
+        return -1;
+    }
+    uint64_t tail = finished - beat.last;
+    if (tail > beat.maximum_gap)
+        beat.maximum_gap = tail;
+    started = now();
+    if (check_file(fd))
+        return -1;
+    sample.verify_ns = now() - started;
+    report(&sample, checksum(observed, file_bytes));
+    printf("{\"type\":\"responsiveness\",\"sample\":%u,\"samples\":%u,"
+           "\"period_ns\":1000000,\"maximum_gap_ns\":%llu,\"maximum_io_ns\":%llu,"
+           "\"status\":\"verified\"}\n",
+           rep, beat.samples, (unsigned long long)beat.maximum_gap,
+           (unsigned long long)beat.maximum_io);
+    return discard(fd, "response.bin");
+}
+
 static int selected(const char *name)
 {
     return !strcmp(selection, "all") || !strcmp(selection, name);
@@ -602,6 +698,8 @@ static int run(void)
         return -1;
     for (unsigned rep = 1; rep <= repetitions; ++rep)
     {
+        if (!strcmp(selection, "responsiveness") && responsiveness(rep))
+            return -1;
         for (unsigned block = 4096; block <= MIB; block *= 16)
         {
             if (selected("read") && sequential("read-repeat", block, rep, false))
@@ -674,7 +772,8 @@ int main(int argc, char **argv)
     if (strcmp(selection, "all") && strcmp(selection, "read") && strcmp(selection, "write") &&
         strcmp(selection, "random-read") && strcmp(selection, "random-write") &&
         strcmp(selection, "sync") && strcmp(selection, "vector") && strcmp(selection, "stdio") &&
-        strcmp(selection, "parallel") && strcmp(selection, "metadata"))
+        strcmp(selection, "parallel") && strcmp(selection, "metadata") &&
+        strcmp(selection, "responsiveness"))
         return 2;
     struct timespec clock_resolution;
     if (clock_getres(CLOCK_MONOTONIC, &clock_resolution))
