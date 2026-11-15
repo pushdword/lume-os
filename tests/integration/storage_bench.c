@@ -734,6 +734,8 @@ static int control_responsiveness(unsigned rep)
     struct timespec interval = {.tv_nsec = 1000000};
     unsigned samples = 0;
     uint64_t started = now(), last = started, maximum_gap = 0, maximum_control = 0;
+    bool detailed = !strcmp(selection, "control-detail");
+    uint64_t maximum_dup = 0, maximum_flags = 0, maximum_close = 0;
     if (write(go[1], &byte, 1) != 1)
         return -1;
     for (;;)
@@ -745,9 +747,21 @@ static int control_responsiveness(unsigned rep)
             return -1;
         uint64_t before = now();
         int copy = dup(local[0]);
-        if (copy < 0 || fcntl(copy, F_GETFL) < 0 || close(copy))
+        uint64_t duplicated = detailed ? now() : 0;
+        int flags = copy < 0 ? -1 : fcntl(copy, F_GETFL);
+        uint64_t queried = detailed ? now() : 0;
+        if (copy < 0 || flags < 0 || close(copy))
             return -1;
         uint64_t after = now(), gap = after - last, control = after - before;
+        if (detailed)
+        {
+            if (duplicated - before > maximum_dup)
+                maximum_dup = duplicated - before;
+            if (queried - duplicated > maximum_flags)
+                maximum_flags = queried - duplicated;
+            if (after - queried > maximum_close)
+                maximum_close = after - queried;
+        }
         if (gap > maximum_gap)
             maximum_gap = gap;
         if (control > maximum_control)
@@ -779,6 +793,12 @@ static int control_responsiveness(unsigned rep)
            "\"status\":\"verified\"}\n",
            rep, samples, (unsigned long long)elapsed, (unsigned long long)maximum_gap,
            (unsigned long long)maximum_control);
+    if (detailed)
+        printf("{\"type\":\"control-components\",\"sample\":%u,\"maximum_dup_ns\":%llu,"
+               "\"maximum_flags_ns\":%llu,\"maximum_close_ns\":%llu,"
+               "\"instrumentation\":\"monotonic samples between calls\"}\n",
+               rep, (unsigned long long)maximum_dup, (unsigned long long)maximum_flags,
+               (unsigned long long)maximum_close);
     return 0;
 }
 
@@ -795,7 +815,8 @@ static int run(void)
     {
         if (!strcmp(selection, "responsiveness") && responsiveness(rep))
             return -1;
-        if (!strcmp(selection, "control") && control_responsiveness(rep))
+        if ((!strcmp(selection, "control") || !strcmp(selection, "control-detail")) &&
+            control_responsiveness(rep))
             return -1;
         for (unsigned block = 4096; block <= MIB; block *= 16)
         {
@@ -870,7 +891,8 @@ int main(int argc, char **argv)
         strcmp(selection, "random-read") && strcmp(selection, "random-write") &&
         strcmp(selection, "sync") && strcmp(selection, "vector") && strcmp(selection, "stdio") &&
         strcmp(selection, "parallel") && strcmp(selection, "metadata") &&
-        strcmp(selection, "responsiveness") && strcmp(selection, "control"))
+        strcmp(selection, "responsiveness") && strcmp(selection, "control") &&
+        strcmp(selection, "control-detail"))
         return 2;
     struct timespec clock_resolution;
     if (clock_getres(CLOCK_MONOTONIC, &clock_resolution))
