@@ -95,9 +95,11 @@ int main(void)
         return 1;
     pid = (uint64_t)call(LUME_SYS_GETPID, 0, 0, 0);
     uint64_t started = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+    uint64_t phases[ROUNDS][3];
     unsigned cores = 0;
     for (unsigned round = 0; round < ROUNDS; ++round)
     {
+        uint64_t phase = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
         uint64_t tids[THREADS];
         __atomic_store_n(&go, 0, __ATOMIC_RELAXED);
         __atomic_store_n(&ready, 0, __ATOMIC_RELAXED);
@@ -112,11 +114,17 @@ int main(void)
                 return 2;
             tids[i] = (uint64_t)tid;
         }
+        uint64_t at = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+        phases[round][0] = at - phase;
+        phase = at;
         uint64_t deadline = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) + 20000;
         while (__atomic_load_n(&ready, __ATOMIC_ACQUIRE) != THREADS)
             if ((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) >= deadline ||
                 call(LUME_SYS_SLEEP, 1, 0, 0))
                 return 3;
+        at = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0);
+        phases[round][1] = at - phase;
+        phase = at;
         __atomic_store_n(&go, 1, __ATOMIC_RELEASE);
         struct lume_thread_request wake = {.address = (uintptr_t)&go, .value = THREADS};
         if (thread_call(LUME_THREAD_WAKE, &wake) < 0)
@@ -142,6 +150,7 @@ int main(void)
                 return 6;
             cores |= results[i].cores;
         }
+        phases[round][2] = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) - phase;
     }
     uint64_t elapsed = (uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0) - started;
     if (cores != 15 ||
@@ -164,6 +173,18 @@ int main(void)
     puts("SMP_LOCK_ELAPSED_MS=");
     number(elapsed);
     puts("\n");
+    for (unsigned round = 0; round < ROUNDS; ++round)
+    {
+        puts("SMP_LOCK_PHASE round=");
+        number(round);
+        puts(" create_ms=");
+        number(phases[round][0]);
+        puts(" ready_ms=");
+        number(phases[round][1]);
+        puts(" run_join_ms=");
+        number(phases[round][2]);
+        puts("\n");
+    }
     puts("SMP_LOCK_PASS threads=8 rounds=2 iterations=32768 cores=15\n");
     return 0;
 }
