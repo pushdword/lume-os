@@ -42,6 +42,8 @@ struct sample
     const char *name;
     unsigned repetition, workers, block, operations;
     uint64_t bytes, started, elapsed, sync_ns, verify_ns, process_cpu;
+    uint64_t memory_ticks[3], maximum_io_ticks;
+    unsigned slow_io_1ms, slow_io_10ms;
     bool cpu_valid;
 #ifdef __lume__
     struct lume_perf_snapshot before;
@@ -50,6 +52,9 @@ struct sample
     bool telemetry;
 #endif
 };
+
+static struct sample *active_sample;
+static uint64_t detail_hz = UINT64_C(1000000000);
 
 static uint64_t now(void)
 {
@@ -60,6 +65,24 @@ static uint64_t now(void)
         exit(1);
     }
     return (uint64_t)value.tv_sec * UINT64_C(1000000000) + value.tv_nsec;
+}
+
+static uint64_t detail_clock(void)
+{
+#if defined(__lume__) && defined(__aarch64__)
+    uint64_t ticks;
+    __asm__ volatile("isb; mrs %0, cntvct_el0; mrs %1, cntfrq_el0"
+                     : "=r"(ticks), "=r"(detail_hz)::"memory");
+    return ticks;
+#else
+    return now();
+#endif
+}
+
+static uint64_t detail_ns(uint64_t ticks)
+{
+    return ticks / detail_hz * UINT64_C(1000000000) +
+           ticks % detail_hz * UINT64_C(1000000000) / detail_hz;
 }
 
 static uint64_t cpu_now(bool *valid)
@@ -121,7 +144,17 @@ static int transfer(int fd, void *memory, size_t bytes, off_t offset, bool writi
             errno = ETIMEDOUT;
             return -1;
         }
+        bool timed = active_sample && calls == &active_sample->operations;
+        uint64_t began = timed ? detail_clock() : 0;
         ssize_t done = writing ? pwrite(fd, p, bytes, offset) : pread(fd, p, bytes, offset);
+        if (timed)
+        {
+            uint64_t elapsed = detail_clock() - began;
+            if (elapsed > active_sample->maximum_io_ticks)
+                active_sample->maximum_io_ticks = elapsed;
+            active_sample->slow_io_1ms += elapsed >= detail_hz / 1000;
+            active_sample->slow_io_10ms += elapsed >= detail_hz / 100;
+        }
         ++*calls;
         if (done < 0 && errno == EINTR)
             continue;
@@ -142,6 +175,7 @@ static int transfer(int fd, void *memory, size_t bytes, off_t offset, bool writi
 
 static void begin(struct sample *sample)
 {
+    active_sample = sample;
 #ifdef __lume__
     memset(sample->ticks, 0, sizeof(sample->ticks));
     sample->telemetry = !lume_native_call(LUME_SYS_TELEMETRY, (uintptr_t)&sample->before,
@@ -154,6 +188,7 @@ static void begin(struct sample *sample)
 
 static void end(struct sample *sample)
 {
+    active_sample = NULL;
     sample->elapsed = now() - sample->started;
     bool valid;
     uint64_t cpu = cpu_now(&valid);
@@ -198,7 +233,14 @@ static void report(const struct sample *sample, uint32_t hash)
                (unsigned long long)sample->ticks[LUME_PERF_IDLE],
                (unsigned long long)sample->ticks[LUME_PERF_LOCKWAIT]);
 #endif
-    puts(",\"status\":\"verified\"}");
+    printf(",\"detail_clock_hz\":%llu,\"maximum_io_ns\":%llu,"
+           "\"io_over_1ms\":%u,\"io_over_10ms\":%u,\"memory_map_ns\":%llu,"
+           "\"memory_fill_ns\":%llu,\"memory_unmap_ns\":%llu,\"status\":\"verified\"}\n",
+           (unsigned long long)detail_hz, (unsigned long long)detail_ns(sample->maximum_io_ticks),
+           sample->slow_io_1ms, sample->slow_io_10ms,
+           (unsigned long long)detail_ns(sample->memory_ticks[0]),
+           (unsigned long long)detail_ns(sample->memory_ticks[1]),
+           (unsigned long long)detail_ns(sample->memory_ticks[2]));
     fflush(stdout);
 }
 
@@ -690,14 +732,18 @@ static int responsiveness(unsigned rep)
     return discard(fd, "response.bin");
 }
 
-static int memory_pressure(unsigned *operations)
+static int memory_pressure(struct sample *sample)
 {
     for (unsigned iteration = 0; iteration < 128; ++iteration)
     {
+        uint64_t began = detail_clock();
         unsigned char *memory =
             mmap(NULL, 2u * MIB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (memory == MAP_FAILED)
             return -1;
+        uint64_t at = detail_clock();
+        sample->memory_ticks[0] += at - began;
+        began = at;
         memset(memory, (int)(iteration + 1), 2u * MIB);
         for (unsigned offset = 0; offset < 2u * MIB; offset += 4096)
             if (*(volatile unsigned char *)(memory + offset) != iteration + 1)
@@ -706,9 +752,13 @@ static int memory_pressure(unsigned *operations)
                 errno = EIO;
                 return -1;
             }
+        at = detail_clock();
+        sample->memory_ticks[1] += at - began;
+        began = at;
         if (munmap(memory, 2u * MIB))
             return -1;
-        *operations += 2;
+        sample->memory_ticks[2] += detail_clock() - began;
+        sample->operations += 2;
         if (now() >= deadline)
         {
             errno = ETIMEDOUT;
@@ -740,7 +790,7 @@ static int control_responsiveness(unsigned rep)
                                 .block = memory ? 2u * MIB : 65536,
                                 .bytes = memory ? 256u * MIB : file_bytes};
         begin(&sample);
-        int error = memory ? memory_pressure(&sample.operations)
+        int error = memory ? memory_pressure(&sample)
                            : transfer(fd, expected, file_bytes, 0, true, &sample.operations);
         uint64_t started = now();
         if (!error && !memory)
