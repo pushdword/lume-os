@@ -139,9 +139,9 @@ struct weston_desktop_xdg_toplevel
 
 struct weston_desktop_xdg_popup
 {
+    struct weston_desktop_xdg_surface base;
     struct weston_view *layer_parent;
     struct wl_listener layer_parent_unmap;
-    struct weston_desktop_xdg_surface base;
 
     struct wl_resource *resource;
     bool committed;
@@ -152,6 +152,8 @@ struct weston_desktop_xdg_popup
     bool pending_reposition;
     uint32_t pending_reposition_token;
 };
+
+_Static_assert(offsetof(struct weston_desktop_xdg_popup, base) == 0, "Popup surface prefix");
 
 #define weston_desktop_surface_role_biggest_size                                                   \
     MAX(sizeof(struct weston_desktop_xdg_toplevel), sizeof(struct weston_desktop_xdg_popup))

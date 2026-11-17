@@ -61,32 +61,45 @@ typedef unsigned int guint32;
 
 #define G_HAVE_GINT64 1          /* deprecated, always true */
 
+#if __SIZEOF_LONG__ == 8
 typedef signed long gint64;
 typedef unsigned long guint64;
-
-#define G_GINT64_CONSTANT(val)	(val##L)
-#define G_GUINT64_CONSTANT(val)	(val##UL)
-
+#define G_GINT64_CONSTANT(val) (val##L)
+#define G_GUINT64_CONSTANT(val) (val##UL)
 #define G_GINT64_MODIFIER "l"
 #define G_GINT64_FORMAT "li"
 #define G_GUINT64_FORMAT "lu"
-
-
-#define GLIB_SIZEOF_VOID_P 8
-#define GLIB_SIZEOF_LONG   8
-#define GLIB_SIZEOF_SIZE_T 8
-#define GLIB_SIZEOF_SSIZE_T 8
-
 typedef signed long gssize;
 typedef unsigned long gsize;
 #define G_GSIZE_MODIFIER "l"
 #define G_GSSIZE_MODIFIER "l"
 #define G_GSIZE_FORMAT "lu"
 #define G_GSSIZE_FORMAT "li"
-
-#define G_MAXSIZE	G_MAXULONG
-#define G_MINSSIZE	G_MINLONG
-#define G_MAXSSIZE	G_MAXLONG
+#define G_MAXSIZE G_MAXULONG
+#define G_MINSSIZE G_MINLONG
+#define G_MAXSSIZE G_MAXLONG
+#else
+G_GNUC_EXTENSION typedef signed long long gint64;
+G_GNUC_EXTENSION typedef unsigned long long guint64;
+#define G_GINT64_CONSTANT(val) (G_GNUC_EXTENSION(val##LL))
+#define G_GUINT64_CONSTANT(val) (G_GNUC_EXTENSION(val##ULL))
+#define G_GINT64_MODIFIER "ll"
+#define G_GINT64_FORMAT "lli"
+#define G_GUINT64_FORMAT "llu"
+typedef signed int gssize;
+typedef unsigned int gsize;
+#define G_GSIZE_MODIFIER ""
+#define G_GSSIZE_MODIFIER ""
+#define G_GSIZE_FORMAT "u"
+#define G_GSSIZE_FORMAT "i"
+#define G_MAXSIZE G_MAXUINT
+#define G_MINSSIZE G_MININT
+#define G_MAXSSIZE G_MAXINT
+#endif
+#define GLIB_SIZEOF_VOID_P __SIZEOF_POINTER__
+#define GLIB_SIZEOF_LONG __SIZEOF_LONG__
+#define GLIB_SIZEOF_SIZE_T __SIZEOF_SIZE_T__
+#define GLIB_SIZEOF_SSIZE_T __SIZEOF_POINTER__
 
 typedef gint64 goffset;
 #define G_MINOFFSET	G_MININT64
@@ -166,6 +179,7 @@ typedef unsigned long guintptr;
 #define GINT64_TO_BE(val)	((gint64) GUINT64_SWAP_LE_BE (val))
 #define GUINT64_TO_BE(val)	(GUINT64_SWAP_LE_BE (val))
 
+#if __SIZEOF_LONG__ == 8
 #define GLONG_TO_LE(val)	((glong) GINT64_TO_LE (val))
 #define GULONG_TO_LE(val)	((gulong) GUINT64_TO_LE (val))
 #define GLONG_TO_BE(val)	((glong) GINT64_TO_BE (val))
@@ -178,6 +192,21 @@ typedef unsigned long guintptr;
 #define GSSIZE_TO_LE(val)	((gssize) GINT64_TO_LE (val))
 #define GSIZE_TO_BE(val)	((gsize) GUINT64_TO_BE (val))
 #define GSSIZE_TO_BE(val)	((gssize) GINT64_TO_BE (val))
+#else
+#define GLONG_TO_LE(val) ((glong)GINT32_TO_LE(val))
+#define GULONG_TO_LE(val) ((gulong)GUINT32_TO_LE(val))
+#define GLONG_TO_BE(val) ((glong)GINT32_TO_BE(val))
+#define GULONG_TO_BE(val) ((gulong)GUINT32_TO_BE(val))
+#define GINT_TO_LE(val) ((gint)GINT32_TO_LE(val))
+#define GUINT_TO_LE(val) ((guint)GUINT32_TO_LE(val))
+#define GINT_TO_BE(val) ((gint)GINT32_TO_BE(val))
+#define GUINT_TO_BE(val) ((guint)GUINT32_TO_BE(val))
+#define GSIZE_TO_LE(val) ((gsize)GUINT32_TO_LE(val))
+#define GSSIZE_TO_LE(val) ((gssize)GINT32_TO_LE(val))
+#define GSIZE_TO_BE(val) ((gsize)GUINT32_TO_BE(val))
+#define GSSIZE_TO_BE(val) ((gssize)GINT32_TO_BE(val))
+#endif
+
 #define G_BYTE_ORDER G_LITTLE_ENDIAN
 
 #define GLIB_SYSDEF_POLLIN =1

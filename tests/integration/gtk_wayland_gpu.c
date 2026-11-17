@@ -30,8 +30,8 @@ static gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data)
     glClear(GL_COLOR_BUFFER_BIT);
     glReadPixels(16, 16, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
     GLenum error = glGetError();
-    result = !renderer || !strstr(renderer, "V3D") || error || pixel[0] != 32 || pixel[1] != 128 ||
-             pixel[2] != 191 || pixel[3] != 255;
+    result = !renderer || (!strstr(renderer, "V3D") && !strstr(renderer, "virgl")) || error ||
+             pixel[0] != 32 || pixel[1] != 128 || pixel[2] != 191 || pixel[3] != 255;
     printf("GTK_WAYLAND_GPU_%s renderer=%s version=%s pixel=%u,%u,%u,%u error=%u\n",
            result ? "FAIL" : "PASS", renderer ? renderer : "none", version ? version : "none",
            pixel[0], pixel[1], pixel[2], pixel[3], error);
@@ -66,6 +66,7 @@ int main(int argc, char **argv)
                 error ? error->message : "no frame");
         result = 1;
     }
+    g_signal_handlers_disconnect_by_func(window, gtk_main_quit, NULL);
     gtk_widget_destroy(window);
     return result;
 }

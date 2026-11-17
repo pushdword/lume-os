@@ -6,7 +6,7 @@ WESTON_PIXMAN ?= $(DESKTOP_OUT)/libraries/lib/pixman.a
 WESTON_DRM_PREFIX ?= $(WAYLAND_SDK)
 WESTON_DRM_LIBRARY ?= $(WESTON_DRM_PREFIX)/lib/libdrm.a
 WESTON_PROTOCOL_SOURCES := $(wildcard ports/weston/protocol/*-protocol.c)
-WESTON_BASE := -Iports/weston -Iports/weston/include -Iports/weston/protocol -Ivendor/weston/shared \
+WESTON_BASE := -Iinclude -Iports/weston -Iports/weston/include -Iports/weston/protocol -Ivendor/weston/shared \
     $(filter-out -Iports/wayland -Ivendor/wayland,$(WAYLAND_BASE)) \
     -Ivendor/weston/include -Ivendor/weston -Ivendor/weston/libweston -Ivendor/weston/libweston/desktop \
     -Ivendor/libxkbcommon/include -Ivendor/pixman/pixman -Iports/x11/pixman \

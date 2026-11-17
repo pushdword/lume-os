@@ -215,7 +215,9 @@
 
 #define HAVE_TIMEGM 1
 
+#ifdef __SIZEOF_INT128__
 #define HAVE_UINT128_T 1
+#endif
 
 #define HAVE_UNISTD_H 1
 
@@ -261,17 +263,17 @@
 
 #define SIZEOF_INT 4
 
-#define SIZEOF_LONG 8
+#define SIZEOF_LONG __SIZEOF_LONG__
 
 #define SIZEOF_LONG_LONG 8
 
 #define SIZEOF_SHORT 2
 
-#define SIZEOF_SIZE_T 8
+#define SIZEOF_SIZE_T __SIZEOF_SIZE_T__
 
-#define SIZEOF_SSIZE_T 8
+#define SIZEOF_SSIZE_T __SIZEOF_POINTER__
 
-#define SIZEOF_VOID_P 8
+#define SIZEOF_VOID_P __SIZEOF_POINTER__
 
 #define SIZEOF_WCHAR_T 4
 

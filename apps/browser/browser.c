@@ -14,7 +14,25 @@
 #include "lume/process.h"
 #include "lume/render.h"
 #include "lume/syscall_native.h"
+#include "lume/realtime_abi.h"
+#include "errno_map.h"
 #endif
+
+static int utc_ready(struct timespec *utc)
+{
+#if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_realtime_request request = {.version = LUME_REALTIME_VERSION,
+                                            .bytes = sizeof(request)};
+    int64_t result = lume_native_call(LUME_SYS_REALTIME, LUME_REALTIME_GET, (uintptr_t)&request,
+                                      sizeof(request));
+    if (result < 0)
+    {
+        errno = lume_errno_from_syscall((unsigned)-result);
+        return -1;
+    }
+#endif
+    return clock_gettime(CLOCK_REALTIME, utc);
+}
 
 static int owned_directory(const char *path, unsigned private)
 {
@@ -142,7 +160,7 @@ int main(int argc, char **argv)
     if (home && *home && mkdir(home, 0700) && errno != EEXIST)
         perror("browser: home");
     struct timespec utc;
-    if (clock_gettime(CLOCK_REALTIME, &utc))
+    if (utc_ready(&utc))
     {
         pid_t child = fork();
         if (!child)
@@ -167,7 +185,7 @@ int main(int argc, char **argv)
         if (!chromium_cpu_ready())
             return 1;
 #endif
-        if (clock_gettime(CLOCK_REALTIME, &utc))
+        if (utc_ready(&utc))
         {
             perror("browser: system time");
             return 1;

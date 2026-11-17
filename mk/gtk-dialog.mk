@@ -2,7 +2,7 @@ GTK_DIALOG_OUT ?= $(OUT)/gtk-dialog
 GTK_DIALOG_SHELL_QUOTE = '$(subst ','"'"',$(1))'
 .PHONY: gtk-file-dialog
 
-ifneq ($(filter aarch64 amd64,$(ARCH)),)
+ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
 GTK_DIALOG_BASE_NAMES := libresolver.a libintl.a libpcre2-8.a libffi.a libcharset.a libiconv.a \
     libglib-charset.a libglib-2.0.a libgobject-2.0.a libgthread-2.0.a \
     libgmodule-2.0.a libgio-xdgmime.a libgio-2.0.a
@@ -70,6 +70,6 @@ $(GTK_DIALOG_OUT)/lume-file-dialog.elf: $(GTK_DIALOG_OUT)/gtk-file-dialog.o $(GT
 -include $(GTK_DIALOG_OUT)/gtk-file-dialog.o.d
 else
 gtk-file-dialog:
-	@echo 'The GTK file dialog requires ARCH=aarch64 or ARCH=amd64'
+	@echo 'The GTK file dialog requires ARCH=aarch64, ARCH=amd64 or ARCH=i686'
 	@exit 1
 endif

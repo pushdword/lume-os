@@ -79,8 +79,8 @@ int nanosleep(const struct timespec *delay, struct timespec *remaining)
                     *remaining = (struct timespec){0};
                 else
                 {
-                    *remaining = (struct timespec){delay->tv_sec - seconds,
-                                                   delay->tv_nsec - nanoseconds};
+                    *remaining =
+                        (struct timespec){delay->tv_sec - seconds, delay->tv_nsec - nanoseconds};
                     if (remaining->tv_nsec < 0)
                     {
                         --remaining->tv_sec;
@@ -117,19 +117,24 @@ int clock_gettime(clockid_t id, struct timespec *t)
                                                 .bytes = sizeof(request)};
         int64_t result = lume_native_call(LUME_SYS_REALTIME, LUME_REALTIME_GET, (uintptr_t)&request,
                                           sizeof(request));
-        if (result < 0)
+        if (result < 0 && result != -LUME_EAGAIN)
         {
             errno = lume_errno_from_syscall((unsigned)-result);
             return -1;
         }
-        t->tv_sec = (time_t)request.seconds;
-        if (t->tv_sec < 0 || (uint64_t)t->tv_sec != request.seconds)
+        if (result >= 0)
         {
-            errno = EOVERFLOW;
-            return -1;
+            t->tv_sec = (time_t)request.seconds;
+            if (t->tv_sec < 0 || (uint64_t)t->tv_sec != request.seconds)
+            {
+                errno = EOVERFLOW;
+                return -1;
+            }
+            t->tv_nsec = request.nanoseconds;
+            return 0;
         }
-        t->tv_nsec = request.nanoseconds;
-        return 0;
+        /* Realtime advances from the boot epoch until wall time is initialized. */
+        id = CLOCK_MONOTONIC;
     }
 #endif
     if (!uptime_clock(id))

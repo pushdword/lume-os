@@ -8,7 +8,11 @@
 #define ALIGNOF_GCHAR 1
 
 /* The normal alignment of `gdouble', in bytes. */
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_GDOUBLE 4
+#else
 #define ALIGNOF_GDOUBLE 8
+#endif
 
 /* The normal alignment of `gfloat', in bytes. */
 #define ALIGNOF_GFLOAT 4
@@ -20,10 +24,18 @@
 #define ALIGNOF_GINT32 4
 
 /* The normal alignment of `gint64', in bytes. */
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_GINT64 4
+#else
 #define ALIGNOF_GINT64 8
+#endif
 
 /* The normal alignment of `gpointer', in bytes. */
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_GPOINTER 4
+#else
 #define ALIGNOF_GPOINTER 8
+#endif
 
 /* The normal alignment of `guchar', in bytes. */
 #define ALIGNOF_GUCHAR 1
@@ -35,7 +47,11 @@
 #define ALIGNOF_GUINT32 4
 
 /* The normal alignment of `guint64', in bytes. */
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_GUINT64 4
+#else
 #define ALIGNOF_GUINT64 8
+#endif
 
 /* Define if the perchannel-xml backend should be built */
 #define BUILD_XFCONF_BACKEND_PERCHANNEL_XML 1

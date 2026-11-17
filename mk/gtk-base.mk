@@ -1,13 +1,19 @@
 # SPDX-License-Identifier: BSD-3-Clause
 GTK_BASE_OUT ?= $(OUT)/gtk-base
 .PHONY: gtk-base gtk-base-check
-ifneq ($(filter aarch64 amd64,$(ARCH)),)
+ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
 ifeq ($(ARCH),amd64)
 GTK_FP_MODE :=
 GTK_FFI_C := x86/ffi64.c
 GTK_FFI_ASM := x86/unix64.S
 GTK_FFI_ARCH := x86
 GTK_FFI_EXTRA := $(GTK_BASE_OUT)/obj/ffi/vendor/libffi/src/x86/ffiw64.c.o $(GTK_BASE_OUT)/obj/ffi/vendor/libffi/src/x86/win64.S.o
+else ifeq ($(ARCH),i686)
+GTK_FP_MODE :=
+GTK_FFI_C := x86/ffi.c
+GTK_FFI_ASM := x86/sysv.S
+GTK_FFI_ARCH := x86
+GTK_FFI_EXTRA :=
 else
 GTK_FP_MODE := aarch64/
 GTK_FFI_C := aarch64/ffi.c

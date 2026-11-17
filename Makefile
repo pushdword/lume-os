@@ -333,6 +333,7 @@ include mk/graphics.mk
 include mk/wayland.mk
 include mk/weston.mk
 include mk/xfce-wayland.mk
+include mk/terminal.mk
 include mk/storage-bench.mk
 include mk/mesa.mk
 include mk/glamor.mk

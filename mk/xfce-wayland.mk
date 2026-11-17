@@ -1,29 +1,35 @@
 # SPDX-License-Identifier: BSD-3-Clause
 XFCE_WAYLAND ?= 0
 ifeq ($(XFCE_WAYLAND),1)
-ifneq ($(filter aarch64 amd64,$(ARCH)),)
+ifneq ($(filter aarch64 amd64 i686,$(ARCH)),)
 XFCE_WAYLAND_CPPFLAGS := -DLUME_GTK_WAYLAND=1 -DENABLE_WAYLAND=1 \
     -DHAVE_GTK_LAYER_SHELL=1 -DHAVE_XDG_ACTIVATION=1 \
     -Iports/gtk/wayland -Iports/gtk/wayland/gdk -Iports/gtk/wayland/gdk/wayland -Ivendor/gtk/gdk/wayland \
     -Iports/xfce-wayland -Iports/gtk-layer-shell/protocol \
     -Ivendor/gtk-layer-shell/include \
     -Ivendor/libxkbcommon/include -Iports/libepoxy/egl/include -I$(MESA_SOURCE)/include \
-    -I$(WAYLAND_SDK)/include -I$(WAYLAND_GENERATED)
+    -Iinclude/posix -I$(WAYLAND_GENERATED) -isystem $(WAYLAND_SDK)/include
 $(XFCE_OUT)/obj/%: private override CC += $(XFCE_WAYLAND_CPPFLAGS)
+$(GTK_BASE_OUT)/obj/%: private override CC += -Iinclude/posix -isystem $(SYSROOT)/include
 $(XFCE_OUT)/obj/%: private .EXTRA_PREREQS := $(XFCE_OUT)/backend-configuration
 $(XFCE_OUT)/obj/harfbuzz%: private override CC += -Iports/libcxx -Ivendor/libcxx/include
 $(XFCE_OUT)/obj/epoxy/%: private override CC += -include ports/libepoxy/wayland/features.h
 XFCE_WAYLAND_LIBRARIES := $(XFCE_OUT)/libgdk-wayland.a \
     $(XFCE_OUT)/libxfce-wayland.a $(XFCE_OUT)/libgtk-layer-shell.a \
     $(XFCE_OUT)/libxfce-wayland-protocols.a $(WAYLAND_LIBRARIES) \
-    $(WESTON_OUT)/libxkbcommon.a $(GRAPHICS_OUT)/liblume-gpu.a \
+    $(WESTON_OUT)/libxkbcommon.a $(WESTON_GPU_LIBRARIES) \
     $(WESTON_DRM_LIBRARY) $(WAYLAND_SDK)/lib/libc++.a
 XFCE_LIBRARIES += $(XFCE_WAYLAND_LIBRARIES)
+XFCE_SDK_LIBRARIES += $(wildcard $(SYSROOT)/lib/libcompiler-rt.a)
 GTK_DIALOG_LIBRARIES += $(XFCE_WAYLAND_LIBRARIES)
 $(GTK_DIALOG_OUT)/gtk-file-dialog.o: private override CC += $(XFCE_WAYLAND_CPPFLAGS)
 $(GTK_DIALOG_OUT)/lume-file-dialog.elf: $(XFCE_WAYLAND_LIBRARIES)
 $(XFCE_OUT)/%.elf: private .EXTRA_PREREQS += $(XFCE_WAYLAND_LIBRARIES)
-$(XFCE_OUT)/lume-xfce-session.elf $(XFCE_OUT)/xfce4-panel.elf $(XFCE_OUT)/xfdesktop.elf $(XFCE_OUT)/thunar.elf $(XFCE_OUT)/xfsettingsd.elf: $(XFCE_WAYLAND_LIBRARIES)
+XFCE_WAYLAND_PROGRAMS := dbus-daemon dbus-run-session dbus-send dbus-uuidgen iceauth \
+    lume-xfce-session startx startwayland thunar xfce4-panel xfce4-session \
+    xfce4-session-logout xfce4-settings-editor xfce4-settings-manager xfconf-query \
+    xfconfd xfdesktop xfdesktop-settings xfsettingsd xfwm4 gtk-wayland-gpu
+$(addprefix $(XFCE_OUT)/,$(addsuffix .elf,$(XFCE_WAYLAND_PROGRAMS))): $(XFCE_WAYLAND_LIBRARIES)
 XFCE_WAYLAND_GDK_SOURCES := \
     vendor/gtk/gdk/wayland/gdkapplaunchcontext-wayland.c \
     vendor/gtk/gdk/wayland/gdkcursor-wayland.c \
@@ -174,5 +180,9 @@ $(XFCE_OUT)/obj/settings-wayland/%.c.o: %.c
 	$(CC) '-DHAVE_CONFIG_H' '-Iports/xfce4-settings/aarch64/xfsettingsd' '-Ivendor/xfce4-settings/xfsettingsd' '-Iports/xfce4-settings/aarch64' '-Ivendor/xfce4-settings' '-DDATADIR="/usr/share"' '-DBINDIR="/usr/bin"' '-DSYSCONFIGDIR="/etc"' '-DLOCALEDIR="/usr/share/locale"' '-DG_LOG_DOMAIN="xfsettingsd"' '-DNDEBUG' '-Iports/xfce4-settings/aarch64' '-Ivendor/xfce4-settings' '-Iports/gtk/aarch64' '-Ivendor/gtk' '-Iports/pango/aarch64' '-Ivendor/pango' '-Ivendor/harfbuzz/src' '-Iports/harfbuzz/aarch64/src' '-Ivendor/fribidi/lib' '-Iports/fribidi/aarch64/lib' '-Iports/cairo/aarch64/src' '-Ivendor/cairo/src' '-Ivendor/cairo/util/cairo-gobject' '-Iports/fontconfig/aarch64' '-Ivendor/fontconfig' '-Ivendor/freetype/include' '-Iports/x11/include' '-Ivendor/expat/lib' '-Ivendor/pixman/pixman' '-Ivendor/zlib' '-Iports/gdk-pixbuf/aarch64' '-Ivendor/gdk-pixbuf' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Iports/x11/libpng' '-Ivendor/libpng' '-Iports/libepoxy/aarch64/include' '-Ivendor/libepoxy/include' '-Ivendor/libXi/include' '-Iports/at-spi2-core/aarch64' '-Ivendor/at-spi2-core' '-Ivendor/at-spi2-core/atk-adaptor' '-Iports/dbus/aarch64' '-Ivendor/dbus' '-DDBUS_STATIC_BUILD' '-Ivendor/glib/gio' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Ivendor/glib/gio' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Iports/xfconf/aarch64' '-Ivendor/xfconf' '-Iports/libxfce4util/aarch64' '-Ivendor/libxfce4util' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Ivendor/glib/gio' '-Iports/libxfce4util/aarch64' '-Ivendor/libxfce4util' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Ivendor/glib/gio' '-Iports/libxfce4ui/aarch64' '-Ivendor/libxfce4ui' '-Iports/gtk/aarch64' '-Ivendor/gtk' '-Iports/pango/aarch64' '-Ivendor/pango' '-Ivendor/harfbuzz/src' '-Iports/harfbuzz/aarch64/src' '-Ivendor/fribidi/lib' '-Iports/fribidi/aarch64/lib' '-Iports/cairo/aarch64/src' '-Ivendor/cairo/src' '-Ivendor/cairo/util/cairo-gobject' '-Iports/fontconfig/aarch64' '-Ivendor/fontconfig' '-Ivendor/freetype/include' '-Iports/x11/include' '-Ivendor/expat/lib' '-Ivendor/pixman/pixman' '-Ivendor/zlib' '-Iports/gdk-pixbuf/aarch64' '-Ivendor/gdk-pixbuf' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Iports/x11/libpng' '-Ivendor/libpng' '-Iports/libepoxy/aarch64/include' '-Ivendor/libepoxy/include' '-Ivendor/libXi/include' '-Iports/at-spi2-core/aarch64' '-Ivendor/at-spi2-core' '-Ivendor/at-spi2-core/atk-adaptor' '-Iports/dbus/aarch64' '-Ivendor/dbus' '-DDBUS_STATIC_BUILD' '-Iports/xfconf/aarch64' '-Ivendor/xfconf' '-Iports/libxfce4util/aarch64' '-Ivendor/libxfce4util' '-Ivendor/glib/gio' '-DGTK_DISABLE_SINGLE_INCLUDES' '-DGTK_DISABLE_DEPRECATED' '-DGSEAL_ENABLE' '-DGDK_PIXBUF_DISABLE_DEPRECATED' '-DG_DISABLE_DEPRECATED' '-Iports/libxfce4ui/aarch64' '-Ivendor/libxfce4ui' '-Iports/gtk/aarch64' '-Ivendor/gtk' '-Iports/pango/aarch64' '-Ivendor/pango' '-Ivendor/harfbuzz/src' '-Iports/harfbuzz/aarch64/src' '-Ivendor/fribidi/lib' '-Iports/fribidi/aarch64/lib' '-Iports/cairo/aarch64/src' '-Ivendor/cairo/src' '-Ivendor/cairo/util/cairo-gobject' '-Iports/fontconfig/aarch64' '-Ivendor/fontconfig' '-Ivendor/freetype/include' '-Iports/x11/include' '-Ivendor/expat/lib' '-Ivendor/pixman/pixman' '-Ivendor/zlib' '-Iports/gdk-pixbuf/aarch64' '-Ivendor/gdk-pixbuf' '-Ivendor/proxy-libintl' '-Iports/glib/aarch64' '-Iports/glib/aarch64/glib' '-Ivendor/glib' '-Ivendor/glib/glib' '-Ivendor/glib/gmodule' '-Ivendor/glib/gobject' '-Iports/x11/libpng' '-Ivendor/libpng' '-Iports/libepoxy/aarch64/include' '-Ivendor/libepoxy/include' '-Ivendor/libXi/include' '-Iports/at-spi2-core/aarch64' '-Ivendor/at-spi2-core' '-Ivendor/at-spi2-core/atk-adaptor' '-Iports/dbus/aarch64' '-Ivendor/dbus' '-DDBUS_STATIC_BUILD' '-Iports/xfconf/aarch64' '-Ivendor/xfconf' '-Iports/libxfce4util/aarch64' '-Ivendor/libxfce4util' '-Ivendor/glib/gio' '-Ivendor/libXi/include' '-Iports/x11/include' '-Iports/x11/include' '-Iports/x11/include' '-Iports/fontconfig/aarch64' '-Ivendor/fontconfig' '-Ivendor/freetype/include' '-Iports/x11/include' '-Ivendor/expat/lib' '-Iports/x11/include' '-O2' '--sysroot=$(SYSROOT)' $(filter-out --target=%,$(ARCH_CFLAGS)) '-fno-stack-protector' '-fno-pic' '-fno-pie' '-D__lume__=1' $(ARCH_CPPFLAGS) -Iinclude/internal -I$(KERNEL)/include/uapi '-DLUME_NATIVE_ABI=1' '-D_DEFAULT_SOURCE' '-D_POSIX_C_SOURCE=200809L' '-D_POSIX_TIMERS=200809L' '-D_POSIX_MONOTONIC_CLOCK=200809L' '-D_POSIX_THREAD_SAFE_FUNCTIONS=200809L' '-Iinclude/posix' '-Iinclude/lume' '-Iarch/$(ARCH)/include' '-I$(SYSROOT)/include' '-Wall' '-Wextra' '-Wno-missing-field-initializers' '-Wno-unused-parameter' '-Wmissing-declarations' '-Wmissing-noreturn' '-Wpointer-arith' '-Wcast-align' '-Wformat' '-Wformat-security' '-Wformat-y2k' '-Winit-self' '-Wmissing-include-dirs' '-Wundef' '-Wredundant-decls' '-Wshadow' '-Wnested-externs' '-Wold-style-definition' '-ffunction-sections' '-fdata-sections' '-ffile-prefix-map=$(CURDIR)=lume-os' -MMD -MP -MF "$@.d" -c "$<" -o "$@"
 $(XFCE_OUT)/libxfce-wayland.a: $(XFCE_WAYLAND_SETTINGS_BACKEND_OBJECTS)
 -include $(XFCE_WAYLAND_SETTINGS_BACKEND_OBJECTS:=.d)
+$(XFCE_OUT)/obj/abi/data-model.o: tests/unit/desktop_data_model.c
+	mkdir -p "$(@D)"
+	$(CC) $(XFCE_WAYLAND_GDK_FLAGS) -Iports/dbus/aarch64 -Ivendor/dbus -c "$<" -o "$@"
+xfce-wayland-abi: $(XFCE_OUT)/obj/abi/data-model.o
 endif
 endif

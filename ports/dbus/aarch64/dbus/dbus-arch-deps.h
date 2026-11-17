@@ -34,6 +34,7 @@ DBUS_BEGIN_DECLS
 
 /* D-Bus no longer supports platforms with no 64-bit integer type. */
 #define DBUS_HAVE_INT64 1
+#if __SIZEOF_LONG__ == 8
 _DBUS_GNUC_EXTENSION typedef long dbus_int64_t;
 _DBUS_GNUC_EXTENSION typedef unsigned long dbus_uint64_t;
 #define DBUS_INT64_MODIFIER "l"
@@ -41,13 +42,23 @@ _DBUS_GNUC_EXTENSION typedef unsigned long dbus_uint64_t;
 #define DBUS_INT64_CONSTANT(val)  (_DBUS_GNUC_EXTENSION (val##L))
 #define DBUS_UINT64_CONSTANT(val) (_DBUS_GNUC_EXTENSION (val##UL))
 
+#else
+_DBUS_GNUC_EXTENSION typedef long long dbus_int64_t;
+_DBUS_GNUC_EXTENSION typedef unsigned long long dbus_uint64_t;
+#define DBUS_INT64_MODIFIER "ll"
+
+#define DBUS_INT64_CONSTANT(val) (_DBUS_GNUC_EXTENSION(val##LL))
+#define DBUS_UINT64_CONSTANT(val) (_DBUS_GNUC_EXTENSION(val##ULL))
+
+#endif
+
 typedef int dbus_int32_t;
 typedef unsigned int dbus_uint32_t;
 
 typedef short dbus_int16_t;
 typedef unsigned short dbus_uint16_t;
 
-#define DBUS_SIZEOF_VOID_P 8
+#define DBUS_SIZEOF_VOID_P __SIZEOF_POINTER__
 
 /* This is not really arch-dependent, but it's not worth
  * creating an additional generated header just for this

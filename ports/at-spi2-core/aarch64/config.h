@@ -7,7 +7,11 @@
 
 #define ALIGNOF_CHAR 1
 
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_DBIND_POINTER 4
+#else
 #define ALIGNOF_DBIND_POINTER 8
+#endif
 
 #define ALIGNOF_DBIND_STRUCT 1
 
@@ -17,9 +21,17 @@
 
 #define ALIGNOF_DBUS_INT32_T 4
 
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_DBUS_INT64_T 4
+#else
 #define ALIGNOF_DBUS_INT64_T 8
+#endif
 
+#if __SIZEOF_POINTER__ == 4
+#define ALIGNOF_DOUBLE 4
+#else
 #define ALIGNOF_DOUBLE 8
+#endif
 
 #define ATK_VERSION "2.62.1"
 

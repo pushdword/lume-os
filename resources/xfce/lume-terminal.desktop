@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Terminal
-Exec=xterm
+Exec=lume-terminal
 Icon=utilities-terminal
 Terminal=false
 StartupNotify=false

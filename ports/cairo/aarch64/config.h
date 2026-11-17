@@ -127,19 +127,21 @@
 
 #define HAVE_ZLIB 1
 
+#ifdef __SIZEOF_INT128__
 #define HAVE___UINT128_T 1
+#endif
 
 #define IPC_RMID_DEFERRED_RELEASE 0
 
 #define SIZEOF_INT 4
 
-#define SIZEOF_LONG 8
+#define SIZEOF_LONG __SIZEOF_LONG__
 
 #define SIZEOF_LONG_LONG 8
 
-#define SIZEOF_SIZE_T 8
+#define SIZEOF_SIZE_T __SIZEOF_SIZE_T__
 
-#define SIZEOF_VOID_P 8
+#define SIZEOF_VOID_P __SIZEOF_POINTER__
 
 #define WARN_UNUSED_RESULT __attribute__((__warn_unused_result__))
 

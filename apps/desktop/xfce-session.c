@@ -182,7 +182,7 @@ int main(void)
         setenv("GDK_BACKEND", "wayland", 1);
         setenv("GDK_GL", "gles", 0);
     }
-    setenv("XDG_CONFIG_DIRS", "/etc/xdg", 1);
+    setenv("XDG_CONFIG_DIRS", "/data/etc/xdg:/etc/xdg", 1);
     setenv("XDG_DATA_DIRS", "/data/share:/usr/share", 1);
     setenv("XDG_CURRENT_DESKTOP", "XFCE", 1);
     setenv("DESKTOP_SESSION", wayland ? "xfce-wayland" : "xfce", 1);
@@ -211,8 +211,10 @@ int main(void)
     if (waited != session || !WIFEXITED(status) || WEXITSTATUS(status))
         goto cleanup;
     session = -1;
-    char *bus_arguments[] = {"dbus-daemon", "--nofork", "--config-file=/etc/dbus-1/session.conf",
-                             "--address",   address,    NULL};
+    char *configuration = access("/data/etc/dbus-1/session.conf", R_OK) == 0
+                              ? "--config-file=/data/etc/dbus-1/session.conf"
+                              : "--config-file=/etc/dbus-1/session.conf";
+    char *bus_arguments[] = {"dbus-daemon", "--nofork", configuration, "--address", address, NULL};
     bus = launch("/usr/libexec/dbus-daemon", bus_arguments);
     if (bus < 0 || bus_ready(address, NULL, &bus, NULL))
     {

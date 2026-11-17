@@ -5,7 +5,7 @@
     <property name="default" type="empty">
       <property name="&lt;Alt&gt;F1" type="string" value="xfce4-panel --plugin-event=applicationsmenu:popup:bool:false"/>
       <property name="&lt;Primary&gt;&lt;Alt&gt;Delete" type="string" value="xfce4-session-logout"/>
-      <property name="&lt;Primary&gt;&lt;Alt&gt;t" type="string" value="xterm"/>
+      <property name="&lt;Primary&gt;&lt;Alt&gt;t" type="string" value="lume-terminal"/>
       <property name="&lt;Primary&gt;Escape" type="string" value="xfdesktop --menu"/>
       <property name="&lt;Super&gt;e" type="string" value="thunar"/>
       <property name="&lt;Primary&gt;&lt;Alt&gt;f" type="string" value="thunar"/>
