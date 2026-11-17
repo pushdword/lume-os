@@ -169,6 +169,7 @@ struct dirent *readdir(DIR *directory)
                     : entry.kind == LUME_NODE_PIPE   ? DT_FIFO
                     : entry.kind == LUME_NODE_BLOCK  ? DT_BLK
                     : entry.kind == LUME_NODE_SOCKET ? DT_SOCK
+                    : entry.kind == LUME_NODE_LINK   ? DT_LNK
                                                      : DT_UNKNOWN;
     directory->entry = (struct dirent){.d_ino = (ino_t)entry.inode,
                                        .d_reclen = sizeof(struct dirent),

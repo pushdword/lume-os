@@ -113,15 +113,29 @@ int faccessat(int directory, const char *path, int mode, int flags)
     return 0;
 }
 
+ssize_t readlinkat(int directory, const char *path, char *buffer, size_t bytes)
+{
+    if (!path || !buffer)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    if (!bytes || bytes > SSIZE_MAX)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .buffer = (uintptr_t)buffer,
+                                         .count = bytes,
+                                         .fd =
+                                             directory == AT_FDCWD ? LUME_FILES_AT_CWD : directory};
+    return lume_files_result(lume_native_files_call(LUME_FILES_READLINK, &request));
+}
+
 ssize_t readlink(const char *path, char *buffer, size_t bytes)
 {
-    (void)buffer;
-    (void)bytes;
-    struct stat metadata;
-    if (lstat(path, &metadata))
-        return -1;
-    errno = EINVAL;
-    return -1;
+    return readlinkat(AT_FDCWD, path, buffer, bytes);
 }
 
 char *mkdtemp(char *pattern)

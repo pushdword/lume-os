@@ -98,6 +98,20 @@ static void expect(bool accepted, bool archive)
 
 int main(void)
 {
+    char path[96] = {0};
+    strcpy(path, "bin/[");
+    assert(payload_path(path));
+    strcpy(path, "libexec/coreutils/[");
+    assert(payload_path(path));
+    const char *invalid[] = {"[",    "bin/[extra", "bin/[]",   "bin/[/child",
+                             "../[", "/bin/[",     "bin/../[", "bin//["};
+    for (unsigned i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
+    {
+        memset(path, 0, sizeof(path));
+        strcpy(path, invalid[i]);
+        assert(!payload_path(path));
+    }
+
     const struct
     {
         const char *path;

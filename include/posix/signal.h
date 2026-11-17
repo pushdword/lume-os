@@ -86,6 +86,8 @@ extern "C"
     int sigaddset(sigset_t *, int);
     int sigdelset(sigset_t *, int);
     int sigismember(const sigset_t *, int);
+    int sig2str(int, char *);
+    int str2sig(const char *, int *);
     sighandler_t signal(int, sighandler_t);
     int raise(int);
     int kill(pid_t, int);

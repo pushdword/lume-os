@@ -1,0 +1,14 @@
+--- a/lib/sys/stat.h
++++ b/lib/sys/stat.h
+@@ -1374,7 +1374,10 @@
+     /* We can't use the object-like #define stat rpl_stat, because of
+        struct stat.  This means that rpl_stat will not be used if the user
+        does (stat)(a,b).  Oh well.  */
+-#   if defined _AIX && defined stat && defined _LARGE_FILES
++#   if defined(__lume__) && defined(LUME_POSIX_STAT64)
++#    undef stat64
++#    define stat64(name, st) rpl_stat (name, st)
++#   elif defined _AIX && defined stat && defined _LARGE_FILES
+      /* With _LARGE_FILES defined, AIX (only) defines stat to stat64,
+         so we have to replace stat64() instead of stat(). */
+ #    undef stat64

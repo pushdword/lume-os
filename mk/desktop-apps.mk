@@ -6,7 +6,7 @@ DESKTOP_APP_RUNTIME := $(addprefix $(DESKTOP_OUT)/programs/obj/common/,$(NATIVE_
     $(addprefix $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/,$(NATIVE_CXX_SOURCES:=.o)) \
     $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o
 DESKTOP_APP_RUNTIME += $(filter-out $(DESKTOP_APP_RUNTIME),$(DESKTOP_MEMORY_OBJECTS))
-DESKTOP_APP_BASE := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -ffunction-sections -fdata-sections -fno-pic -fno-pie -fno-stack-protector -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -D_POSIX_MONOTONIC_CLOCK=200809L -D_POSIX_TIMERS=200809L -D__lume__=1 -Iinclude/posix -Iinclude/lume -Iinclude/internal -Iarch/$(ARCH)/include -I$(KERNEL)/include/abi/native -I$(KERNEL)/include/uapi -Iports/x11/include -Ilibc/posix -ffile-prefix-map=$(CURDIR)=lume-os
+DESKTOP_APP_BASE := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -isystem "$(SYSROOT)/include" -O2 -ffunction-sections -fdata-sections -fno-pic -fno-pie -fno-stack-protector -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -D_POSIX_MONOTONIC_CLOCK=200809L -D_POSIX_TIMERS=200809L -D__lume__=1 -Iinclude/posix -Iinclude/lume -Iinclude/internal -Iarch/$(ARCH)/include -I$(KERNEL)/include/abi/native -I$(KERNEL)/include/uapi -Iports/x11/include -Ilibc/posix -ffile-prefix-map=$(CURDIR)=lume-os
 DESKTOP_APP_CXX := -std=c++17 -nostdinc++ -fno-exceptions -frtti -U__BITINT_MAXWIDTH__ -DLUME_NATIVE_CXX -Iports/libcxx -Ivendor/libcxx/include -Ivendor/libcxxabi/include
 DESKTOP_APP_FLTK := -Iports/fltk -Ivendor/fltk -Ivendor/libpng -Iports/x11/libpng -Ivendor/zlib
 DESKTOP_APP_TLS := -Ivendor/mbedtls/include -Ivendor/mbedtls/library -Iports/mbedtls -DMBEDTLS_CONFIG_FILE='"lume_tls_config.h"'

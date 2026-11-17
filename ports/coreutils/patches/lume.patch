@@ -1,0 +1,727 @@
+--- a/lib/dev-ino.h
++++ b/lib/dev-ino.h
+@@ -19,6 +19,7 @@
+ #ifndef DEV_INO_H
+ #define DEV_INO_H 1
+ 
++#include <stdint.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ 
+@@ -29,7 +30,7 @@
+ 
+ struct dev_ino
+ {
+-  ino_t st_ino;
++  uintmax_t st_ino;
+   dev_t st_dev;
+ };
+ 
+--- a/lib/di-set.c
++++ b/lib/di-set.c
+@@ -198,7 +198,7 @@
+ /* Using the DIS table, map an inode number to a mapped value.
+    Return INO_MAP_INSERT_FAILURE on error.  */
+ static hashint
+-map_inode_number (struct di_set *dis, ino_t ino)
++map_inode_number (struct di_set *dis, uintmax_t ino)
+ {
+   if (0 < ino && ino < LARGE_INO_MIN)
+     return ino;
+@@ -218,7 +218,7 @@
+    Otherwise, if insertion is successful, return 1.
+    Upon any failure return -1.  */
+ int
+-di_set_insert (struct di_set *dis, dev_t dev, ino_t ino)
++di_set_insert (struct di_set *dis, dev_t dev, uintmax_t ino)
+ {
+   /* Map the device number to a set of inodes.  */
+   struct hash_table *ino_set = map_device (dis, dev);
+@@ -238,7 +238,7 @@
+    If found, return 1; if not found, return 0.
+    Upon any failure return -1.  */
+ int
+-di_set_lookup (struct di_set *dis, dev_t dev, ino_t ino)
++di_set_lookup (struct di_set *dis, dev_t dev, uintmax_t ino)
+ {
+   /* Map the device number to a set of inodes.  */
+   struct hash_table *ino_set = map_device (dis, dev);
+--- a/lib/di-set.h
++++ b/lib/di-set.h
+@@ -25,6 +25,7 @@
+ # error "Please include config.h first."
+ #endif
+ 
++#include <stdint.h>
+ #include <sys/types.h>
+ 
+ #ifdef __cplusplus
+@@ -39,9 +40,9 @@
+ struct di_set *di_set_alloc (void)
+   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC (di_set_free, 1);
+ 
+-int di_set_insert (struct di_set *, dev_t, ino_t) _GL_ATTRIBUTE_NONNULL ((1));
++int di_set_insert (struct di_set *, dev_t, uintmax_t) _GL_ATTRIBUTE_NONNULL ((1));
+ 
+-int di_set_lookup (struct di_set *dis, dev_t dev, ino_t ino)
++int di_set_lookup (struct di_set *dis, dev_t dev, uintmax_t ino)
+   _GL_ATTRIBUTE_NONNULL ((1));
+ 
+ 
+--- a/lib/fpending.c
++++ b/lib/fpending.c
+@@ -18,6 +18,9 @@
+ /* Written by Jim Meyering. */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include "fpending.h"
+@@ -33,6 +36,10 @@
+ size_t
+ __fpending (FILE *fp)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  return lume_coreutils_write_pending(fp);
++#else
++
+   /* Most systems provide FILE as a struct and the necessary bitmask in
+      <stdio.h>, because they need it for implementing getc() and putc() as
+      fast macros.  */
+@@ -60,4 +67,6 @@
+ # error "Please port gnulib fpending.c to your platform!"
+   return 1;
+ #endif
++
++#endif
+ }
+--- a/lib/fpurge.c
++++ b/lib/fpurge.c
+@@ -15,6 +15,9 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include <stdio.h>
+@@ -31,6 +34,10 @@
+ int
+ fpurge (FILE *fp)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  return lume_coreutils_purge(fp);
++#else
++
+ #if HAVE___FPURGE                   /* glibc >= 2.2, Haiku, Solaris >= 7, UnixWare >= 7.1.4.MP4, Cygwin >= 1.7.10, Android API >= 23, musl libc */
+ 
+   __fpurge (fp);
+@@ -147,4 +154,6 @@
+ # endif
+ 
+ #endif
++
++#endif
+ }
+--- a/lib/freadahead.c
++++ b/lib/freadahead.c
+@@ -15,6 +15,9 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include "freadahead.h"
+@@ -33,6 +36,10 @@
+ size_t
+ freadahead (FILE *fp)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  return lume_coreutils_read_ahead(fp);
++#else
++
+ #if defined _IO_EOF_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
+   /* GNU libc, BeOS, Haiku, Linux libc5 */
+   if (fp->_IO_write_ptr > fp->_IO_write_base)
+@@ -100,4 +107,6 @@
+ #else
+  #error "Please port gnulib freadahead.c to your platform! Look at the definition of fflush, fread, ungetc on your system, then report this to bug-gnulib."
+ #endif
++
++#endif
+ }
+--- a/lib/freading.c
++++ b/lib/freading.c
+@@ -15,6 +15,9 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include "freading.h"
+@@ -32,6 +35,10 @@
+ bool
+ freading (FILE *fp)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  return lume_coreutils_reading(fp);
++#else
++
+   /* Most systems provide FILE as a struct and the necessary bitmask in
+      <stdio.h>, because they need it for implementing getc() and putc() as
+      fast macros.  */
+@@ -75,6 +82,8 @@
+ # else
+ #  error "Please port gnulib freading.c to your platform!"
+ # endif
++
++#endif
+ }
+ 
+ #endif
+--- a/lib/fseeko.c
++++ b/lib/fseeko.c
+@@ -15,6 +15,9 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include <stdio.h>
+@@ -40,6 +43,10 @@
+ # endif
+ #endif
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  return fseeko(fp, offset, whence);
++#else
++
+ #if LSEEK_PIPE_BROKEN
+   /* mingw gives bogus answers rather than failure on non-seekable files.  */
+   if (lseek (fileno (fp), 0, SEEK_CUR) == -1)
+@@ -167,4 +174,6 @@
+       return 0;
+     }
+   return fseeko (fp, offset, whence);
++
++#endif
+ }
+--- a/lib/fseterr.c
++++ b/lib/fseterr.c
+@@ -15,6 +15,9 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#if defined(__lume__) && defined(_PICOLIBC__)
++# include "stdio_support.h"
++#endif
+ 
+ /* Specification.  */
+ #include "fseterr.h"
+@@ -29,6 +32,10 @@
+ void
+ fseterr (FILE *fp)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  fp->flags |= __SERR;
++#else
++
+   /* Most systems provide FILE as a struct and the necessary bitmask in
+      <stdio.h>, because they need it for implementing getc() and putc() as
+      fast macros.  */
+@@ -77,4 +84,6 @@
+ #else
+  #error "Please port gnulib fseterr.c to your platform! Look at the definitions of ferror and clearerr on your system, then report this to bug-gnulib."
+ #endif
++
++#endif
+ }
+--- a/lib/fts-cycle.c
++++ b/lib/fts-cycle.c
+@@ -17,6 +17,7 @@
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
++#include <stdint.h>
+ #include "cycle-check.h"
+ #include "hash.h"
+ 
+@@ -24,7 +25,7 @@
+ struct Active_dir
+ {
+   dev_t dev;
+-  ino_t ino;
++  uintmax_t ino;
+   FTSENT *fts_ent;
+ };
+ 
+--- a/lib/getcwd.c
++++ b/lib/getcwd.c
+@@ -26,6 +26,7 @@
+ # define HAVE_MINIMALLY_WORKING_GETCWD 0
+ #endif
+ 
++#include <stdint.h>
+ #include <errno.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -261,7 +262,7 @@
+   DIR *dirstream = NULL;
+ 
+   dev_t thisdev;
+-  ino_t thisino;
++  uintmax_t thisino;
+   {
+     struct stat64 st;
+     if (__lstat64 (".", &st) < 0)
+@@ -271,7 +272,7 @@
+   }
+ 
+   dev_t rootdev;
+-  ino_t rootino;
++  uintmax_t rootino;
+   {
+     struct stat64 st;
+     if (__lstat64 ("/", &st) < 0)
+@@ -284,7 +285,7 @@
+     {
+       /* Look at the parent directory.  */
+       dev_t dotdev;
+-      ino_t dotino;
++      uintmax_t dotino;
+       {
+         struct stat64 st;
+         int parent_status;
+--- a/lib/getlocalename_l-unsafe.c
++++ b/lib/getlocalename_l-unsafe.c
+@@ -665,6 +665,9 @@
+       };
+       const char *name = ((struct __locale_t *) locale)->mb_cur_max == 4 ? "C.UTF-8" : "C";
+       return (struct string_with_storage) { name, STORAGE_INDEFINITE };
++#elif defined(__lume__) && defined(_PICOLIBC__)
++      const char *name = getlocalename_l (category, locale);
++      return (struct string_with_storage) { name ? name : "", STORAGE_OBJECT };
+ #else
+  #error "Please port gnulib getlocalename_l-unsafe.c to your platform! Report this to bug-gnulib."
+ #endif
+--- a/lib/hashcode-file.h
++++ b/lib/hashcode-file.h
+@@ -24,6 +24,7 @@
+  #error "Please include config.h first."
+ #endif
+ 
++#include <stdint.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ 
+@@ -36,7 +37,7 @@
+ struct F_triple
+ {
+   char *name;
+-  ino_t st_ino;
++  uintmax_t st_ino;
+   dev_t st_dev;
+ };
+ 
+--- a/lib/ino-map.c
++++ b/lib/ino-map.c
+@@ -18,6 +18,7 @@
+ /* written by Paul Eggert and Jim Meyering */
+ 
+ #include <config.h>
++#include <stdint.h>
+ #include "ino-map.h"
+ 
+ #include "hash.h"
+@@ -29,7 +30,7 @@
+    latter is a small unique ID for the former.  */
+ struct ino_map_ent
+ {
+-  ino_t ino;
++  uintmax_t ino;
+   size_t mapped_ino;
+ };
+ 
+@@ -53,7 +54,7 @@
+ ino_hash (void const *x, size_t table_size)
+ {
+   struct ino_map_ent const *p = x;
+-  ino_t ino = p->ino;
++  uintmax_t ino = p->ino;
+ 
+   /* When INO is wider than size_t, exclusive-OR the words of INO into H.
+      This avoids loss of info, without applying % to the wider type,
+@@ -114,7 +115,7 @@
+    If INO is already in MAP, return the existing mapped inode number.
+    Return INO_MAP_INSERT_FAILURE on memory or counter exhaustion.  */
+ size_t
+-ino_map_insert (struct ino_map *im, ino_t ino)
++ino_map_insert (struct ino_map *im, uintmax_t ino)
+ {
+   /* Find space for the probe, reusing the cache if available.  */
+   struct ino_map_ent *probe = im->probe;
+--- a/lib/ino-map.h
++++ b/lib/ino-map.h
+@@ -25,6 +25,7 @@
+ # error "Please include config.h first."
+ #endif
+ 
++#include <stdint.h>
+ #include <sys/types.h>
+ 
+ #ifdef __cplusplus
+@@ -41,7 +42,7 @@
+ struct ino_map *ino_map_alloc (size_t)
+   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC (ino_map_free, 1);
+ 
+-size_t ino_map_insert (struct ino_map *, ino_t) _GL_ATTRIBUTE_NONNULL ((1));
++size_t ino_map_insert (struct ino_map *, uintmax_t) _GL_ATTRIBUTE_NONNULL ((1));
+ 
+ 
+ #ifdef __cplusplus
+--- a/lib/localename-unsafe.c
++++ b/lib/localename-unsafe.c
+@@ -2706,7 +2706,7 @@
+     abort ();
+ #if HAVE_GOOD_USELOCALE
+   {
+-    locale_t thread_locale = uselocale (NULL);
++    locale_t thread_locale = uselocale ((locale_t) 0);
+     if (thread_locale != LC_GLOBAL_LOCALE)
+       {
+         struct string_with_storage ret =
+--- a/lib/mountlist.c
++++ b/lib/mountlist.c
+@@ -650,7 +650,7 @@
+       {
+         char *name;
+         dev_t dev;
+-        ino_t ino;
++        uintmax_t ino;
+         struct rootdir_entry *next;
+       };
+ 
+@@ -1244,7 +1244,10 @@
+   }
+ #endif
+ 
+-#if MOUNTED_NOT_PORTED
++#if MOUNTED_NOT_PORTED && defined(__lume__)
++  errno = ENOTSUP;
++  return NULL;
++#elif MOUNTED_NOT_PORTED
+ # error "Please port gnulib mountlist.c to your platform!"
+ #endif
+ 
+--- a/lib/posixver.c
++++ b/lib/posixver.c
+@@ -30,7 +30,11 @@
+ #endif
+ 
+ #ifndef DEFAULT_POSIX2_VERSION
++# if defined(__lume__)
++#  define DEFAULT_POSIX2_VERSION 200809L
++# else
+ # define DEFAULT_POSIX2_VERSION _POSIX2_VERSION
++# endif
+ #endif
+ 
+ /* The POSIX version that utilities should conform to.  The default is
+--- a/lib/savedir.c
++++ b/lib/savedir.c
+@@ -19,6 +19,7 @@
+ /* Written by David MacKenzie <djm@gnu.ai.mit.edu>. */
+ 
+ #include <config.h>
++#include <stdint.h>
+ 
+ #include "savedir.h"
+ 
+@@ -54,7 +55,7 @@
+ 
+ #if D_INO_IN_DIRENT
+   /* File inode number.  */
+-  ino_t ino;
++  uintmax_t ino;
+ #endif
+ } direntry_t;
+ 
+--- a/lib/sys_stat.in.h
++++ b/lib/sys_stat.in.h
+@@ -827,7 +827,10 @@
+     /* We can't use the object-like #define stat rpl_stat, because of
+        struct stat.  This means that rpl_stat will not be used if the user
+        does (stat)(a,b).  Oh well.  */
+-#   if defined _AIX && defined stat && defined _LARGE_FILES
++#   if defined(__lume__) && defined(LUME_POSIX_STAT64)
++#    undef stat64
++#    define stat64(name, st) rpl_stat (name, st)
++#   elif defined _AIX && defined stat && defined _LARGE_FILES
+      /* With _LARGE_FILES defined, AIX (only) defines stat to stat64,
+         so we have to replace stat64() instead of stat(). */
+ #    undef stat64
+--- a/src/copy.c
++++ b/src/copy.c
+@@ -17,6 +17,7 @@
+ /* Extracted from cp.c and librarified by Jim Meyering.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ #include <stdio.h>
+ #include <sys/ioctl.h>
+ #include <sys/types.h>
+@@ -105,7 +106,7 @@
+ struct dir_list
+ {
+   struct dir_list *parent;
+-  ino_t st_ino;
++  uintmax_t st_ino;
+   dev_t st_dev;
+ };
+ 
+--- a/src/cp-hash.c
++++ b/src/cp-hash.c
+@@ -18,6 +18,7 @@
+    Rewritten to use lib/hash.c by Jim Meyering.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ 
+ #include <sys/types.h>
+ #include "system.h"
+@@ -32,7 +33,7 @@
+    the corresponding names in the destination tree.  */
+ struct Src_to_dest
+ {
+-  ino_t st_ino;
++  uintmax_t st_ino;
+   dev_t st_dev;
+   /* Destination file name (of non-directory or pre-existing directory)
+      corresponding to the dev/ino of a copied file, or the destination file
+@@ -79,7 +80,7 @@
+ /* Remove the entry matching INO/DEV from the table
+    that maps source ino/dev to destination file name.  */
+ extern void
+-forget_created (ino_t ino, dev_t dev)
++forget_created (uintmax_t ino, dev_t dev)
+ {
+   struct Src_to_dest probe;
+   struct Src_to_dest *ent;
+@@ -97,7 +98,7 @@
+    name of the corresponding destination file.  Otherwise, return NULL.  */
+ 
+ extern char *
+-src_to_dest_lookup (ino_t ino, dev_t dev)
++src_to_dest_lookup (uintmax_t ino, dev_t dev)
+ {
+   struct Src_to_dest ent;
+   struct Src_to_dest const *e;
+@@ -112,7 +113,7 @@
+    Return NULL if inserted, otherwise a non-null pointer. */
+ 
+ extern char *
+-remember_copied (char const *name, ino_t ino, dev_t dev)
++remember_copied (char const *name, uintmax_t ino, dev_t dev)
+ {
+   struct Src_to_dest *ent;
+   struct Src_to_dest *ent_from_table;
+--- a/src/cp-hash.h
++++ b/src/cp-hash.h
+@@ -1,5 +1,6 @@
++#include <stdint.h>
+ void hash_init (void);
+-void forget_created (ino_t ino, dev_t dev);
+-char *remember_copied (char const *node, ino_t ino, dev_t dev)
++void forget_created (uintmax_t ino, dev_t dev);
++char *remember_copied (char const *node, uintmax_t ino, dev_t dev)
+   _GL_ATTRIBUTE_NONNULL ();
+-char *src_to_dest_lookup (ino_t ino, dev_t dev);
++char *src_to_dest_lookup (uintmax_t ino, dev_t dev);
+--- a/src/du.c
++++ b/src/du.c
+@@ -24,6 +24,7 @@
+    Rewritten to use nftw, then to use fts by Jim Meyering.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ #include <getopt.h>
+ #include <sys/types.h>
+ #include "argmatch.h"  /* argmatch($QUOTING_STYLE).  */
+@@ -427,7 +428,7 @@
+    Return true if the pair is successfully inserted,
+    false if the pair was already there.  */
+ static bool
+-hash_ins (struct di_set *di_set, ino_t ino, dev_t dev)
++hash_ins (struct di_set *di_set, uintmax_t ino, dev_t dev)
+ {
+   int inserted = di_set_insert (di_set, dev, ino);
+   if (inserted < 0)
+--- a/src/ls.c
++++ b/src/ls.c
+@@ -36,6 +36,7 @@
+    Greg Lee <lee@uhunix.uhcc.hawaii.edu>.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ #include <sys/types.h>
+ 
+ #include <termios.h>
+@@ -268,7 +269,7 @@
+ static int decode_switches (int argc, char **argv);
+ static bool file_ignored (char const *name);
+ static uintmax_t gobble_file (char const *name, enum filetype type,
+-                              ino_t inode, bool command_line_arg,
++                              uintmax_t inode, bool command_line_arg,
+                               char const *dirname);
+ static const struct bin_str * get_color_indicator (const struct fileinfo *f,
+                                                    bool symlink_target);
+@@ -1061,7 +1062,7 @@
+ 
+ /* Push a pair onto the device/inode stack.  */
+ static void
+-dev_ino_push (dev_t dev, ino_t ino)
++dev_ino_push (dev_t dev, uintmax_t ino)
+ {
+   void *vdi;
+   struct dev_ino *di;
+@@ -1450,7 +1451,7 @@
+    entry in the table.  */
+ 
+ static bool
+-visit_dir (dev_t dev, ino_t ino)
++visit_dir (dev_t dev, uintmax_t ino)
+ {
+   struct dev_ino *ent;
+   struct dev_ino *ent_from_table;
+@@ -3306,7 +3307,7 @@
+    Verify that the file exists, and print an error message if it does not.
+    Return the number of blocks that the file occupies.  */
+ static uintmax_t
+-gobble_file (char const *name, enum filetype type, ino_t inode,
++gobble_file (char const *name, enum filetype type, uintmax_t inode,
+              bool command_line_arg, char const *dirname)
+ {
+   uintmax_t blocks = 0;
+--- a/src/pwd.c
++++ b/src/pwd.c
+@@ -15,6 +15,7 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ #include <getopt.h>
+ #include <stdio.h>
+ #include <sys/types.h>
+@@ -193,7 +194,7 @@
+           break;
+         }
+ 
+-      ino_t ino = D_INO (dp);
++      uintmax_t ino = D_INO (dp);
+ 
+       struct stat ent_sb;
+       if (ino == NOT_AN_INODE_NUMBER || use_lstat)
+--- a/src/stat.c
++++ b/src/stat.c
+@@ -20,7 +20,13 @@
+ 
+ /* Keep this conditional in sync with the similar conditional in
+    ../m4/stat-prog.m4.  */
+-#if ((STAT_STATVFS || STAT_STATVFS64)                                       \
++#if defined(__lume__)
++# define USE_STATVFS 1
++# undef HAVE_STRUCT_STATVFS_F_NAMEMAX
++# define HAVE_STRUCT_STATVFS_F_NAMEMAX 1
++# undef STRUCT_STATVFS_F_FSID_IS_INTEGER
++# define STRUCT_STATVFS_F_FSID_IS_INTEGER 1
++#elif ((STAT_STATVFS || STAT_STATVFS64)                                       \
+      && (HAVE_STRUCT_STATVFS_F_BASETYPE || HAVE_STRUCT_STATVFS_F_FSTYPENAME \
+          || (! HAVE_STRUCT_STATFS_F_FSTYPENAME && HAVE_STRUCT_STATVFS_F_TYPE)))
+ # define USE_STATVFS 1
+@@ -253,7 +259,10 @@
+ static char const *
+ human_fstype (STRUCT_STATVFS const *statfsbuf)
+ {
+-#ifdef STATXFS_FILE_SYSTEM_TYPE_MEMBER_NAME
++#if defined(__lume__)
++  (void) statfsbuf;
++  return "UNKNOWN";
++#elif defined STATXFS_FILE_SYSTEM_TYPE_MEMBER_NAME
+   return statfsbuf->STATXFS_FILE_SYSTEM_TYPE_MEMBER_NAME;
+ #else
+   switch (statfsbuf->f_type)
+--- a/src/stty.c
++++ b/src/stty.c
+@@ -207,13 +207,19 @@
+ #ifdef CMSPAR
+   {"cmspar", control, REV, CMSPAR, 0},
+ #endif
++#ifdef CS5
+   {"cs5", control, 0, CS5, CSIZE},
++#endif
++#ifdef CS6
+   {"cs6", control, 0, CS6, CSIZE},
++#endif
+   {"cs7", control, 0, CS7, CSIZE},
+   {"cs8", control, 0, CS8, CSIZE},
+   {"hupcl", control, REV, HUPCL, 0},
+   {"hup", control, REV | OMIT, HUPCL, 0},
++#ifdef CSTOPB
+   {"cstopb", control, REV, CSTOPB, 0},
++#endif
+   {"cread", control, SANE_SET | REV, CREAD, 0},
+   {"clocal", control, REV, CLOCAL, 0},
+ #ifdef CRTSCTS
+@@ -2212,13 +2218,19 @@
+     speed2[1] = speed2[0];
+ 
+   unsigned int bits = 2;  /* Start and stop bits.  */
++#ifdef CSTOPB
+   bits += !!(mode1->c_cflag & CSTOPB);  /* Extra stop bit.  */
++#endif
+   bits += !!(mode1->c_cflag & PARENB);  /* Parity bit.  */
+   /* Data bits.  */
+   switch (mode1->c_cflag & CSIZE)
+     {
++#ifdef CS5
+       case CS5: bits += 5; break;
++#endif
++#ifdef CS6
+       case CS6: bits += 6; break;
++#endif
+       case CS7: bits += 7; break;
+       default: bits += 8; break;
+     }
+--- a/src/tail.c
++++ b/src/tail.c
+@@ -24,6 +24,7 @@
+    inotify back-end by Giuseppe Scrivano <gscrivano@gnu.org>.  */
+ 
+ #include <config.h>
++#include <stdint.h>
+ 
+ #include <stdio.h>
+ #include <getopt.h>
+@@ -126,7 +127,7 @@
+   /* Attributes of the file the last time we checked.  */
+   struct timespec mtime;
+   dev_t st_dev;
+-  ino_t st_ino;
++  uintmax_t st_ino;
+   mode_t mode;
+ 
+   /* If a regular file, the file's read position the last time we
