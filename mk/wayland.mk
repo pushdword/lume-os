@@ -35,6 +35,9 @@ WAYLAND_EGL_SOURCES := $(WAYLAND_SOURCE)/egl/wayland-egl.c
 WAYLAND_ALL_SOURCES := $(sort $(WAYLAND_SERVER_SOURCES) $(WAYLAND_CLIENT_SOURCES) \
     $(WAYLAND_CURSOR_SOURCES) $(WAYLAND_EGL_SOURCES) $(WAYLAND_FFI_SOURCES))
 wayland_objects = $(addprefix $(WAYLAND_OUT)/obj/,$(addsuffix .o,$(1)))
+$(call wayland_objects,$(WAYLAND_CURSOR_SOURCES)): WAYLAND_BASE += \
+    -Dos_create_anonymous_file=lume_wayland_cursor_create_anonymous_file \
+    -Dos_resize_anonymous_file=lume_wayland_cursor_resize_anonymous_file
 WAYLAND_PROTOCOL_OBJECT := $(WAYLAND_OUT)/obj/wayland-protocol.o
 WAYLAND_PROTOCOL_HEADERS := $(addprefix $(WAYLAND_GENERATED)/,wayland-version.h wayland-server-protocol.h \
     wayland-server-protocol-core.h wayland-client-protocol.h wayland-client-protocol-core.h)
@@ -124,6 +127,9 @@ wayland-sdk-install: wayland-libraries
             'Cflags: -I$${includedir}' > "$(DESTDIR)/lib/pkgconfig/$$wayland_library.pc"; \
         if test "$$wayland_library" != wayland-cursor; then :; else printf '%s\n' 'Requires: wayland-client' >> "$(DESTDIR)/lib/pkgconfig/$$wayland_library.pc"; fi; \
     done
+	@printf '%s\n' 'prefix=$${pcfiledir}/../..' 'includedir=$${prefix}/include' \
+        'Name: Wayland EGL Backend' 'Description: Wayland EGL window interface' 'Version: 3' \
+        'Cflags: -I$${includedir}' > "$(DESTDIR)/lib/pkgconfig/wayland-egl-backend.pc"
 	@printf '%s\n' 'prefix=$${pcfiledir}/../..' 'pkgdatadir=$${prefix}/share/wayland-protocols' \
         'Name: Wayland Protocols' 'Description: Wayland protocol definitions' 'Version: 1.49' \
         > "$(DESTDIR)/lib/pkgconfig/wayland-protocols.pc"

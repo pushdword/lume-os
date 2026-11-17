@@ -23,6 +23,49 @@ int lume_render_control(unsigned action, struct lume_render_request *request)
     return 0;
 }
 
+int lume_render_v3d(int fd, struct lume_v3d_request *native)
+{
+    if (!native)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    native->version = LUME_V3D_VERSION;
+    native->bytes = sizeof(*native);
+    if (native->operation == LUME_V3D_EXPORT || native->operation == LUME_V3D_IMPORT ||
+        native->operation == LUME_V3D_SYNC_EXPORT)
+    {
+        struct lume_render_request request = {.fd = fd};
+        unsigned action;
+        if (native->operation == LUME_V3D_EXPORT)
+        {
+            action = LUME_RENDER_PRIME_EXPORT;
+            request.id = native->handle;
+            request.flags = LUME_RENDER_CLOEXEC |
+                            (native->flags & LUME_V3D_EXPORT_READONLY ? 0 : LUME_RENDER_RDWR);
+        }
+        else if (native->operation == LUME_V3D_IMPORT)
+        {
+            action = LUME_RENDER_PRIME_IMPORT;
+            request.value = native->value;
+        }
+        else
+        {
+            action = LUME_RENDER_SYNC_EXPORT;
+            request.id = native->handle;
+        }
+        if (lume_render_control(action, &request))
+            return -1;
+        native->value = request.value;
+        if (native->operation == LUME_V3D_IMPORT)
+            native->handle = request.id;
+        return 0;
+    }
+    struct lume_render_request request = {
+        .fd = fd, .data = (uintptr_t)native, .length = sizeof(*native)};
+    return lume_render_control(LUME_RENDER_V3D, &request);
+}
+
 int lume_render_open(unsigned flags)
 {
     struct lume_render_request request = {.fd = -1, .flags = flags};

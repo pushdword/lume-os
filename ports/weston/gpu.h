@@ -11,4 +11,5 @@ int lume_weston_gpu_present(struct lume_weston_gpu *);
 void lume_weston_gpu_output_destroy(struct lume_weston_gpu *);
 void lume_weston_gpu_destroy(struct lume_weston_gpu *);
 const char *lume_weston_gpu_name(struct lume_weston_gpu *);
+uint32_t lume_weston_gpu_format(struct lume_weston_gpu *);
 #endif

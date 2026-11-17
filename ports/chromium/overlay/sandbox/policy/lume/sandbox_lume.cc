@@ -93,7 +93,8 @@ bool Sandbox::Initialize(sandbox::mojom::Sandbox sandbox_type)
     default:
         return false;
     }
-    if (profile == LUME_SANDBOX_GPU_SOFTWARE && !PrepareX11Authority())
+    if (profile == LUME_SANDBOX_GPU_SOFTWARE &&
+        command_line.GetSwitchValueASCII("ozone-platform") != "wayland" && !PrepareX11Authority())
     {
         return false;
     }

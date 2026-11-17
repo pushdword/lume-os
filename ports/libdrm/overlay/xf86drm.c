@@ -4671,6 +4671,20 @@ drm_device_has_rdev(drmDevicePtr device, dev_t find_rdev)
  */
 drm_public int drmGetDeviceFromDevId(dev_t find_rdev, uint32_t flags, drmDevicePtr *device)
 {
+#if defined(__lume__)
+    if (!device || (flags & ~DRM_DEVICE_GET_PCI_REVISION))
+        return -EINVAL;
+    *device = NULL;
+    int native_fd = open("/dev/dri/renderD128", O_RDWR | O_CLOEXEC);
+    if (native_fd < 0)
+        return -errno;
+    struct stat native_stat;
+    int native_result = fstat(native_fd, &native_stat) ? -errno :
+                        native_stat.st_rdev != find_rdev ? -ENOENT :
+                        drmGetDevice2(native_fd, flags, device);
+    close(native_fd);
+    return native_result;
+#endif
 #ifdef __OpenBSD__
     /*
      * DRI device nodes on OpenBSD are not in their own directory, they reside
@@ -4827,6 +4841,38 @@ drm_public int drmGetDevice2(int fd, uint32_t flags, drmDevicePtr *device)
     if (!device || (flags & ~DRM_DEVICE_GET_PCI_REVISION))
         return -EINVAL;
     *device = NULL;
+    struct lume_render_info info;
+    if (lume_render_query(fd, &info))
+        return -errno;
+    if (info.backend == LUME_RENDER_BACKEND_V3D)
+    {
+        char *storage;
+        drmDevicePtr native = drmDeviceAlloc(DRM_NODE_RENDER, "/dev/dri/renderD128",
+                                              sizeof(drmPlatformBusInfo),
+                                              sizeof(drmPlatformDeviceInfo), &storage);
+        if (!native)
+            return -ENOMEM;
+        native->bustype = DRM_BUS_PLATFORM;
+        native->businfo.platform = (drmPlatformBusInfoPtr)storage;
+        snprintf(native->businfo.platform->fullname, DRM_PLATFORM_DEVICE_NAME_LEN,
+                 "brcm,2712-v3d");
+        native->deviceinfo.platform = (drmPlatformDeviceInfoPtr)(storage + sizeof(drmPlatformBusInfo));
+        native->deviceinfo.platform->compatible = calloc(2, sizeof(char *));
+        if (!native->deviceinfo.platform->compatible)
+        {
+            free(native);
+            return -ENOMEM;
+        }
+        native->deviceinfo.platform->compatible[0] = strdup("brcm,2712-v3d");
+        if (!native->deviceinfo.platform->compatible[0])
+        {
+            free(native->deviceinfo.platform->compatible);
+            free(native);
+            return -ENOMEM;
+        }
+        *device = native;
+        return 0;
+    }
     struct lume_render_pci pci;
     if (lume_render_pci(fd, &pci))
         return -errno;

@@ -1,4 +1,4 @@
-# Copyright Â© 2017 Intel Corporation
+# Copyright © 2017 Intel Corporation
 # SPDX-License-Identifier: MIT
 
 # inc_util only depends inc_include, this folder and nothing else under src

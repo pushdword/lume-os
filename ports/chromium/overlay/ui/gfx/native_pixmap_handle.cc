@@ -11,7 +11,7 @@
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "ui/gfx/geometry/size.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LUME)
 #include <drm_fourcc.h>
 #endif
 
@@ -29,7 +29,7 @@
 namespace gfx
 {
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LUME)
 static_assert(NativePixmapHandle::kNoModifier == DRM_FORMAT_MOD_INVALID,
               "gfx::NativePixmapHandle::kNoModifier should be an alias for"
               "DRM_FORMAT_MOD_INVALID");
@@ -118,7 +118,7 @@ NativePixmapHandle CloneHandleForIPC(const NativePixmapHandle &handle)
 #endif
     }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LUME)
     clone.modifier = handle.modifier;
     clone.supports_zero_copy_webgpu_import = handle.supports_zero_copy_webgpu_import;
 #endif

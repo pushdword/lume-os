@@ -75,9 +75,10 @@ wayland-install: wayland
 	cp -p vendor/libxkbcommon/LICENSE "$(DESTDIR)/share/licenses/libxkbcommon/"
 weston-sdk-install: weston-libraries
 	test -n "$(DESTDIR)"
-	mkdir -p "$(DESTDIR)/lib/pkgconfig" "$(DESTDIR)/include/xkbcommon" "$(DESTDIR)/share/licenses/libxkbcommon"
+	mkdir -p "$(DESTDIR)/lib/pkgconfig" "$(DESTDIR)/include/xkbcommon" "$(DESTDIR)/include/linux" "$(DESTDIR)/share/licenses/libxkbcommon"
 	cp -p "$(WESTON_OUT)/libxkbcommon.a" "$(DESTDIR)/lib/"
 	cp -p vendor/libxkbcommon/include/xkbcommon/*.h "$(DESTDIR)/include/xkbcommon/"
+	cp -p ports/weston/include/linux/*.h "$(DESTDIR)/include/linux/"
 	cp -p vendor/libxkbcommon/LICENSE "$(DESTDIR)/share/licenses/libxkbcommon/"
 	@printf '%s\n' 'prefix=$${pcfiledir}/../..' 'libdir=$${prefix}/lib' 'includedir=$${prefix}/include' \
         'Name: xkbcommon' 'Description: Keyboard keymap compiler and support library' 'Version: 1.11.0' \
@@ -91,6 +92,13 @@ $(WESTON_OUT)/wayland-window.elf: $(WESTON_OUT)/obj/tests/integration/wayland_wi
         -Wl,--start-group $(WAYLAND_LIBRARIES) "$(WAYLAND_SDK)/lib/liblume.a" \
         "$(WAYLAND_SDK)/lib/libc.a" $(wildcard $(WAYLAND_SDK)/lib/libcompiler-rt.a) \
         -Wl,--end-group -o "$@"
+$(WESTON_OUT)/wayland-egl.elf: $(WESTON_OUT)/obj/tests/integration/wayland_egl.c.o $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o $(WAYLAND_LIBRARIES) $(WESTON_RENDERER_LIBRARIES) $(WESTON_DRM_LIBRARY)
+	$(CC) $(WESTON_BASE) -nostdlib -static \
+        -Wl,--gc-sections,--build-id=none,-z,max-page-size=4096,-T,arch/$(ARCH)/native.ld \
+        "$(WAYLAND_SDK)/lib/crt0.o" "$<" $(WESTON_OUT)/obj/ports/weston/protocol/xdg-shell-protocol.c.o \
+        -Wl,--start-group $(WAYLAND_LIBRARIES) $(WESTON_RENDERER_LIBRARIES) "$(WESTON_DRM_LIBRARY)" \
+        "$(WAYLAND_SDK)/lib/liblume.a" "$(WAYLAND_SDK)/lib/libc.a" \
+        $(wildcard $(WAYLAND_SDK)/lib/libcompiler-rt.a) -Wl,--end-group -o "$@"
 $(WESTON_OUT)/wayland.elf: $(WESTON_OUT)/obj/ports/weston/lume.c.o $(WESTON_OUT)/obj/ports/weston/gpu.c.o $(WESTON_OUT)/obj/ports/weston/shell.c.o $(WESTON_OUT)/obj/libc/lume/render.c.o $(WESTON_OUT)/libweston.a $(WESTON_OUT)/libxkbcommon.a $(WAYLAND_LIBRARIES) $(WESTON_PIXMAN) $(WESTON_DRM_LIBRARY) $(WESTON_RENDERER_LIBRARIES) $(WESTON_CHECK_OBJECTS)
 	$(CC) $(WESTON_BASE) -nostdlib -static \
         -Wl,--gc-sections,--build-id=none,-z,max-page-size=4096,-T,arch/$(ARCH)/native.ld \

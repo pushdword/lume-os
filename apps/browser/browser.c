@@ -81,11 +81,11 @@ static int chromium_cpu_ready(void)
 }
 #endif
 
-static int native_graphics_ready(void)
+static int native_graphics_ready(int wayland)
 {
 #if defined(__aarch64__) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     const char *display = getenv("DISPLAY"), *accelerated = getenv("LUME_GL_DISPLAY");
-    if (!display || !*display || !accelerated || strcmp(display, accelerated))
+    if (!wayland && (!display || !*display || !accelerated || strcmp(display, accelerated)))
         return 0;
     int configuration =
         open("/data/libexec/chromium/graphics.conf", O_RDONLY | O_NONBLOCK | O_CLOEXEC);
@@ -123,8 +123,14 @@ static int native_graphics_ready(void)
         LUME_RENDER_OPERATION(LUME_RENDER_WAIT) | LUME_RENDER_OPERATION(LUME_RENDER_PRIME_IMPORT) |
         LUME_RENDER_OPERATION(LUME_RENDER_PRIME_EXPORT) |
         LUME_RENDER_OPERATION(LUME_RENDER_DISPLAY) | LUME_RENDER_OPERATION(LUME_RENDER_PRESENT);
+    if (wayland && info.backend == LUME_RENDER_BACKEND_V3D)
+        needed = LUME_RENDER_OPERATION(LUME_RENDER_V3D) |
+                 LUME_RENDER_OPERATION(LUME_RENDER_PRIME_IMPORT) |
+                 LUME_RENDER_OPERATION(LUME_RENDER_PRIME_EXPORT);
     return !result && info.version == LUME_RENDER_VERSION && info.bytes == sizeof(info) &&
-           info.backend == LUME_RENDER_BACKEND_VIRGL && (info.operations & needed) == needed;
+           (info.backend == LUME_RENDER_BACKEND_VIRGL ||
+            (wayland && info.backend == LUME_RENDER_BACKEND_V3D)) &&
+           (info.operations & needed) == needed;
 #else
     return 0;
 #endif
@@ -177,8 +183,10 @@ int main(int argc, char **argv)
             perror("browser: font configuration");
             return 1;
         }
-        int graphics = native_graphics_ready();
-        const char *options[] = {"--ozone-platform=x11",
+        const char *wayland_display = getenv("WAYLAND_DISPLAY");
+        int wayland = wayland_display && *wayland_display;
+        int graphics = native_graphics_ready(wayland);
+        const char *options[] = {wayland ? "--ozone-platform=wayland" : "--ozone-platform=x11",
                                  graphics ? "--use-gl=egl" : "--disable-gpu", "--no-zygote",
                                  "--enable-gpu-rasterization"};
         size_t option_count = graphics ? 4 : 3;

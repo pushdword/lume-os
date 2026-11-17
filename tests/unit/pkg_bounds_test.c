@@ -98,6 +98,23 @@ static void expect(bool accepted, bool archive)
 
 int main(void)
 {
+    const struct
+    {
+        const char *path;
+        bool accepted;
+    } paths[] = {{"bin/[", true},       {"libexec/coreutils/[", true},
+                 {"bin/[/file", false}, {"bin/[/", false},
+                 {"bin/../[", false},   {"bin//[", false},
+                 {"/bin/[", false},     {"bin/a[", false},
+                 {"bin/[]", false},     {"../bin/[", false}};
+
+    for (unsigned i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i)
+    {
+        prepare(1);
+        memset(encoded.file[0].path, 0, sizeof(encoded.file[0].path));
+        strcpy(encoded.file[0].path, paths[i].path);
+        expect(paths[i].accepted, false);
+    }
     for (int delta = -1; delta <= 1; ++delta)
     {
         prepare(1);

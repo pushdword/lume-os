@@ -269,7 +269,8 @@ static bool payload_path(const char text[96])
         if (!text[i] || text[i] == '/')
         {
             component[used] = 0;
-            if (!token(component, sizeof(component)))
+            if (!token(component, sizeof(component)) &&
+                !(parts && i == n && used == 1 && component[0] == '['))
                 return false;
             if (!parts && strcmp(component, "bin") && strcmp(component, "sdk") &&
                 strcmp(component, "lib") && strcmp(component, "libexec") &&

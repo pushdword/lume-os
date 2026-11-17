@@ -84,17 +84,36 @@ static int lume_drm_parameter(int fd, struct drm_virtgpu_getparam *parameter)
     return 0;
 }
 
+#include "lume_v3d.h"
+
 static int lume_drm_ioctl(int fd, unsigned long operation, void *data)
 {
     if (!data)
         return lume_drm_error(EINVAL);
     switch (operation)
     {
+    case DRM_IOCTL_V3D_GET_PARAM:
+    case DRM_IOCTL_V3D_CREATE_BO:
+    case DRM_IOCTL_V3D_GET_BO_OFFSET:
+    case DRM_IOCTL_V3D_WAIT_BO:
+    case DRM_IOCTL_V3D_SUBMIT_CL:
+    case DRM_IOCTL_V3D_SUBMIT_TFU:
+    case DRM_IOCTL_V3D_SUBMIT_CSD:
+    case DRM_IOCTL_SYNCOBJ_CREATE:
+    case DRM_IOCTL_SYNCOBJ_DESTROY:
+    case DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD:
+    case DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE:
+    case DRM_IOCTL_SYNCOBJ_WAIT:
+    case DRM_IOCTL_SYNCOBJ_SIGNAL:
+    case DRM_IOCTL_SYNCOBJ_RESET:
+        return lume_drm_v3d_ioctl(fd, operation, data);
     case DRM_IOCTL_VERSION:
     {
         struct lume_render_info info;
         if (lume_render_query(fd, &info))
             return -1;
+        if (info.backend == LUME_RENDER_BACKEND_V3D)
+            return lume_drm_v3d_ioctl(fd, operation, data);
         if (info.backend != LUME_RENDER_BACKEND_VIRGL)
             return lume_drm_error(EOPNOTSUPP);
         drm_version_t *version = data;
@@ -113,6 +132,8 @@ static int lume_drm_ioctl(int fd, unsigned long operation, void *data)
         struct lume_render_info info;
         if (lume_render_query(fd, &info))
             return -1;
+        if (info.backend == LUME_RENDER_BACKEND_V3D)
+            return lume_drm_v3d_ioctl(fd, operation, data);
         capability->value = 0;
         switch (capability->capability)
         {

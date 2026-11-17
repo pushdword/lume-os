@@ -47,7 +47,12 @@ component("platform_window") {
   }
 
   if (is_lume) {
+    deps += [ "//ui/base/dragdrop/mojom:mojom_headers" ]
     sources += [
+      "extensions/system_modal_extension.cc",
+      "extensions/system_modal_extension.h",
+      "extensions/wayland_extension.cc",
+      "extensions/wayland_extension.h",
       "extensions/x11_extension.cc",
       "extensions/x11_extension.h",
       "extensions/x11_extension_delegate.h",

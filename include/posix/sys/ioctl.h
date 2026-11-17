@@ -4,6 +4,7 @@ extern "C"
 #endif
 #ifndef LUME_POSIX_IOCTL_H
 #define LUME_POSIX_IOCTL_H
+#include <sys/ioccom.h>
 
     struct winsize
     {

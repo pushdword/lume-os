@@ -45,10 +45,10 @@ struct lume_compositor
     struct wl_event_source *finish_timer, *input_source;
     uint32_t *pixels;
     uint32_t width, height, pitch, buttons;
-    unsigned windows;
+    unsigned windows, repaint_minimum;
     int fd, exit_code;
     bool held[256];
-    uint64_t frames, damaged_pixels, render_ns, present_ns;
+    uint64_t frames, damaged_pixels, render_ns, present_ns, repaint_budget_ns;
 };
 
 static uint64_t monotonic_ns(void)
@@ -77,6 +77,25 @@ static int finish_frame(void *data)
     return 0;
 }
 
+static void update_repaint_budget(struct lume_compositor *lume, uint64_t duration)
+{
+    if (!lume->gpu || !lume->output.current_mode->refresh)
+        return;
+    if (duration > lume->repaint_budget_ns)
+        lume->repaint_budget_ns = duration;
+    else
+        lume->repaint_budget_ns -= (lume->repaint_budget_ns - duration + 15) / 16;
+    uint64_t period = UINT64_C(1000000000000) / lume->output.current_mode->refresh;
+    unsigned maximum = period > 1000000 ? (unsigned)((period - 1) / 1000000) : 1;
+    uint64_t estimate = lume->repaint_budget_ns + UINT64_C(4000000);
+    uint64_t window = (estimate + 999999) / 1000000;
+    if (window < lume->repaint_minimum)
+        window = lume->repaint_minimum;
+    if (window > maximum)
+        window = maximum;
+    lume->compositor->repaint_msec = (int32_t)window;
+}
+
 static int start_repaint(struct weston_output *output)
 {
     struct timespec now;
@@ -88,6 +107,7 @@ static int start_repaint(struct weston_output *output)
 static int repaint(struct weston_output *output)
 {
     struct lume_compositor *lume = output->compositor->user_data;
+    uint64_t repaint_started = monotonic_ns();
     pixman_region32_t damage;
     pixman_region32_init(&damage);
     weston_output_flush_damage_for_primary_plane(output, &damage);
@@ -96,8 +116,9 @@ static int repaint(struct weston_output *output)
         lume->renderbuffer = lume_weston_gpu_next(lume->gpu);
     output->compositor->renderer->repaint_output(output, &damage, lume->renderbuffer);
 #ifdef LUME_WESTON_RENDER_CHECK
-    extern void lume_weston_render_check(struct weston_output *, uint64_t);
-    lume_weston_render_check(output, lume->frames);
+    extern void lume_weston_render_check(struct weston_output *, uint64_t, uint32_t);
+    lume_weston_render_check(output, lume->frames,
+                             lume->gpu ? lume_weston_gpu_format(lume->gpu) : 0);
 #endif
     lume->render_ns += monotonic_ns() - started;
     int count;
@@ -150,6 +171,7 @@ static int repaint(struct weston_output *output)
     lume->present_ns += monotonic_ns() - started;
     ++lume->frames;
     pixman_region32_fini(&damage);
+    update_repaint_budget(lume, monotonic_ns() - repaint_started);
     weston_output_arm_frame_timer(output, lume->finish_timer);
     return 0;
 }
@@ -540,6 +562,7 @@ int main(int argc, char **argv)
         goto fail;
     lume.compositor->exit = compositor_exit;
     lume.compositor->idle_time = 0;
+    lume.repaint_minimum = (unsigned)lume.compositor->repaint_msec;
     lume.backend.destroy = backend_destroy;
     lume.backend.supported_presentation_clocks = WESTON_PRESENTATION_CLOCKS_SOFTWARE;
     wl_list_insert(&lume.compositor->backend_list, &lume.backend.link);
@@ -584,9 +607,17 @@ int main(int argc, char **argv)
     lume.output.current_mode = &lume.mode;
     if (weston_output_enable(&lume.output) < 0)
         goto fail;
-    struct xkb_rule_names names = {.rules = "evdev", .model = "pc105", .layout = "pt"};
-    if (weston_compositor_set_xkb_rule_names(lume.compositor, &names) < 0)
+    /* The compositor takes ownership of the rule names. */
+    struct xkb_rule_names names = {
+        .rules = strdup("evdev"), .model = strdup("pc105"), .layout = strdup("pt")};
+    if (!names.rules || !names.model || !names.layout ||
+        weston_compositor_set_xkb_rule_names(lume.compositor, &names) < 0)
+    {
+        free((char *)names.rules);
+        free((char *)names.model);
+        free((char *)names.layout);
         goto fail;
+    }
     weston_seat_init(&lume.seat, lume.compositor, "seat0");
     if (weston_seat_init_pointer(&lume.seat) < 0 || weston_seat_init_keyboard(&lume.seat, NULL) < 0)
         goto fail;
@@ -652,9 +683,10 @@ int main(int argc, char **argv)
         }
     }
     wl_display_run(lume.display);
-    printf("WAYLAND_STOP frames=%llu damaged_pixels=%llu render_ns=%llu present_ns=%llu\n",
+    printf("WAYLAND_STOP frames=%llu damaged_pixels=%llu render_ns=%llu present_ns=%llu repaint_ms=%d repaint_budget_ns=%llu\n",
            (unsigned long long)lume.frames, (unsigned long long)lume.damaged_pixels,
-           (unsigned long long)lume.render_ns, (unsigned long long)lume.present_ns);
+           (unsigned long long)lume.render_ns, (unsigned long long)lume.present_ns,
+           lume.compositor->repaint_msec, (unsigned long long)lume.repaint_budget_ns);
     wl_display_destroy_clients(lume.display);
     if (timer)
         wl_event_source_remove(timer);

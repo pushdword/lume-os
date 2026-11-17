@@ -2,6 +2,9 @@
 #include "lume/tty.h"
 #include "lume/socket.h"
 #include "lume/signal.h"
+#include "lume/render.h"
+#include "lume/sync_file.h"
+#include "dmabuf.h"
 #include <fd.h>
 #include <pty.h>
 #include <errno.h>
@@ -231,6 +234,29 @@ int ioctl(int fd, unsigned long operation, ...)
     {
         errno = EFAULT;
         return -1;
+    }
+    if (operation == DMA_BUF_IOCTL_SYNC)
+    {
+        struct lume_render_request request = {.version = LUME_RENDER_VERSION,
+                                              .bytes = sizeof(request),
+                                              .fd = fd,
+                                              .value = ((struct dma_buf_sync *)argument)->flags};
+        return native_result(native_call(LUME_SYS_GPU, LUME_RENDER_MEMORY_SYNC, (uintptr_t)&request,
+                                         sizeof(request)));
+    }
+    if (operation == LUME_SYNC_FILE_MERGE || operation == LUME_SYNC_FILE_INFO)
+    {
+        struct lume_render_request request = {.version = LUME_RENDER_VERSION,
+                                              .bytes = sizeof(request),
+                                              .fd = fd,
+                                              .data = (uintptr_t)argument,
+                                              .length = operation == LUME_SYNC_FILE_MERGE
+                                                            ? sizeof(struct lume_sync_merge_data)
+                                                            : sizeof(struct lume_sync_file_info)};
+        unsigned action =
+            operation == LUME_SYNC_FILE_MERGE ? LUME_RENDER_SYNC_MERGE : LUME_RENDER_SYNC_INFO;
+        return native_result(
+            native_call(LUME_SYS_GPU, action, (uintptr_t)&request, sizeof(request)));
     }
     if (operation == FIONBIO)
     {

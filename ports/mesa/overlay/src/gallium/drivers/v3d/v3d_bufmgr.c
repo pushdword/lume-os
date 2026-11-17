@@ -29,6 +29,9 @@
 #include <fcntl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#ifdef __lume__
+#include "lume/render_native.h"
+#endif
 
 #include "util/perf/cpu_trace.h"
 #include "util/u_hash_table.h"
@@ -501,12 +504,25 @@ v3d_bo_wait(struct v3d_bo *bo, uint64_t timeout_ns, const char *reason)
 void *
 v3d_bo_map_unsynchronized(struct v3d_bo *bo)
 {
-        uint64_t offset;
+        uint64_t offset = 0;
         int ret;
 
         if (bo->map)
                 return bo->map;
 
+#ifdef __lume__
+        struct lume_v3d_request native = {
+                .operation = LUME_V3D_EXPORT,
+                .handle = bo->handle,
+        };
+        if (lume_render_v3d(bo->screen->fd, &native))
+                return NULL;
+        int memory_fd = (int)native.value;
+        bo->map = mmap(NULL, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED, memory_fd, 0);
+        int error = errno;
+        close(memory_fd);
+        errno = error;
+#else
         struct drm_v3d_mmap_bo map;
         memset(&map, 0, sizeof(map));
         map.handle = bo->handle;
@@ -519,6 +535,7 @@ v3d_bo_map_unsynchronized(struct v3d_bo *bo)
 
         bo->map = mmap(NULL, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
                        bo->screen->fd, offset);
+#endif
         if (bo->map == MAP_FAILED) {
                 mesa_loge("mmap of bo %d (offset 0x%016llx, size %d) failed",
                           bo->handle, (long long)offset, bo->size);

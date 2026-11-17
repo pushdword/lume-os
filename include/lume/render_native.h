@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "lume/render.h"
+#include "lume/v3d.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -33,6 +34,7 @@ extern "C"
     int lume_render_submit_resources(int, const void *, size_t, const uint32_t *, unsigned,
                                      uint64_t *);
     int lume_render_wait(int, uint64_t, unsigned);
+    int lume_render_v3d(int, struct lume_v3d_request *);
 
 #ifdef __cplusplus
 }

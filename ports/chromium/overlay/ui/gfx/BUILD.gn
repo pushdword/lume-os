@@ -626,7 +626,7 @@ source_set("memory_buffer_sources") {
     "//ui/gfx/geometry",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (is_linux || is_chromeos || (is_lume && ozone_platform_wayland)) {
     sources += [
       "linux/client_native_pixmap_dmabuf.cc",
       "linux/client_native_pixmap_dmabuf.h",
@@ -640,7 +640,7 @@ source_set("memory_buffer_sources") {
     deps += [ "//build/config/linux/libdrm" ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (is_linux || is_chromeos || is_android || (is_lume && ozone_platform_wayland)) {
     deps += [ "//third_party/libsync" ]
   }
 

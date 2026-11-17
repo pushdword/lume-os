@@ -1323,6 +1323,13 @@ source_set("chrome_browser_main_extra_parts_views") {
     "//ui/base:features",
     "//ui/display",
   ]
+  if (is_lume) {
+    deps += [
+      "//ui/base/cursor",
+      "//ui/linux:linux_ui",
+      "//ui/linux:linux_ui_factory",
+    ]
+  }
   if (is_chromeos) {
     deps += [ "//ui/wm" ]
   }

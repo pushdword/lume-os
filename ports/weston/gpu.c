@@ -34,7 +34,7 @@ struct lume_weston_gpu
     struct weston_output *output;
     struct gbm_device *device;
     struct weston_renderbuffer *buffers[OUTPUT_BUFFERS];
-    unsigned handles[OUTPUT_BUFFERS], current, next, scanout, width, height;
+    unsigned handles[OUTPUT_BUFFERS], current, next, scanout, width, height, format, backend;
     int fd, input;
     bool presenting;
     char name[160];
@@ -80,7 +80,8 @@ struct lume_weston_gpu *lume_weston_gpu_create(struct weston_compositor *composi
                               LUME_RENDER_OPERATION(LUME_RENDER_PRIME_IMPORT) |
                               LUME_RENDER_OPERATION(LUME_RENDER_DISPLAY) |
                               LUME_RENDER_OPERATION(LUME_RENDER_PRESENT);
-    if (lume_render_query(gpu->fd, &info) || info.backend != LUME_RENDER_BACKEND_VIRGL ||
+    if (lume_render_query(gpu->fd, &info) ||
+        (info.backend != LUME_RENDER_BACKEND_VIRGL && info.backend != LUME_RENDER_BACKEND_V3D) ||
         (info.operations & required) != required)
         goto fail;
     struct lume_render_display mode;
@@ -90,12 +91,19 @@ struct lume_weston_gpu *lume_weston_gpu_create(struct weston_compositor *composi
             break;
     if (gpu->scanout == info.scanouts)
         goto fail;
+    gpu->backend = info.backend;
+    gpu->format =
+        mode.flags & LUME_RENDER_DISPLAY_RGB565
+            ? (mode.flags & LUME_RENDER_DISPLAY_BGR ? DRM_FORMAT_BGR565 : DRM_FORMAT_RGB565)
+            : (mode.flags & LUME_RENDER_DISPLAY_BGR ? DRM_FORMAT_XBGR8888 : DRM_FORMAT_XRGB8888);
     gpu->width = input < 0 ? mode.width : *width;
     gpu->height = input < 0 ? mode.height : *height;
     gpu->device = gbm_create_device(gpu->fd);
     if (!gpu->device)
         goto fail;
-    const struct pixel_format_info *format = pixel_format_get_info(DRM_FORMAT_XRGB8888);
+    const struct pixel_format_info *format = pixel_format_get_info(gpu->format);
+    if (!format)
+        goto fail;
     const struct gl_renderer_display_options options = {.egl_platform = EGL_PLATFORM_GBM_KHR,
                                                         .egl_native_display = gpu->device,
                                                         .formats = &format,
@@ -105,7 +113,8 @@ struct lume_weston_gpu *lume_weston_gpu_create(struct weston_compositor *composi
     failure = EIO;
     compositor->renderer->gl = &gl_renderer_interface;
     const char *name = (const char *)glGetString(GL_RENDERER);
-    if (software_renderer(name) || !compositor->renderer->create_renderbuffer_dmabuf)
+    if (software_renderer(name) || !compositor->renderer->create_renderbuffer_dmabuf ||
+        !compositor->renderer->import_dmabuf || linux_dmabuf_setup(compositor) < 0)
     {
         compositor->renderer->destroy(compositor);
         compositor->renderer = NULL;
@@ -142,8 +151,10 @@ int lume_weston_gpu_output_create(struct lume_weston_gpu *gpu, struct weston_out
         buffer->attributes.fd[0] = -1;
         buffer->base.attributes = &buffer->attributes;
         buffer->base.destroy = buffer_destroy;
-        buffer->bo = gbm_bo_create(gpu->device, gpu->width, gpu->height, GBM_FORMAT_XRGB8888,
-                                   GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+        unsigned usage = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
+        if (gpu->backend == LUME_RENDER_BACKEND_V3D)
+            usage |= GBM_BO_USE_LINEAR;
+        buffer->bo = gbm_bo_create(gpu->device, gpu->width, gpu->height, gpu->format, usage);
         if (!buffer->bo)
         {
             free(buffer);
@@ -151,7 +162,7 @@ int lume_weston_gpu_output_create(struct lume_weston_gpu *gpu, struct weston_out
         }
         buffer->attributes = (struct dmabuf_attributes){.width = gpu->width,
                                                         .height = gpu->height,
-                                                        .format = DRM_FORMAT_XRGB8888,
+                                                        .format = gpu->format,
                                                         .n_planes = 1,
                                                         .fd = {gbm_bo_get_fd(buffer->bo)},
                                                         .stride = {gbm_bo_get_stride(buffer->bo)},
@@ -162,6 +173,18 @@ int lume_weston_gpu_output_create(struct lume_weston_gpu *gpu, struct weston_out
             goto fail;
         }
         gpu->handles[i] = gbm_bo_get_handle(buffer->bo).u32;
+        if (gpu->backend == LUME_RENDER_BACKEND_V3D)
+        {
+            struct lume_v3d_request layout = {
+                .operation = LUME_V3D_LAYOUT,
+                .handle = gpu->handles[i],
+                .registers = {gpu->width, gpu->height, gbm_bo_get_stride(buffer->bo), gpu->format}};
+            if (lume_render_v3d(gpu->fd, &layout))
+            {
+                buffer_destroy(&buffer->base);
+                goto fail;
+            }
+        }
         gpu->buffers[i] =
             output->compositor->renderer->create_renderbuffer_dmabuf(output, &buffer->base);
         if (!gpu->buffers[i])
@@ -237,6 +260,11 @@ const char *lume_weston_gpu_name(struct lume_weston_gpu *gpu)
 {
     return gpu->name;
 }
+
+uint32_t lume_weston_gpu_format(struct lume_weston_gpu *gpu)
+{
+    return gpu->format;
+}
 #else
 struct lume_weston_gpu *lume_weston_gpu_create(struct weston_compositor *compositor, int input,
                                                unsigned *width, unsigned *height)
@@ -282,5 +310,11 @@ const char *lume_weston_gpu_name(struct lume_weston_gpu *gpu)
 {
     (void)gpu;
     return "unavailable";
+}
+
+uint32_t lume_weston_gpu_format(struct lume_weston_gpu *gpu)
+{
+    (void)gpu;
+    return 0;
 }
 #endif

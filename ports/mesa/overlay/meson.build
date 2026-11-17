@@ -2258,9 +2258,13 @@ endif
 
 with_wayland_bind_display = with_platform_wayland and get_option('legacy-wayland').contains('bind-wayland-display')
 if with_platform_wayland
+  wayland_dependency_options = {}
+  if host_machine.system() == 'lume'
+    wayland_dependency_options = {'static': true}
+  endif
   dep_wl_protocols = dependency('wayland-protocols', version : '>= 1.41', default_options: [ 'tests=false' ])
-  dep_wayland_client = dependency('wayland-client', version : '>=1.18')
-  dep_wayland_server = dependency('wayland-server', version : '>=1.18')
+  dep_wayland_client = dependency('wayland-client', version : '>=1.18', kwargs : wayland_dependency_options)
+  dep_wayland_server = dependency('wayland-server', version : '>=1.18', kwargs : wayland_dependency_options)
   if with_egl
     dep_wayland_egl = dependency('wayland-egl-backend', version : '>= 3')
     dep_wayland_egl_headers = dep_wayland_egl.partial_dependency(compile_args : true)

@@ -5,6 +5,7 @@ DESKTOP_APP_RUNTIME := $(addprefix $(DESKTOP_OUT)/programs/obj/common/,$(NATIVE_
     $(DESKTOP_OUT)/programs/obj/5f8c9d766f97/arch/$(ARCH)/crt0.S.o \
     $(addprefix $(DESKTOP_OUT)/programs/obj/5764aa8ecaed/,$(NATIVE_CXX_SOURCES:=.o)) \
     $(DESKTOP_OUT)/programs/obj/common/vendor/libcxxabi/src/cxa_aux_runtime.cpp.o
+DESKTOP_APP_RUNTIME += $(filter-out $(DESKTOP_APP_RUNTIME),$(DESKTOP_MEMORY_OBJECTS))
 DESKTOP_APP_BASE := $(ARCH_CPPFLAGS) $(filter-out --target=%,$(ARCH_CFLAGS)) --sysroot="$(SYSROOT)" -O2 -ffunction-sections -fdata-sections -fno-pic -fno-pie -fno-stack-protector -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -D_POSIX_MONOTONIC_CLOCK=200809L -D_POSIX_TIMERS=200809L -D__lume__=1 -Iinclude/posix -Iinclude/lume -Iinclude/internal -Iarch/$(ARCH)/include -I$(KERNEL)/include/abi/native -I$(KERNEL)/include/uapi -Iports/x11/include -Ilibc/posix -ffile-prefix-map=$(CURDIR)=lume-os
 DESKTOP_APP_CXX := -std=c++17 -nostdinc++ -fno-exceptions -frtti -U__BITINT_MAXWIDTH__ -DLUME_NATIVE_CXX -Iports/libcxx -Ivendor/libcxx/include -Ivendor/libcxxabi/include
 DESKTOP_APP_FLTK := -Iports/fltk -Ivendor/fltk -Ivendor/libpng -Iports/x11/libpng -Ivendor/zlib
@@ -1637,9 +1638,9 @@ $(DESKTOP_APPS_OUT)/obj/browser/apps/browser/browser.c.o: apps/browser/browser.c
 	mkdir -p "$(@D)"
 	$(CC) $(DESKTOP_APP_BASE) -std=gnu11 $(DESKTOP_APP_FLTK) -MMD -MP -MF "$@.d" -c "$<" -o "$@"
 
-$(DESKTOP_APPS_OUT)/browser.elf: arch/$(ARCH)/user.ld $(DESKTOP_APPS_OUT)/obj/browser/apps/browser/browser.c.o $(DESKTOP_APPS_OUT)/obj/common/ports/fltk/clock.c.o $(DESKTOP_APPS_OUT)/obj/common/ports/mbedtls/lume.c.o $(DESKTOP_APP_RUNTIME) $(DESKTOP_APP_LIBS) $(I686_BUILTINS)
+$(DESKTOP_APPS_OUT)/browser.elf: arch/$(ARCH)/user.ld $(DESKTOP_APPS_OUT)/obj/browser/apps/browser/browser.c.o $(DESKTOP_APP_RUNTIME) $(DESKTOP_OUT)/cxx/libc++.a $(SYSROOT)/lib/libc.a $(I686_BUILTINS)
 	mkdir -p "$(@D)"
-	$(file >$@.rsp,--gc-sections --build-id=sha1 -z max-page-size=4096 -T "arch/$(ARCH)/user.ld" "$(DESKTOP_APPS_OUT)/obj/browser/apps/browser/browser.c.o" "$(DESKTOP_APPS_OUT)/obj/common/ports/fltk/clock.c.o" "$(DESKTOP_APPS_OUT)/obj/common/ports/mbedtls/lume.c.o" $(foreach object,$(DESKTOP_APP_RUNTIME) $(I686_BUILTINS),"$(object)") --start-group $(foreach archive,$(DESKTOP_APP_LIBS),"$(archive)") --end-group -o "$@")
+	$(file >$@.rsp,--gc-sections --build-id=sha1 -z max-page-size=4096 -T "arch/$(ARCH)/user.ld" "$(DESKTOP_APPS_OUT)/obj/browser/apps/browser/browser.c.o" $(foreach object,$(DESKTOP_APP_RUNTIME) $(I686_BUILTINS),"$(object)") --start-group "$(DESKTOP_OUT)/cxx/libc++.a" "$(SYSROOT)/lib/libc.a" $(wildcard $(SYSROOT)/lib/libcompiler-rt.a) --end-group -o "$@")
 	$(LD) @"$@.rsp"
 
 $(DESKTOP_APPS_OUT)/obj/network/apps/network/network.cpp.o: apps/network/network.cpp mk/desktop-apps.mk ports/fltk/config.h ports/dillo/config.h ports/mbedtls/lume_tls_config.h | headers
