@@ -18,10 +18,10 @@ GTK_DIALOG_XFCE_NAMES := libgtk-3.a libgdk-3.a libgdk-x11.a libcairo-gobject.a \
     libstaticimmodule-ti-er.a libstaticimmodule-ti-et.a libstaticimmodule-viqr.a \
     libstaticimmodule-xim.a
 GTK_DIALOG_SDK_NAMES := liblume.a libc++.a libfontconfig.a libexpat.a freetype.a \
-    libpng.a zlib.a pixman.a libXrender.a libXext.a libX11.a libxcb.a libXau.a \
+    libpng.a zlib.a libXrender.a libXext.a libX11.a libxcb.a libXau.a \
     libXdmcp.a libXfixes.a libXdamage.a libXcomposite.a libXcursor.a \
     libcompiler-rt.a libc.a
-GTK_DIALOG_LIBRARIES ?= $(addprefix $(SYSROOT)/lib/,$(GTK_DIALOG_SDK_NAMES)) \
+GTK_DIALOG_LIBRARIES ?= $(XFCE_PIXMAN) $(addprefix $(SYSROOT)/lib/,$(GTK_DIALOG_SDK_NAMES)) \
     $(addprefix $(GTK_BASE_OUT)/,$(GTK_DIALOG_BASE_NAMES)) \
     $(addprefix $(XFCE_OUT)/,$(GTK_DIALOG_XFCE_NAMES))
 GTK_DIALOG_INCLUDES := -Iinclude -Iinclude/posix -Iinclude/lume \
@@ -41,6 +41,7 @@ GTK_DIALOG_CFLAGS := -O2 -std=gnu11 --sysroot="$(SYSROOT)" $(ARCH_CFLAGS) \
     -D_POSIX_C_SOURCE=200809L -ffunction-sections -fdata-sections \
     -ffile-prefix-map=$(CURDIR)=lume-os -isystem "$(SYSROOT)/include"
 
+GTK_DIALOG_RUNTIME_LICENSE_FILES ?= $(if $(wildcard $(SYSROOT)/licenses/THIRD_PARTY),$(SYSROOT)/licenses/THIRD_PARTY,ports/picolibc/COPYING.picolibc vendor/libcxx/LICENSE vendor/libcxxabi/LICENSE vendor/compiler-rt/LICENSE.TXT vendor/libffi/LICENSE.dlmalloc)
 GTK_DIALOG_LICENSE_FILES := vendor/gtk/COPYING vendor/glib/LICENSES/LGPL-2.1-only.txt \
     vendor/glib/LICENSES/LGPL-2.1-or-later.txt vendor/glib/LICENSES/MIT.txt \
     vendor/cairo/COPYING vendor/cairo/COPYING-LGPL-2.1 vendor/cairo/COPYING-MPL-1.1 \
@@ -49,7 +50,7 @@ GTK_DIALOG_LICENSE_FILES := vendor/gtk/COPYING vendor/glib/LICENSES/LGPL-2.1-onl
     vendor/libXi/COPYING vendor/libXinerama/COPYING vendor/libXrandr/COPYING \
     vendor/libepoxy/COPYING vendor/pcre2/COPYING vendor/libffi/LICENSE \
     vendor/libiconv/COPYING.LIB vendor/proxy-libintl/COPYING vendor/musl-resolver/COPYRIGHT \
-    $(SYSROOT)/licenses/THIRD_PARTY
+    $(GTK_DIALOG_RUNTIME_LICENSE_FILES)
 
 gtk-file-dialog: $(GTK_DIALOG_OUT)/lume-file-dialog.elf $(GTK_DIALOG_OUT)/LICENSES.lume-file-dialog
 

@@ -26,6 +26,8 @@
 #include "../wayland/runtime.h"
 #include "shell.h"
 #include "gpu.h"
+#include "layer.h"
+#include "toplevel.h"
 
 extern char **environ;
 
@@ -38,7 +40,10 @@ struct lume_compositor
     struct weston_output output;
     struct weston_mode mode;
     struct weston_seat seat;
-    struct weston_layer layer, background_layer;
+    struct weston_layer layer, background_layer, fullscreen_layer, hidden_layer;
+    struct lume_layer_shell *layer_shell;
+    struct lume_toplevel_manager *toplevels;
+    struct wl_list window_list;
     struct weston_surface *background;
     struct weston_buffer_reference *background_buffer;
     struct weston_view *background_view;
@@ -252,6 +257,38 @@ static void backend_destroy(struct weston_backend *backend)
     wl_list_remove(&backend->link);
 }
 
+static void activate_window(struct lume_compositor *lume, struct lume_window *window)
+{
+    window->minimized = false;
+    struct lume_window *other;
+    wl_list_for_each(other, &lume->window_list, link)
+    {
+        weston_desktop_surface_set_activated(other->surface, other == window);
+        lume_toplevel_update(other->toplevel, other->minimized);
+    }
+    weston_view_move_to_layer(window->view,
+                              weston_desktop_surface_get_pending_fullscreen(window->surface)
+                                  ? &lume->fullscreen_layer.view_list
+                                  : &lume->layer.view_list);
+    weston_view_activate_input(window->view, &lume->seat, WESTON_ACTIVATE_FLAG_CLICKED);
+    lume_toplevel_update(window->toplevel, false);
+    weston_surface_damage(window->view->surface);
+}
+
+static void focus_window(struct weston_pointer *pointer, const struct timespec *time,
+                         uint32_t button, void *data)
+{
+    (void)time;
+    (void)button;
+    if (!pointer->focus || !weston_surface_is_desktop_surface(pointer->focus->surface))
+        return;
+    struct weston_desktop_surface *surface =
+        weston_surface_get_desktop_surface(pointer->focus->surface);
+    struct lume_window *window = weston_desktop_surface_get_user_data(surface);
+    if (window)
+        activate_window(data, window);
+}
+
 static void surface_added(struct weston_desktop_surface *desktop_surface, void *data)
 {
     struct lume_compositor *lume = data;
@@ -264,6 +301,8 @@ static void surface_added(struct weston_desktop_surface *desktop_surface, void *
         return;
     }
     window->view = view;
+    window->surface = desktop_surface;
+    wl_list_insert(lume->window_list.prev, &window->link);
     weston_desktop_surface_set_user_data(desktop_surface, window);
     unsigned offset = (lume->windows++ % 8) * 24;
     weston_view_set_position(view, (struct weston_coord_global){{32 + offset, 32 + offset}});
@@ -277,6 +316,8 @@ static void surface_removed(struct weston_desktop_surface *desktop_surface, void
     struct weston_view *view = window ? window->view : NULL;
     if (!view)
         return;
+    lume_toplevel_remove(window->toplevel);
+    wl_list_remove(&window->link);
     weston_desktop_surface_unlink_view(view);
     weston_view_destroy(view);
     free(window);
@@ -295,12 +336,16 @@ static void surface_committed(struct weston_desktop_surface *desktop_surface,
     lume_desktop_committed(desktop_surface);
     if (!weston_surface_is_mapped(surface))
     {
-        weston_view_move_to_layer(view, &lume->layer.view_list);
+        weston_view_move_to_layer(view, weston_desktop_surface_get_fullscreen(desktop_surface)
+                                            ? &lume->fullscreen_layer.view_list
+                                            : &lume->layer.view_list);
         weston_desktop_surface_propagate_layer(desktop_surface);
         weston_surface_map(surface);
         weston_view_update_transform(view);
-        weston_view_activate_input(view, &lume->seat, WESTON_ACTIVATE_FLAG_NONE);
+        window->toplevel = lume_toplevel_add(lume->toplevels, desktop_surface);
+        activate_window(lume, window);
     }
+    lume_toplevel_update(window->toplevel, window->minimized);
 }
 
 static void fullscreen_requested(struct weston_desktop_surface *surface, bool fullscreen,
@@ -308,29 +353,116 @@ static void fullscreen_requested(struct weston_desktop_surface *surface, bool fu
 {
     (void)output;
     struct lume_compositor *lume = data;
-    weston_desktop_surface_set_fullscreen(surface, fullscreen);
-    weston_desktop_surface_set_size(surface, fullscreen ? lume->width : 0,
-                                    fullscreen ? lume->height : 0);
     struct lume_window *window = weston_desktop_surface_get_user_data(surface);
-    struct weston_view *view = window ? window->view : NULL;
-    if (window)
-        window->resize_edges = 0;
-    if (view && fullscreen)
-        weston_view_set_position(view, (struct weston_coord_global){{0, 0}});
+    bool previous = weston_desktop_surface_get_pending_fullscreen(surface);
+    bool maximized = weston_desktop_surface_get_pending_maximized(surface);
+    struct lume_layer_rect area = lume_layer_shell_work_area(lume->layer_shell);
+    if (window && fullscreen && !previous)
+        window->fullscreen_position = weston_view_get_pos_offset_global(window->view);
+    weston_desktop_surface_set_fullscreen(surface, fullscreen);
+    weston_desktop_surface_set_size(surface,
+                                    fullscreen  ? lume->width
+                                    : maximized ? area.width
+                                                : 0,
+                                    fullscreen  ? lume->height
+                                    : maximized ? area.height
+                                                : 0);
+    if (!window)
+        return;
+    window->resize_edges = 0;
+    if (!window->minimized)
+        weston_view_move_to_layer(window->view, fullscreen ? &lume->fullscreen_layer.view_list
+                                                           : &lume->layer.view_list);
+    if (fullscreen || maximized || previous)
+        weston_view_set_position(window->view, fullscreen ? (struct weston_coord_global){{0, 0}}
+                                               : maximized
+                                                   ? (struct weston_coord_global){{area.x, area.y}}
+                                                   : window->fullscreen_position);
+    lume_toplevel_update(window->toplevel, window->minimized);
 }
 
 static void maximized_requested(struct weston_desktop_surface *surface, bool maximized, void *data)
 {
     struct lume_compositor *lume = data;
-    weston_desktop_surface_set_maximized(surface, maximized);
-    weston_desktop_surface_set_size(surface, maximized ? lume->width : 0,
-                                    maximized ? lume->height : 0);
+    struct lume_layer_rect area = lume_layer_shell_work_area(lume->layer_shell);
     struct lume_window *window = weston_desktop_surface_get_user_data(surface);
-    struct weston_view *view = window ? window->view : NULL;
-    if (window)
-        window->resize_edges = 0;
-    if (view && maximized)
-        weston_view_set_position(view, (struct weston_coord_global){{0, 0}});
+    bool previous = weston_desktop_surface_get_pending_maximized(surface);
+    bool fullscreen = weston_desktop_surface_get_pending_fullscreen(surface);
+    if (window && maximized && !previous && !fullscreen)
+        window->maximize_position = weston_view_get_pos_offset_global(window->view);
+    weston_desktop_surface_set_maximized(surface, maximized);
+    if (fullscreen)
+        return;
+    weston_desktop_surface_set_size(surface, maximized ? area.width : 0,
+                                    maximized ? area.height : 0);
+    if (!window)
+        return;
+    window->resize_edges = 0;
+    if (maximized || previous)
+        weston_view_set_position(window->view, maximized
+                                                   ? (struct weston_coord_global){{area.x, area.y}}
+                                                   : window->maximize_position);
+    lume_toplevel_update(window->toplevel, window->minimized);
+}
+
+static void work_area_changed(void *data)
+{
+    struct lume_compositor *lume = data;
+    if (!lume->layer_shell)
+        return;
+    struct lume_layer_rect area = lume_layer_shell_work_area(lume->layer_shell);
+    struct lume_window *window;
+    wl_list_for_each(window, &lume->window_list,
+                     link) if (weston_desktop_surface_get_maximized(window->surface) &&
+                               !weston_desktop_surface_get_fullscreen(window->surface))
+    {
+        weston_desktop_surface_set_size(window->surface, area.width, area.height);
+        weston_view_set_position(window->view, (struct weston_coord_global){{area.x, area.y}});
+    }
+}
+
+static void toplevel_action(struct weston_desktop_surface *surface,
+                            enum lume_toplevel_action action, bool enabled, void *data)
+{
+    struct lume_compositor *lume = data;
+    struct lume_window *window = weston_desktop_surface_get_user_data(surface);
+    if (!window)
+        return;
+    switch (action)
+    {
+    case LUME_TOPLEVEL_ACTIVATE:
+        activate_window(lume, window);
+        break;
+    case LUME_TOPLEVEL_MINIMIZE:
+        if (!enabled)
+            activate_window(lume, window);
+        else
+        {
+            window->minimized = true;
+            weston_desktop_surface_set_activated(surface, false);
+            weston_view_move_to_layer(window->view, &lume->hidden_layer.view_list);
+            struct weston_keyboard *keyboard = weston_seat_get_keyboard(&lume->seat);
+            if (keyboard && keyboard->focus == window->view->surface)
+                weston_keyboard_set_focus(keyboard, NULL);
+            weston_surface_damage(window->view->surface);
+        }
+        break;
+    case LUME_TOPLEVEL_MAXIMIZE:
+        maximized_requested(surface, enabled, data);
+        break;
+    case LUME_TOPLEVEL_FULLSCREEN:
+        fullscreen_requested(surface, enabled, &lume->output, data);
+        break;
+    case LUME_TOPLEVEL_CLOSE:
+        weston_desktop_surface_close(surface);
+        break;
+    }
+    lume_toplevel_update(window->toplevel, window->minimized);
+}
+
+static void minimized_requested(struct weston_desktop_surface *surface, void *data)
+{
+    toplevel_action(surface, LUME_TOPLEVEL_MINIMIZE, true, data);
 }
 
 static const struct weston_desktop_api desktop_api = {.struct_size = sizeof(desktop_api),
@@ -340,7 +472,8 @@ static const struct weston_desktop_api desktop_api = {.struct_size = sizeof(desk
                                                       .move = lume_desktop_move,
                                                       .resize = lume_desktop_resize,
                                                       .fullscreen_requested = fullscreen_requested,
-                                                      .maximized_requested = maximized_requested};
+                                                      .maximized_requested = maximized_requested,
+                                                      .minimized_requested = minimized_requested};
 
 static const uint8_t hid_keys[256] = {[4] = KEY_A,    KEY_B,
                                       KEY_C,          KEY_D,
@@ -497,6 +630,7 @@ int main(int argc, char **argv)
 {
     uint64_t startup_started = monotonic_ns();
     struct lume_compositor lume = {.fd = -1, .width = 640, .height = 480};
+    wl_list_init(&lume.window_list);
     bool headless = false;
     int duration = 0;
     const char *socket = "wayland-0";
@@ -627,8 +761,11 @@ int main(int argc, char **argv)
         goto fail;
     weston_layer_init(&lume.layer, lume.compositor);
     weston_layer_set_position(&lume.layer, WESTON_LAYER_POSITION_NORMAL);
-    weston_compositor_add_button_binding(lume.compositor, BTN_LEFT, 0, lume_desktop_focus,
-                                         &lume.layer);
+    weston_layer_init(&lume.fullscreen_layer, lume.compositor);
+    weston_layer_set_position(&lume.fullscreen_layer, WESTON_LAYER_POSITION_FULLSCREEN);
+    weston_layer_init(&lume.hidden_layer, lume.compositor);
+    weston_layer_set_position(&lume.hidden_layer, WESTON_LAYER_POSITION_HIDDEN);
+    weston_compositor_add_button_binding(lume.compositor, BTN_LEFT, 0, focus_window, &lume);
     weston_layer_init(&lume.background_layer, lume.compositor);
     weston_layer_set_position(&lume.background_layer, WESTON_LAYER_POSITION_BACKGROUND);
     lume.background = weston_surface_create(lume.compositor);
@@ -644,8 +781,13 @@ int main(int argc, char **argv)
     weston_view_set_position(lume.background_view, (struct weston_coord_global){{0, 0}});
     weston_surface_map(lume.background);
     lume.desktop = weston_desktop_create(lume.compositor, &desktop_api, &lume);
+    lume.toplevels = lume_toplevel_manager_create(lume.compositor, &lume.head, &lume.seat,
+                                                  toplevel_action, &lume);
+    lume.layer_shell = lume_layer_shell_create(lume.compositor, &lume.output, &lume.seat,
+                                               work_area_changed, &lume);
     struct wl_event_loop *loop = wl_display_get_event_loop(lume.display);
-    if (!lume.desktop || wl_display_add_socket(lume.display, socket) < 0)
+    if (!lume.desktop || !lume.layer_shell || !lume.toplevels ||
+        wl_display_add_socket(lume.display, socket) < 0)
         goto fail;
     if (lume.fd >= 0)
     {
@@ -705,9 +847,13 @@ int main(int argc, char **argv)
     if (lume.input_source)
         wl_event_source_remove(lume.input_source);
     weston_desktop_destroy(lume.desktop);
+    lume_toplevel_manager_destroy(lume.toplevels);
+    lume_layer_shell_destroy(lume.layer_shell);
     weston_surface_unref(lume.background);
     weston_buffer_destroy_solid(lume.background_buffer);
     weston_layer_fini(&lume.layer);
+    weston_layer_fini(&lume.fullscreen_layer);
+    weston_layer_fini(&lume.hidden_layer);
     weston_layer_fini(&lume.background_layer);
     weston_seat_release(&lume.seat);
     weston_compositor_destroy(lume.compositor);

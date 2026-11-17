@@ -2,9 +2,15 @@
 #ifndef LUME_WESTON_SHELL_H
 #define LUME_WESTON_SHELL_H
 #include <libweston/desktop.h>
+#include "toplevel.h"
 
 struct lume_window
 {
+    struct wl_list link;
+    struct weston_desktop_surface *surface;
+    struct lume_toplevel *toplevel;
+    bool minimized;
+    struct weston_coord_global maximize_position, fullscreen_position;
     struct weston_view *view;
     struct weston_coord_global resize_origin;
     struct weston_size resize_size;

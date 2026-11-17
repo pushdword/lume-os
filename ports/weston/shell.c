@@ -166,7 +166,8 @@ void lume_desktop_focus(struct weston_pointer *pointer, const struct timespec *t
     struct weston_view *view = pointer->focus;
     if (!view || !weston_surface_is_desktop_surface(view->surface))
         return;
-    weston_view_move_to_layer(view, &layer->view_list);
+    if (!weston_desktop_surface_get_fullscreen(weston_surface_get_desktop_surface(view->surface)))
+        weston_view_move_to_layer(view, &layer->view_list);
     weston_view_activate_input(view, pointer->seat, WESTON_ACTIVATE_FLAG_CLICKED);
     weston_desktop_surface_set_activated(weston_surface_get_desktop_surface(view->surface), true);
 }

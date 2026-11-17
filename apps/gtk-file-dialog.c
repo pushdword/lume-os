@@ -330,7 +330,7 @@ static int run_dialog(void)
     if (selected_filter && selected_filter <= filters->len)
         gtk_file_chooser_set_filter(chooser, g_ptr_array_index(filters, selected_filter - 1));
     uint64_t owner = (uint64_t)owner_low | (uint64_t)owner_high << 32;
-    if (owner)
+    if (owner && GDK_IS_X11_DISPLAY(gtk_widget_get_display(dialog)))
     {
         gtk_widget_realize(dialog);
         GdkWindow *parent =
