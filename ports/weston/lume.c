@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <linux/input.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,8 @@
 #include "../wayland/runtime.h"
 #include "shell.h"
 #include "gpu.h"
+
+extern char **environ;
 
 struct lume_compositor
 {
@@ -492,6 +495,7 @@ static int child_signal(int signal, void *data)
 
 int main(int argc, char **argv)
 {
+    uint64_t startup_started = monotonic_ns();
     struct lume_compositor lume = {.fd = -1, .width = 640, .height = 480};
     bool headless = false;
     int duration = 0;
@@ -665,28 +669,33 @@ int main(int argc, char **argv)
     if (!interrupt || !terminate || !children)
         goto fail;
     weston_compositor_wake(lume.compositor);
-    printf("WAYLAND_READY socket=%s renderer=%s width=%u height=%u\n", socket,
-           lume.gpu ? "gl" : "pixman", lume.width, lume.height);
+    printf("WAYLAND_READY socket=%s renderer=%s width=%u height=%u startup_ns=%llu\n", socket,
+           lume.gpu ? "gl" : "pixman", lume.width, lume.height,
+           (unsigned long long)(monotonic_ns() - startup_started));
     if (lume.gpu)
         printf("WAYLAND_GPU device=%s buffers=2 readback=0\n", lume_weston_gpu_name(lume.gpu));
     fflush(stdout);
     if (command)
     {
-        pid_t child = fork();
-        if (child < 0)
-            goto fail;
-        if (!child)
+        pid_t child;
+        uint64_t started = monotonic_ns();
+        int result = posix_spawnp(&child, command[0], NULL, NULL, command, environ);
+        if (result)
         {
-            execvp(command[0], command);
+            errno = result;
             fprintf(stderr, "wayland: cannot execute %s: %s\n", command[0], strerror(errno));
-            _exit(127);
+            goto fail;
         }
+        printf("WAYLAND_CHILD pid=%d spawn_ns=%llu\n", (int)child,
+               (unsigned long long)(monotonic_ns() - started));
+        fflush(stdout);
     }
     wl_display_run(lume.display);
-    printf("WAYLAND_STOP frames=%llu damaged_pixels=%llu render_ns=%llu present_ns=%llu repaint_ms=%d repaint_budget_ns=%llu\n",
-           (unsigned long long)lume.frames, (unsigned long long)lume.damaged_pixels,
-           (unsigned long long)lume.render_ns, (unsigned long long)lume.present_ns,
-           lume.compositor->repaint_msec, (unsigned long long)lume.repaint_budget_ns);
+    printf(
+        "WAYLAND_STOP frames=%llu damaged_pixels=%llu render_ns=%llu present_ns=%llu repaint_ms=%d repaint_budget_ns=%llu\n",
+        (unsigned long long)lume.frames, (unsigned long long)lume.damaged_pixels,
+        (unsigned long long)lume.render_ns, (unsigned long long)lume.present_ns,
+        lume.compositor->repaint_msec, (unsigned long long)lume.repaint_budget_ns);
     wl_display_destroy_clients(lume.display);
     if (timer)
         wl_event_source_remove(timer);

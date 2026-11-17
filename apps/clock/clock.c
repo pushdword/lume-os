@@ -88,7 +88,20 @@ int main(int argc, char **argv)
             fputs("clock: invalid time service port\n", stderr);
             return 2;
         }
-        if (synchronize(argc >= 3 ? argv[2] : "time.cloudflare.com", (unsigned)port, &request))
+        int result = 1;
+        if (argc >= 3)
+            result = synchronize(argv[2], (unsigned)port, &request);
+        else
+        {
+            static const char *const servers[] = {"162.159.200.1", "162.159.200.123"};
+            for (unsigned i = 0; i < sizeof(servers) / sizeof(*servers); ++i)
+                if (!synchronize(servers[i], (unsigned)port, &request))
+                {
+                    result = 0;
+                    break;
+                }
+        }
+        if (result)
             return 1;
     }
     else if (argc == 3 && !strcmp(argv[1], "set"))
