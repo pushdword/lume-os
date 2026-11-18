@@ -351,3 +351,17 @@ check-directory-sort: $(OUT)/tests/directory-sort$(HOSTEXE)
 $(OUT)/tests/directory-sort$(HOSTEXE): tests/unit/directory_sort_test.c libc/posix/directory_sort.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -UNDEBUG "$<" -o "$@"
+
+.PHONY: check-accounts check-credential-calls
+check: check-accounts check-credential-calls
+check-accounts: $(OUT)/tests/accounts$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/accounts$(HOSTEXE): tests/unit/accounts_test.c libc/posix/accounts.c libc/posix/accounts_database.h tests/fixtures/accounts/pwd.h tests/fixtures/accounts/grp.h tests/fixtures/accounts/unistd.h $(KERNEL)/include/abi/native/lume/credential.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -std=c11 -UNDEBUG -Itests/fixtures/accounts -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
+
+check-credential-calls: $(OUT)/tests/credential-calls$(HOSTEXE)
+	env "$<"
+$(OUT)/tests/credential-calls$(HOSTEXE): tests/unit/credential_calls_test.c libc/posix/credential_calls.h $(KERNEL)/include/abi/native/lume/credential.h
+	mkdir -p "$(@D)"
+	$(HOSTCC) $(HOSTCFLAGS) -std=c11 -UNDEBUG -I"$(KERNEL)/include/abi/native" "$<" -o "$@"
