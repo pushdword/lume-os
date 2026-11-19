@@ -151,6 +151,16 @@ rpl_fflush (FILE *stream)
   if (stream == NULL || ! freading (stream))
     return fflush (stream);
 
+#if defined(__lume__) && defined(_PICOLIBC__)
+  if (stream == stdin)
+    {
+      /* The runtime's lseek accounts for prefetch on standard input. */
+      if (lseek (STDIN_FILENO, -(off_t) (stream->unget != 0), SEEK_CUR) == -1)
+        return EOF;
+      return fpurge (stream);
+    }
+#endif
+
 #if defined _IO_EOF_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
   /* GNU libc, BeOS, Haiku, Linux libc5 */
 
