@@ -15,7 +15,8 @@ CXXFLAGS += $(ARCH_CFLAGS) -O2 -std=c++17 -fhosted -fno-builtin -fno-stack-prote
 CXXFLAGS += -ffile-prefix-map=$(OS_ROOT)=lume-os -ffile-prefix-map=$(KERNEL)=lume-kernel -ffile-prefix-map=$(SOURCE)=lume-os/vendor/$(notdir $(PORT))
 LDFLAGS += --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld
 RUNTIME := $(SDK)/lib/crt0.o
-LIBS := --start-group $(SDK)/lib/liblume.a $(SDK)/lib/libc.a $(SDK)/lib/libcrt.a --end-group
+SDK_BUILTINS := $(or $(wildcard $(SDK)/lib/libcrt.a),$(wildcard $(SDK)/lib/libcompiler-rt.a),$(SDK)/lib/libcrt.a)
+LIBS := --start-group $(SDK)/lib/liblume.a $(SDK)/lib/libc.a $(SDK_BUILTINS) --end-group
 $(OUT)/obj/%.o: $(SOURCE)/%.c
 	mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

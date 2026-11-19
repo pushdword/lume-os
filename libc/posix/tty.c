@@ -235,6 +235,17 @@ int ioctl(int fd, unsigned long operation, ...)
         errno = EFAULT;
         return -1;
     }
+    if (operation == BLKSSZGET)
+    {
+        struct lume_fd_request request = {
+            .version = LUME_FD_VERSION, .bytes = sizeof(request), .fd = fd};
+        int64_t size = native_call(LUME_SYS_FD, LUME_FD_BLOCK_SECTOR_SIZE, (uintptr_t)&request,
+                                   sizeof(request));
+        if (size < 0)
+            return native_result(size == -LUME_EINVAL ? -LUME_ENOTTY : size);
+        *(int *)argument = (int)size;
+        return 0;
+    }
     if (operation == DMA_BUF_IOCTL_SYNC)
     {
         struct lume_render_request request = {.version = LUME_RENDER_VERSION,

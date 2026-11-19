@@ -16,6 +16,7 @@ extern "C"
 #define TIOCSCTTY 0x540e
 #define FIONREAD 0x541b
 #define FIONBIO 0x5421
+#define BLKSSZGET 0x1268
     int ioctl(int, unsigned long, ...);
 #endif
 

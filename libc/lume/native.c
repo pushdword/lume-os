@@ -456,9 +456,14 @@ int32_t lume_native_compat_call(uint32_t number, uintptr_t a, uintptr_t b, uintp
         int64_t r = native(LUME_SYS_SEEK, (uint64_t)fd, c, 0);
         if (r >= 0)
             r = native(LUME_SYS_GETDENTS, (uint64_t)fd, (uintptr_t)&entry, sizeof(entry));
+        int64_t next = r > 0 ? native(LUME_SYS_SEEK, (uint64_t)fd, 0, 1) : r;
         (void)native(LUME_SYS_CLOSE, (uint64_t)fd, 0, 0);
         if (r <= 0)
             return (int32_t)r;
+        if (next < 0)
+            return (int32_t)next;
+        if (next > INT32_MAX)
+            return -75;
         struct lume_native_stat stat;
         int64_t mode = native(LUME_SYS_FS, LUME_FS_STAT_INODE, entry.inode, (uintptr_t)&stat);
         if (mode < 0)
@@ -470,7 +475,7 @@ int32_t lume_native_compat_call(uint32_t number, uintptr_t a, uintptr_t b, uintp
         unsigned i = 0;
         for (; entry.name[i] && i + 1 < sizeof(out->name); ++i)
             out->name[i] = entry.name[i];
-        return (int32_t)entry.inode;
+        return (int32_t)next;
     }
     case LUME_TERMINAL:
         if (a == 5 && b <= 60000 && !c)
