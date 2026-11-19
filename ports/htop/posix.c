@@ -69,10 +69,12 @@ int access(const char *p, int mode)
     return 0;
 }
 
+#if !defined(LUME_POSIX_STAT64)
 int lstat(const char *p, struct stat *s)
 {
     return stat(p, s);
 }
+#endif
 
 ssize_t readlink(const char *p, char *b, size_t n)
 {

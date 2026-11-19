@@ -790,6 +790,21 @@ int app_main(unsigned initial_argc, char **initial_argv)
         }
 #endif
         profile();
+#if (defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)) && !defined(LUME_SHELL_FDS)
+        if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
+        {
+            int fd = app_open("/etc/bootmode", LUME_RDONLY);
+            char mode[11];
+            int bytes = fd < 0 ? fd : app_read(fd, mode, sizeof(mode));
+            if (fd >= 0)
+                app_close(fd);
+            if (bytes == 10 && !memcmp(mode, "installer\n", 10))
+            {
+                char *args[] = {"/bin/install", NULL};
+                execute(1, args);
+            }
+        }
+#endif
 #if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
         if (shell_boot_menu())
             return 0;

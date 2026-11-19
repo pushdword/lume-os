@@ -1,3 +1,5 @@
+load /lib/modules/ahci.lkm
+probe q35-ahci retain
 load /lib/modules/vblk.lkm
 probe q35-virtio-blk retain
 load /lib/modules/vga.lkm

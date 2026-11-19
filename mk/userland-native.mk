@@ -35,6 +35,9 @@ ifeq ($(ARCH),i686)
 ARM_COMMON_SOURCES += arch/i686/builtins.c
 I686_BUILTINS := $(OUT)/obj/arch/i686/builtins.c.o
 endif
+ifneq ($(filter amd64 i686,$(ARCH)),)
+include mk/installer.mk
+endif
 $(OUT)/obj/libc/posix/pthread.c.o $(OUT)/obj/libc/lume/thread.c.o $(OUT)/obj/libc/posix/mman.c.o $(OUT)/obj/libc/posix/statvfs.c.o $(OUT)/obj/arch/$(ARCH)/tls.c.o $(OUT)/obj/libc/runtime/locks.c.o: CPPFLAGS += -Iinclude/posix -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L
 ARM_COMMON_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_COMMON_SOURCES)))
 ifeq ($(ARCH),amd64)
@@ -64,6 +67,9 @@ BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
 HTOP_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(HTOP_SOURCES)))
 $(BB_OBJECTS): CPPFLAGS += -Iports/busybox
 $(HTOP_OBJECTS): CPPFLAGS += -Iports/htop -Ivendor/htop -Ivendor/htop/unsupported -Iinclude/posix -DPATH_MAX=128 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_POSIX_MONOTONIC_CLOCK=200809L -DHAVE_CONFIG_H -DNDEBUG
+ifeq ($(ARCH),i686)
+$(OUT)/obj/libc/posix/posix_runtime.c.o: CPPFLAGS += -D_LARGEFILE64_SOURCE=1
+endif
 $(OUT)/obj/apps/diagnostics/libctest.c.o: CPPFLAGS += -DLUME_TEST_HEAP_EXCESS=1073741824
 ifeq ($(ARCH),i686)
 all: headers $(addprefix $(OUT)/,$(addsuffix .elf,sysctl shell ls dir worker libctest cp touch video)) $(OUT)/busybox.elf $(OUT)/device.elf kernel
@@ -182,7 +188,7 @@ ifneq ($(ARCH),amd64)
 	cp "$(KERNEL)/$(KERNEL_OUT)/modules/bcm2712-hdmi.lkm" "$(OUT)/root/lib/modules/hdmi.lkm"
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
-	$(foreach name,vblk vrng vga ps2 xhci lume2d vgpu $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
+	$(foreach name,ahci vblk vrng vga ps2 xhci lume2d vgpu $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
 ifeq ($(PROFILE),recovery)
 	cp root/profiles/q35-recovery/etc/modules "$(OUT)/root/etc/modules"
