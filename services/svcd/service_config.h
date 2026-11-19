@@ -18,6 +18,7 @@ struct service_config
 {
     char program[128], argument[SERVICE_ARGUMENTS - 1][128];
     unsigned arguments, restart, delay_ms;
+    bool driver_admin;
 };
 
 static bool service_path(const char *path)
@@ -45,7 +46,7 @@ static bool service_path(const char *path)
 static bool service_config_parse(struct service_config *output, const char *text, size_t bytes)
 {
     struct service_config config = {.restart = SERVICE_RESTART_FAILURE, .delay_ms = 1000};
-    bool executable = false, restart = false, delay = false;
+    bool executable = false, restart = false, delay = false, driver_admin = false;
     if (!bytes || bytes > SERVICE_TEXT_BYTES)
         return false;
     size_t at = 0;
@@ -98,6 +99,13 @@ static bool service_config_parse(struct service_config *output, const char *text
                 config.restart = SERVICE_RESTART_ALWAYS;
             else
                 return false;
+        }
+        else if (!strcmp(line, "driver-admin"))
+        {
+            if (driver_admin || (strcmp(value, "yes") && strcmp(value, "no")))
+                return false;
+            driver_admin = true;
+            config.driver_admin = !strcmp(value, "yes");
         }
         else if (!strcmp(line, "restart-delay-ms"))
         {

@@ -19,6 +19,14 @@ int main(void)
     assert(config.arguments == 3 && !strcmp(config.argument[1], "two words"));
     assert(!config.argument[2][0]);
     assert(config.restart == SERVICE_RESTART_ALWAYS && config.delay_ms == 250);
+    assert(!config.driver_admin);
+    const char admin[] = "exec=/data/bin/server\ndriver-admin=yes\n";
+    assert(service_config_parse(&config, admin, sizeof(admin) - 1) && config.driver_admin);
+    const char unprivileged[] = "exec=/data/bin/server\ndriver-admin=no\n";
+    assert(service_config_parse(&config, unprivileged, sizeof(unprivileged) - 1) &&
+           !config.driver_admin);
+    reject("exec=/data/bin/server\ndriver-admin=true\n");
+    reject("exec=/data/bin/server\ndriver-admin=no\ndriver-admin=yes\n");
     reject("");
     reject("arg=x\n");
     reject("exec=relative\n");

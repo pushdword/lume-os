@@ -134,7 +134,7 @@ int posix_spawnattr_setflags(posix_spawnattr_t *attribute, short flags)
     unsigned supported = 0;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     supported = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSID |
-                POSIX_SPAWN_CLOEXEC_DEFAULT;
+                POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_DRIVER_ADMIN_NP;
 #endif
     if ((unsigned)(unsigned short)flags & ~supported)
         return ENOTSUP;
@@ -320,6 +320,8 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
         request.flags |= LUME_SPAWN_SETSID;
     if (flags & POSIX_SPAWN_CLOEXEC_DEFAULT)
         request.flags |= LUME_SPAWN_CLOEXEC_DEFAULT;
+    if (flags & POSIX_SPAWN_DRIVER_ADMIN_NP)
+        request.flags |= LUME_SPAWN_DRIVER_ADMIN;
     if (attribute)
     {
         request.signal_default = (*attribute)->defaults;

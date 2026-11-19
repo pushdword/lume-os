@@ -101,10 +101,22 @@ static int configuration(struct supervised_service *service)
         return -errno;
     size_t count = fread(text, 1, sizeof(text), file);
     bool failed = ferror(file);
-    int closed = fclose(file);
-    if (failed || closed)
-        return -EIO;
-    return service_config_parse(&service->config, text, count) ? 0 : -EINVAL;
+    if (!failed && !service_config_parse(&service->config, text, count))
+    {
+        fclose(file);
+        return -EINVAL;
+    }
+    if (!failed && service->config.driver_admin)
+    {
+        struct stat metadata;
+        if (fstat(fileno(file), &metadata) || !S_ISREG(metadata.st_mode) || metadata.st_uid ||
+            (metadata.st_mode & 0022))
+        {
+            fclose(file);
+            return -EACCES;
+        }
+    }
+    return fclose(file) || failed ? -EIO : 0;
 }
 
 static struct supervised_service *find(const char *name)
@@ -187,9 +199,18 @@ static int launch(struct supervised_service *service)
                                                       O_WRONLY | O_CREAT | O_APPEND, 0600);
         if (!result)
             result = posix_spawn_file_actions_adddup2(&actions, 1, 2);
+        posix_spawnattr_t attributes = NULL;
+        if (!result && service->config.driver_admin)
+        {
+            result = posix_spawnattr_init(&attributes);
+            if (!result)
+                result = posix_spawnattr_setflags(&attributes, POSIX_SPAWN_DRIVER_ADMIN_NP);
+        }
         pid_t pid;
         if (!result)
-            result = posix_spawn(&pid, argv[0], &actions, NULL, argv, envp);
+            result = posix_spawn(&pid, argv[0], &actions, attributes ? &attributes : NULL, argv, envp);
+        if (attributes)
+            (void)posix_spawnattr_destroy(&attributes);
         (void)posix_spawn_file_actions_destroy(&actions);
         if (!result)
         {

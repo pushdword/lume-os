@@ -6,6 +6,7 @@
 #define POSIX_SPAWN_SETSID 0x40
 #endif
 #define POSIX_SPAWN_CLOEXEC_DEFAULT 0x4000
+#define POSIX_SPAWN_DRIVER_ADMIN_NP 0x2000
 #ifdef __cplusplus
 extern "C"
 {
