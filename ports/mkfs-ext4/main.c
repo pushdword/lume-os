@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <stdbool.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -13,6 +15,7 @@
 
 static const char usage[] =
     "Usage: mkfs.ext4 --write [-L label] [--offset bytes --length bytes] device-or-image\n"
+    "       mkfs.ext4 --write [-L label] --offset bytes --length bytes --fd descriptor\n"
     "Creates journaled ext4 with 4096-byte blocks. The selected range is overwritten.\n";
 
 static int number(const char *text, uint64_t *value)
@@ -57,7 +60,7 @@ static errcode_t initialize_inodes(ext2_filsys fs)
     return error;
 }
 
-static errcode_t format(const char *path, const char *label)
+static errcode_t format(const char *path, const char *label, bool system_data)
 {
     uint64_t blocks = mkfs_device.byte_count / BLOCK_BYTES;
     int journal_blocks = ext2fs_default_journal_size(blocks);
@@ -99,8 +102,16 @@ static errcode_t format(const char *path, const char *label)
         error = ext2fs_mkdir(fs, EXT2_ROOT_INO, EXT2_ROOT_INO, NULL);
     if (!error)
     {
+        unsigned previous = fs->umask;
         fs->umask = 077;
         error = ext2fs_mkdir(fs, EXT2_ROOT_INO, 0, "lost+found");
+        fs->umask = previous;
+    }
+    if (system_data)
+    {
+        static const char *const directories[] = {"bin", "home", "tmp", "system", "var"};
+        for (unsigned i = 0; !error && i < sizeof(directories) / sizeof(*directories); ++i)
+            error = ext2fs_mkdir(fs, EXT2_ROOT_INO, 0, directories[i]);
     }
     if (!error)
         error = ext2fs_add_journal_inode(fs, (blk_t)journal_blocks, EXT2_MKJOURNAL_NO_MNT_CHECK);
@@ -110,16 +121,17 @@ static errcode_t format(const char *path, const char *label)
     return error;
 }
 
-static errcode_t mkfs(const char *path, const char *label, uint64_t offset, uint64_t length)
+static errcode_t mkfs(const char *path, int descriptor, const char *label, uint64_t offset,
+                       uint64_t length)
 {
-    int fd = open(path, O_RDWR | O_NOFOLLOW | O_CLOEXEC);
+    int fd = descriptor >= 0 ? descriptor : open(path, O_RDWR | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0)
         return errno;
     struct stat info;
     errcode_t error = 0;
     if (fstat(fd, &info))
         error = errno;
-    else if (!S_ISBLK(info.st_mode) && !S_ISREG(info.st_mode))
+    else if (!S_ISBLK(info.st_mode) && (descriptor >= 0 || !S_ISREG(info.st_mode)))
         error = EINVAL;
     else if (S_ISBLK(info.st_mode) && geteuid() != 0)
         error = EACCES;
@@ -137,7 +149,7 @@ static errcode_t mkfs(const char *path, const char *label, uint64_t offset, uint
         else
         {
             mkfs_device = (struct mkfs_device){fd, offset, length};
-            error = format(path, label);
+            error = format(path, label, descriptor >= 0);
         }
     }
     if (close(fd) && !error)
@@ -151,12 +163,13 @@ int main(int argc, char **argv)
                                             {"label", required_argument, NULL, 'L'},
                                             {"offset", required_argument, NULL, 'o'},
                                             {"length", required_argument, NULL, 'l'},
+                                            {"fd", required_argument, NULL, 'd'},
                                             {"help", no_argument, NULL, 'h'},
                                             {"version", no_argument, NULL, 'V'},
                                             {NULL, 0, NULL, 0}};
     uint64_t offset = 0, length = 0;
     const char *label = NULL;
-    int write = 0;
+    int write = 0, descriptor = -1;
     int option;
     while ((option = getopt_long(argc, argv, "L:hV", options, NULL)) != -1)
     {
@@ -178,6 +191,18 @@ int main(int argc, char **argv)
             if (number(optarg, &length) || !length)
                 goto invalid;
             break;
+        case 'd':
+        {
+            if (*optarg < '0' || *optarg > '9')
+                goto invalid;
+            char *end;
+            errno = 0;
+            long value = strtol(optarg, &end, 10);
+            if (errno || *end || value > INT_MAX || value < 3)
+                goto invalid;
+            descriptor = (int)value;
+            break;
+        }
         case 'h':
             fputs(usage, stdout);
             return 0;
@@ -188,10 +213,12 @@ int main(int argc, char **argv)
             goto invalid;
         }
     }
-    if (!write || argc - optind != 1 || (offset && !length))
+    if (!write || (offset && !length))
         goto invalid;
-    const char *path = argv[optind];
-    errcode_t error = mkfs(path, label, offset, length);
+    if (descriptor >= 0 ? optind != argc || !offset || !length : argc - optind != 1)
+        goto invalid;
+    const char *path = descriptor >= 0 ? "selected disk" : argv[optind];
+    errcode_t error = mkfs(path, descriptor, label, offset, length);
     if (error)
     {
         if (error > 0 && error < 256)

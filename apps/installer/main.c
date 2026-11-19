@@ -17,17 +17,22 @@ struct installation
     unsigned progress;
 };
 
+static const char *decimal(char text[21], uint64_t value)
+{
+    char *end = text + 20;
+    *end = 0;
+    do
+    {
+        *--end = (char)('0' + value % 10);
+        value /= 10;
+    } while (value);
+    return end;
+}
+
 static void number(uint64_t value)
 {
     char text[21];
-    unsigned used = 0;
-    do
-    {
-        text[used++] = (char)('0' + value % 10);
-        value /= 10;
-    } while (value);
-    while (used)
-        (void)write_all(1, text + --used, 1);
+    puts(decimal(text, value));
 }
 
 static bool stat_fd(int fd, struct lume_stat *info)
@@ -77,6 +82,36 @@ static bool target_sync(void *context)
     struct installation *state = context;
     return call(LUME_SYS_FS, LUME_FS_SYNC, (unsigned)state->target, 0) == 0;
 }
+
+#if defined(LUME_ARCH_AMD64)
+static bool format_ext4(void *context, uint64_t first, uint64_t bytes)
+{
+    struct installation *state = context;
+    static const char program[] = "/usr/share/install/mkfs.ext4";
+    char descriptor[21], offset[21], length[21];
+    const char *const args[] = {program, "--write", "-L", "LUME_DATA",
+                                "--offset", decimal(offset, first), "--length",
+                                decimal(length, bytes), "--fd",
+                                decimal(descriptor, (unsigned)state->target), NULL};
+    const struct lume_run_request request = {.path = (uintptr_t)program,
+                                             .argv = (uintptr_t)args,
+                                             .argc = sizeof(args) / sizeof(*args) - 1};
+    puts("Creating journaled ext4 data partition...\n");
+    int64_t pid = call(LUME_SYS_RUN_FDS, (uintptr_t)&request, 0, 0);
+    if (pid <= 0)
+    {
+        puts("Could not start the ext4 formatter. Error ");
+        number((uint64_t)-pid);
+        puts(".\n");
+        return false;
+    }
+    int64_t status;
+    do
+        status = call(LUME_SYS_WAIT, (uint64_t)pid, LUME_WAIT_BLOCK, 1);
+    while (status == -LUME_EINTR);
+    return status >= 0 && (uint64_t)status >> 32 == (uint64_t)pid && !(uint32_t)status;
+}
+#endif
 
 static void progress(void *context, uint64_t copied, uint64_t total)
 {
@@ -232,7 +267,15 @@ static bool same(const void *a, const void *b, size_t count)
 static int install(const char *path)
 {
     struct installation state = {.source = -1, .target = -1};
-    struct lume_install_io io = {&state, source, target_read, target_write, target_sync, progress};
+    struct lume_install_io io = {.context = &state,
+                                 .source = source,
+                                 .read = target_read,
+                                 .write = target_write,
+                                 .sync = target_sync,
+                                 .progress = progress};
+#if defined(LUME_ARCH_AMD64)
+    io.format_ext4 = format_ext4;
+#endif
     struct lume_stat target_info, source_info, current_info;
     unsigned char media[512], mbr[512], previous[512], current[512];
     struct lume_install_plan plan;
@@ -258,7 +301,7 @@ static int install(const char *path)
         !lume_install_plan(media, INSTALL_ARCH, target_info.size, &plan) ||
         !target_read(&state, 0, previous, sizeof(previous)))
     {
-        puts("Unsupported disk or installation media. A disk of at least 1 GiB is required.\n");
+        puts("Unsupported disk size or installation media. The minimum is 1 GiB for BIOS and 2 GiB for UEFI.\n");
         goto finish;
     }
     state.source = (int)open("/usr/share/install/boot.bin", LUME_O_RDONLY);
@@ -280,9 +323,10 @@ static int install(const char *path)
     puts(path);
     puts(" (");
     number(target_info.size / (1024 * 1024));
-    puts(" MiB)\nThe entire disk will be erased.\n"
-         "Layout: BIOS boot area 512 MiB, FAT32 data partition ");
-    number((target_info.size - LUME_INSTALL_DATA_FIRST * 512) / (1024 * 1024));
+    puts(" MiB)\nThe existing disk layout and filesystems will be replaced.\n");
+    puts(plan.uefi ? "Layout: UEFI system partition 1024 MiB, journaled ext4 data partition "
+                   : "Layout: BIOS boot area 512 MiB, FAT32 data partition ");
+    number((uint64_t)plan.data_sectors * 512 / (1024 * 1024));
     puts(" MiB.\nType ERASE ");
     puts(path);
     puts(" to install, or press Enter to cancel:\n> ");

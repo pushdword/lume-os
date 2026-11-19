@@ -17,6 +17,7 @@ static size_t input_offset, output_bytes;
 static uint64_t offsets[8];
 static unsigned writes, writable_opens, directory_index;
 static bool busy, replaced;
+static unsigned formatter_calls, formatter_status;
 
 static void test_put(unsigned char *p, uint64_t value, unsigned bytes)
 {
@@ -36,6 +37,24 @@ static unsigned char *disk_region(uint64_t offset, size_t bytes)
 
 int64_t call(uint64_t operation, uint64_t a, uint64_t b, uint64_t c)
 {
+    if (operation == LUME_SYS_RUN_FDS)
+    {
+        const struct lume_run_request *request = (const void *)(uintptr_t)a;
+        const char *const *args = (const void *)(uintptr_t)request->argv;
+        assert(!b && !c && request->argc == 10 && !args[request->argc]);
+        assert(!strcmp((const char *)(uintptr_t)request->path, "/usr/share/install/mkfs.ext4"));
+        assert(!strcmp(args[1], "--write") && !strcmp(args[3], "LUME_DATA"));
+        assert(!strcmp(args[4], "--offset") && !strcmp(args[5], "1074790400"));
+        assert(!strcmp(args[6], "--length") && !strcmp(args[7], "1072693248"));
+        assert(!strcmp(args[8], "--fd") && !strcmp(args[9], "4"));
+        ++formatter_calls;
+        return 27;
+    }
+    if (operation == LUME_SYS_WAIT)
+    {
+        assert(a == 27 && b == LUME_WAIT_BLOCK && c == 1);
+        return (INT64_C(27) << 32) | formatter_status;
+    }
     if (operation == LUME_SYS_HARDWARE)
         return -LUME_ENOENT;
     if (operation == LUME_SYS_SLEEP)
@@ -196,6 +215,12 @@ int main(void)
     assert(installer_main(2, target) == 1 && writes == 0 && writable_opens == 0);
     reset_case("\003");
     assert(installer_main(2, target) == 0 && writes == 0 && writable_opens == 0);
+    struct installation format_target = {.target = 4};
+    uint64_t first = LUME_INSTALL_EFI_DATA_FIRST * 512;
+    uint64_t length = LUME_INSTALL_EFI_MIN_SECTORS * 512 - first;
+    assert(format_ext4(&format_target, first, length) && formatter_calls == 1);
+    formatter_status = 1;
+    assert(!format_ext4(&format_target, first, length) && formatter_calls == 2);
     puts("Installer disk selection, confirmation, cancellation and replacement checks passed");
     return 0;
 }

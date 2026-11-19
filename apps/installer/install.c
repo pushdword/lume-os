@@ -51,20 +51,29 @@ bool lume_install_plan(const unsigned char media[512], unsigned architecture, ui
         (architecture != LUME_INSTALL_AMD64 && architecture != LUME_INSTALL_I686))
         return false;
     zero(plan, sizeof(*plan));
-    if (!equal(media, "LUMEINS1", 8) || word(media + 8) != LUME_INSTALL_VERSION ||
-        word(media + 12) != architecture || wide(media + 24) != LUME_INSTALL_DATA_FIRST ||
-        disk_bytes % 512 || disk_bytes / 512 < LUME_INSTALL_MIN_SECTORS ||
-        disk_bytes / 512 > UINT32_MAX)
+    bool uefi = architecture == LUME_INSTALL_AMD64 && equal(media, "LUMEINS2", 8) &&
+                word(media + 8) == LUME_INSTALL_EFI_VERSION;
+    uint64_t first = uefi ? LUME_INSTALL_EFI_DATA_FIRST : LUME_INSTALL_DATA_FIRST;
+    uint64_t minimum = uefi ? LUME_INSTALL_EFI_MIN_SECTORS : LUME_INSTALL_MIN_SECTORS;
+    if ((!uefi && (!equal(media, "LUMEINS1", 8) || word(media + 8) != LUME_INSTALL_VERSION)) ||
+        word(media + 12) != architecture || wide(media + 24) != first ||
+        disk_bytes % 512 || disk_bytes / 512 < minimum || disk_bytes / 512 > UINT32_MAX)
         return false;
     for (unsigned i = 64; i < 512; ++i)
         if (media[i])
             return false;
     uint64_t bytes = wide(media + 16);
-    if (bytes < 10 * 512 || bytes % 512 || bytes > LUME_INSTALL_DATA_FIRST * 512)
+    uint64_t boot_minimum = uefi ? (LUME_INSTALL_EFI_FIRST + 1) * 512 : 10 * 512;
+    if (bytes < boot_minimum || bytes % 512 || bytes > first * 512)
         return false;
+    plan->uefi = uefi;
     plan->boot_bytes = bytes;
     plan->disk_sectors = disk_bytes / 512;
-    plan->data_sectors = (uint32_t)(plan->disk_sectors - LUME_INSTALL_DATA_FIRST);
+    plan->data_first = first;
+    plan->data_sectors = (uint32_t)(plan->disk_sectors - first);
+    copy(plan->sha256, media + 32, 32);
+    if (uefi)
+        return true;
     plan->cluster_sectors = plan->data_sectors > UINT32_C(67108864) ? 64 : 8;
     uint32_t fat = 1;
     for (unsigned i = 0; i < 32; ++i)
@@ -77,7 +86,6 @@ bool lume_install_plan(const unsigned char media[512], unsigned architecture, ui
                 return false;
             plan->fat_sectors = fat;
             plan->clusters = clusters;
-            copy(plan->sha256, media + 32, 32);
             return true;
         }
         fat = needed;
@@ -89,10 +97,14 @@ bool lume_install_source(const struct lume_install_io *io, const struct lume_ins
                          unsigned char mbr[512])
 {
     if (!io || !io->source || !plan || !mbr || !io->source(io->context, 0, mbr, 512) ||
-        word(mbr + 440) != LUME_INSTALL_DISK_ID || mbr[444] || mbr[445] || mbr[510] != 0x55 ||
-        mbr[511] != 0xaa)
+        word(mbr + 440) != (plan->uefi ? LUME_INSTALL_EFI_DISK_ID : LUME_INSTALL_DISK_ID) ||
+        mbr[510] != 0x55 || mbr[511] != 0xaa)
         return false;
-    for (unsigned i = 446; i < 510; ++i)
+    if (plan->uefi)
+        for (unsigned i = 0; i < 440; ++i)
+            if (mbr[i])
+                return false;
+    for (unsigned i = 444; i < 510; ++i)
         if (mbr[i])
             return false;
     struct lume_sha256 hash;
@@ -208,30 +220,73 @@ static bool format(const struct lume_install_io *io, const struct lume_install_p
     return true;
 }
 
+static void partition(unsigned char *entry, bool active, unsigned char type, uint32_t first,
+                      uint32_t sectors)
+{
+    entry[0] = active ? 0x80 : 0;
+    entry[1] = entry[5] = 0xfe;
+    entry[2] = entry[3] = entry[6] = entry[7] = 0xff;
+    entry[4] = type;
+    put(entry + 8, first, 4);
+    put(entry + 12, sectors, 4);
+}
+
+static bool verify_ext4(const struct lume_install_io *io, uint64_t first, uint64_t length)
+{
+    static const unsigned char label[16] = "LUME_DATA";
+    unsigned char super[512];
+    return io->read(io->context, first + 1024, super, sizeof(super)) &&
+           super[0x38] == 0x53 && super[0x39] == 0xef && word(super + 0x18) == 2 &&
+           word(super + 4) == length / LUME_INSTALL_EXT4_BLOCK_BYTES &&
+           (word(super + 0x5c) & 4) && word(super + 0xe0) == 8 &&
+           equal(super + 0x78, label, sizeof(label));
+}
+
+static bool format_data(const struct lume_install_io *io, const struct lume_install_plan *plan)
+{
+    if (!plan->uefi)
+        return format(io, plan);
+    uint64_t first = plan->data_first * 512;
+    uint64_t bytes = (uint64_t)plan->data_sectors * 512;
+    bytes -= bytes % LUME_INSTALL_EXT4_BLOCK_BYTES;
+    return zero_sectors(io, plan->disk_sectors - 33, 33) &&
+           io->format_ext4(io->context, first, bytes) && verify_ext4(io, first, bytes);
+}
+
+static bool valid_plan(const struct lume_install_plan *plan)
+{
+    uint64_t minimum = plan->uefi ? LUME_INSTALL_EFI_MIN_SECTORS : LUME_INSTALL_MIN_SECTORS;
+    uint64_t first = plan->uefi ? LUME_INSTALL_EFI_DATA_FIRST : LUME_INSTALL_DATA_FIRST;
+    uint64_t boot_minimum = plan->uefi ? (LUME_INSTALL_EFI_FIRST + 1) * 512 : 10 * 512;
+    if (plan->disk_sectors < minimum || plan->disk_sectors > UINT32_MAX ||
+        plan->data_first != first || plan->disk_sectors - first != plan->data_sectors ||
+        plan->boot_bytes < boot_minimum || plan->boot_bytes % 512 ||
+        plan->boot_bytes > first * 512)
+        return false;
+    return plan->uefi ||
+           (plan->fat_sectors && plan->fat_sectors < plan->data_sectors / 2 &&
+            (plan->cluster_sectors == 8 || plan->cluster_sectors == 64) &&
+            plan->clusters >= 65525 &&
+            plan->clusters ==
+                (plan->data_sectors - 32 - 2 * plan->fat_sectors) / plan->cluster_sectors &&
+            ((uint64_t)plan->clusters + 2) * 4 <= (uint64_t)plan->fat_sectors * 512);
+}
+
 bool lume_install_apply(const struct lume_install_io *io, const struct lume_install_plan *plan,
                         const unsigned char mbr[512])
 {
     if (!io || !io->source || !io->read || !io->write || !io->sync || !plan || !mbr ||
-        plan->disk_sectors < LUME_INSTALL_MIN_SECTORS || plan->disk_sectors > UINT32_MAX ||
-        plan->disk_sectors - LUME_INSTALL_DATA_FIRST != plan->data_sectors || !plan->fat_sectors ||
-        plan->fat_sectors >= plan->data_sectors / 2 ||
-        (plan->cluster_sectors != 8 && plan->cluster_sectors != 64) ||
-        plan->boot_bytes < 10 * 512 || plan->boot_bytes % 512 ||
-        plan->boot_bytes > LUME_INSTALL_DATA_FIRST * 512 || plan->clusters < 65525 ||
-        plan->clusters !=
-            (plan->data_sectors - 32 - 2 * plan->fat_sectors) / plan->cluster_sectors ||
-        ((uint64_t)plan->clusters + 2) * 4 > (uint64_t)plan->fat_sectors * 512)
+        !valid_plan(plan) || (plan->uefi && !io->format_ext4))
         return false;
     unsigned char final[512], checked[512];
     if (!lume_install_source(io, plan, checked) || !equal(mbr, checked, 512))
         return false;
     copy(final, mbr, 512);
-    zero(final + 446, 64);
-    final[447] = final[451] = 0xfe;
-    final[448] = final[449] = final[452] = final[453] = 0xff;
-    final[450] = 0x0c;
-    put(final + 454, (uint32_t)LUME_INSTALL_DATA_FIRST, 4);
-    put(final + 458, plan->data_sectors, 4);
+    if (plan->uefi)
+        partition(final + 446, true, 0xef, (uint32_t)LUME_INSTALL_EFI_FIRST,
+                  (uint32_t)LUME_INSTALL_EFI_SECTORS);
+    partition(final + (plan->uefi ? 462 : 446), false, plan->uefi ? 0x83 : 0x0c,
+              (uint32_t)plan->data_first, plan->data_sectors);
     final[510] = final[511] = 0;
     if (!write_verify(io, 0, final, 512) || !io->sync(io->context))
         return false;
@@ -253,7 +308,7 @@ bool lume_install_apply(const struct lume_install_io *io, const struct lume_inst
     }
     unsigned char digest[32];
     lume_sha256_final(&hash, digest);
-    if (!equal(digest, plan->sha256, 32) || !format(io, plan) || !io->sync(io->context))
+    if (!equal(digest, plan->sha256, 32) || !format_data(io, plan) || !io->sync(io->context))
         return false;
     final[510] = 0x55;
     final[511] = 0xaa;
