@@ -8,7 +8,7 @@ if (CMake_DOC_ARTIFACT_PREFIX)
   # built documentation.
   install(DIRECTORY ${CMake_DOC_ARTIFACT_PREFIX}/
           DESTINATION ${CMake_INSTALL_APP_DIR} USE_SOURCE_PERMISSIONS)
-else()
+elseif(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Sphinx")
   # Normal documentation build.
   add_subdirectory(Sphinx)
 endif()

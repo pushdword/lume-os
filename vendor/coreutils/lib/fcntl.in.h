@@ -413,6 +413,11 @@ _GL_WARN_ON_USE (openat2, "openat2 is not portable - "
 # undef O_SEARCH /* musl mistakenly #defines O_SEARCH to O_PATH.  */
 #endif
 
+#if defined __lume__
+/* The native open modes do not include search-only access.  */
+# undef O_SEARCH
+#endif
+
 #ifndef O_SEARCH
 # define O_SEARCH O_RDONLY /* Often close enough in non-POSIX systems.  */
 #endif

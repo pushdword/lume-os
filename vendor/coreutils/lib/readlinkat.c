@@ -108,6 +108,11 @@ rpl_readlinkat (int fd, char const *file, char *buf, size_t bufsize)
    then readlink/restore_cwd.  If either the save_cwd or the restore_cwd
    fails, then give a diagnostic and exit nonzero.  */
 
+# if defined __lume__
+/* A native SDK definition takes precedence over this legacy fallback.  */
+#  pragma weak readlinkat
+# endif
+
 # define AT_FUNC_NAME readlinkat
 # define AT_FUNC_F1 readlink
 # define AT_FUNC_POST_FILE_PARAM_DECLS , char *buf, size_t bufsize

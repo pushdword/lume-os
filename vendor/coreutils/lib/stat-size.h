@@ -80,7 +80,9 @@
 #endif
 
 #ifndef ST_NBLOCKSIZE
-# ifdef S_BLKSIZE
+# if defined LUME_NATIVE_ABI
+#  define ST_NBLOCKSIZE 512
+# elif defined S_BLKSIZE
 #  define ST_NBLOCKSIZE S_BLKSIZE
 # else
 #  define ST_NBLOCKSIZE 512

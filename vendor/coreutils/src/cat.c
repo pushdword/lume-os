@@ -309,6 +309,10 @@ cat (char *inbuf, idx_t insize, char *outbuf, idx_t outsize,
                      Irix-5 returns ENOSYS on pipes.  */
                   if (errno == EOPNOTSUPP || errno == ENOTTY
                       || errno == EINVAL || errno == ENODEV
+#if defined __lume__
+                      /* FIONREAD can return EBADF for valid nonterminal files.  */
+                      || errno == EBADF
+#endif
                       || errno == ENOSYS)
                     use_fionread = false;
                   else

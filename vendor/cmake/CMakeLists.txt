@@ -310,7 +310,9 @@ macro(CMAKE_SETUP_TESTING)
   endif()
 
   # configure some files for testing
-  configure_file(Tests/.NoDartCoverage Tests/.NoDartCoverage)
+  if(EXISTS "${CMake_SOURCE_DIR}/Tests/.NoDartCoverage")
+    configure_file(Tests/.NoDartCoverage Tests/.NoDartCoverage)
+  endif()
   configure_file(CTestCustom.cmake.in CTestCustom.cmake @ONLY)
 endmacro()
 
@@ -571,7 +573,9 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
   add_subdirectory(Utilities)
 endif()
 
-add_subdirectory(Tests)
+if(IS_DIRECTORY "${CMake_CURRENT_SOURCE_DIR}/Tests")
+  add_subdirectory(Tests)
+endif()
 
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   if(BUILD_TESTING)

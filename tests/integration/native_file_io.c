@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -24,6 +25,100 @@ static void *transfer(void *argument)
     }
     __atomic_store_n(&finished, 1, __ATOMIC_RELEASE);
     return NULL;
+}
+
+struct flush_fault
+{
+    FILE *close_during_flush;
+    int fail;
+};
+
+static ssize_t fail_flush(void *argument, const void *buffer, size_t size)
+{
+    (void)buffer;
+    struct flush_fault *fault = argument;
+    if (fault->close_during_flush)
+    {
+        assert(!fclose(fault->close_during_flush));
+        fault->close_during_flush = NULL;
+    }
+    if (fault->fail)
+    {
+        errno = ENOSPC;
+        return -1;
+    }
+    return (ssize_t)size;
+}
+
+static void set_allocated_buffer(FILE *file, int mode)
+{
+    struct __file_close *stream = (struct __file_close *)file;
+    int (*close_stream)(FILE *) = stream->close;
+    assert(!setvbuf(file, NULL, mode, BUFSIZ));
+    assert(stream->close == close_stream);
+}
+
+static void flush_all(void)
+{
+    const char *first_path = "/tmp/flush-file-a";
+    const char *second_path = "/tmp/flush-file-b";
+    FILE *first = fopen(first_path, "w+");
+    int second_fd = open(second_path, O_CREAT | O_TRUNC | O_RDWR, 0600);
+    assert(first && second_fd >= 0);
+    FILE *second = fdopen(second_fd, "w");
+    char second_buffer[128];
+    set_allocated_buffer(first, _IOFBF);
+    assert(second && !setvbuf(second, second_buffer, _IOFBF, sizeof(second_buffer)));
+    assert(fwrite("first", 1, 5, first) == 5);
+    assert(fwrite("second", 1, 6, second) == 6);
+
+    FILE *reader = fopen("/tmp/flush-reader", "w+");
+    assert(reader && fputs("reader", reader) >= 0 && !fseek(reader, 0, SEEK_SET));
+    assert(fgetc(reader) == 'r' && ungetc('Q', reader) == 'Q');
+    char sample[16] = "reader";
+    FILE *memory_reader = fmemopen(sample, sizeof(sample), "r+");
+    assert(memory_reader && fgetc(memory_reader) == 'r' && ungetc('Q', memory_reader) == 'Q');
+    char untouched[16] = "untouched";
+    FILE *memory_idle = fmemopen(untouched, sizeof(untouched), "r+");
+    assert(memory_idle);
+    char truncated[16] = "truncate";
+    FILE *memory_empty = fmemopen(truncated, sizeof(truncated), "w");
+    assert(memory_empty);
+    char *data = NULL;
+    size_t bytes = 0;
+    FILE *memory = open_memstream(&data, &bytes);
+    assert(memory && fwrite("memory", 1, 6, memory) == 6 && bytes == 0);
+    struct flush_fault failure = {.close_during_flush = fopen("/tmp/flush-closed", "w"), .fail = 1};
+    assert(failure.close_during_flush);
+    set_allocated_buffer(failure.close_during_flush, _IONBF);
+    FILE *fault = funopen(&failure, NULL, fail_flush, NULL, NULL);
+    assert(fault);
+    set_allocated_buffer(fault, _IOFBF);
+    assert(fwrite("x", 1, 1, fault) == 1);
+
+    struct stat metadata;
+    assert(fstat(second_fd, &metadata) == 0 && metadata.st_size == 0);
+    errno = 0;
+    assert(fflush(NULL) == EOF && errno == ENOSPC);
+    assert(ferror(fault));
+    assert(!failure.close_during_flush && !unlink("/tmp/flush-closed"));
+    char out[8];
+    assert(pread(fileno(first), out, 5, 0) == 5 && !memcmp(out, "first", 5));
+    assert(pread(second_fd, out, 6, 0) == 6 && !memcmp(out, "second", 6));
+    assert(bytes == 6 && !strcmp(data, "memory"));
+    assert(fgetc(reader) == 'Q');
+    assert(!strcmp(sample, "reader") && fgetc(memory_reader) == 'Q');
+    assert(!strcmp(untouched, "untouched"));
+    assert(!truncated[0]);
+
+    failure.fail = 0;
+    assert(!fclose(fault) && !fclose(memory) && !fclose(reader));
+    assert(!fclose(memory_reader) && !fclose(memory_idle) && !fclose(memory_empty));
+    assert(!unlink("/tmp/flush-reader"));
+    free(data);
+    assert(!fclose(second) && !fclose(first) && !fflush(NULL));
+    assert(!unlink(first_path) && !unlink(second_path));
+    puts("NATIVE_FLUSH_ALL_PASS");
 }
 
 int main(void)
@@ -77,6 +172,7 @@ int main(void)
     assert(pread(fd, out, 1, -1) == -1 && errno == EINVAL);
     assert(lseek(fd, 0, SEEK_CUR) == high);
     assert(close(duplicate) == 0 && close(fd) == 0 && unlink(path) == 0);
+    flush_all();
     puts("NATIVE_FILE_IO_PASS");
     return 0;
 }

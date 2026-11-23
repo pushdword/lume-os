@@ -157,11 +157,11 @@ void shell_jobs_poll(void)
     }
 }
 
-int shell_jobs_begin(const char *command, int background)
+int shell_jobs_begin(const char *command, int background, int track)
 {
     shell_jobs_poll();
     current = NULL;
-    if (!monitor && !background)
+    if (!monitor && !background && !track)
         return 0;
     current = &pending;
     *current = (struct shell_job){.background = background};
@@ -177,7 +177,7 @@ int shell_jobs_active(void)
 }
 
 int shell_jobs_spawn(const char *path, unsigned argc, const char *const *argv, unsigned envc,
-                     const char *const *envp)
+                     const char *const *envp, const struct shell_stage *stage)
 {
     if (!current || current->count == JOB_PROCESSES)
         return -7;
@@ -201,6 +201,7 @@ int shell_jobs_spawn(const char *path, unsigned argc, const char *const *argv, u
     int child = (int)lume_native_call(LUME_SYS_FORK, 0, 0, 0);
     if (!child)
     {
+        unsigned status = 127;
         disposition(1, 0);
         disposition(15, 0);
         struct lume_signal_request group = {.group = (int32_t)current->group};
@@ -218,6 +219,11 @@ int shell_jobs_spawn(const char *path, unsigned argc, const char *const *argv, u
             disposition(reset[i], 0);
         struct lume_signal_request mask = {.operation = 0, .flags = 1};
         (void)signal_request(LUME_SIGNAL_MASK, &mask);
+        if (stage)
+        {
+            status = shell_job_prepare(stage) < 0 ? 1 : shell_job_exec(argc, argv);
+            goto failed;
+        }
         struct lume_run_request request = {.path = (uintptr_t)path,
                                            .argv = (uintptr_t)argv,
                                            .envp = (uintptr_t)envp,
@@ -226,7 +232,7 @@ int shell_jobs_spawn(const char *path, unsigned argc, const char *const *argv, u
         int error = (int)lume_native_call(LUME_SYS_EXEC, (uintptr_t)&request, sizeof(request), 0);
         fprintf(stderr, "%s: error %d\n", path, error);
     failed:
-        lume_native_call(LUME_SYS_EXIT, 127, 0, 0);
+        lume_native_call(LUME_SYS_EXIT, status, 0, 0);
         for (;;)
         {
         }

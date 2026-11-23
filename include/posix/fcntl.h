@@ -1,6 +1,9 @@
 #ifndef LUME_POSIX_FCNTL_H
 #define LUME_POSIX_FCNTL_H
 #include_next <fcntl.h>
+#ifndef AT_SYMLINK_FOLLOW
+#define AT_SYMLINK_FOLLOW 0x400
+#endif
 #ifndef F_ADD_SEALS
 #define F_ADD_SEALS 1033
 #define F_GET_SEALS 1034

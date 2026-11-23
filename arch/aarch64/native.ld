@@ -7,6 +7,17 @@ SECTIONS
     .text : { KEEP(*(.text.start)) *(.text .text.*) } :code
     . = ALIGN(4096);
     .rodata : { *(.rodata .rodata.*) } :ro
+    .eh_frame_hdr : {
+        __eh_frame_hdr_start = .;
+        KEEP(*(.eh_frame_hdr))
+        __eh_frame_hdr_end = .;
+    } :ro
+    .eh_frame : {
+        __eh_frame_start = .;
+        KEEP(*(.eh_frame))
+        __eh_frame_end = .;
+    } :ro
+    .gcc_except_table : { *(.gcc_except_table .gcc_except_table.*) } :ro
     .note.gnu.build-id : {
         __lume_build_id_start = .;
         KEEP(*(.note.gnu.build-id))
@@ -46,7 +57,7 @@ SECTIONS
     __arm64_tls_tcb_offset = ALIGN(16, __tls_align);
     .bss (NOLOAD) : { *(.bss .bss.*) *(COMMON) } :data
     ASSERT(. <= 0x48000000, "Native image exceeds the executable region")
-    /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame*) }
+    /DISCARD/ : { *(.comment) *(.note*) }
 }
 ASSERT(__tls_size <= 65536, "TLS image exceeds 64 KiB")
 ASSERT(__tls_align <= 64, "TLS alignment exceeds 64 bytes")

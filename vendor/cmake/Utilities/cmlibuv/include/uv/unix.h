@@ -62,6 +62,8 @@
 # include "sunos.h"
 #elif defined(__hpux)
 # include "posix.h"
+#elif defined(__lume__)
+# include "posix.h"
 #elif defined(__APPLE__)
 # include "darwin.h"
 #elif defined(__DragonFly__)       || \

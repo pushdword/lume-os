@@ -16,14 +16,27 @@ $(OUT)/vi.elf: $(OUT)/vim.elf
 $(OUT)/native-terminal.elf: $(OUT)/obj/tests/integration/native_terminal.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
 $(OUT)/obj/tests/integration/native_terminal.c.o: | headers
+$(OUT)/native-spawn.elf: $(OUT)/obj/tests/integration/native_spawn.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_spawn.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_spawn.c.o: | headers
+$(OUT)/native-syslog.elf: $(OUT)/obj/tests/integration/native_syslog.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/native_syslog.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_syslog.c.o: | headers
 $(OUT)/native-file-io.elf: $(OUT)/obj/tests/integration/native_file_io.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
-$(OUT)/obj/tests/integration/native_file_io.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+$(OUT)/obj/tests/integration/native_file_io.c.o: CPPFLAGS += -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L
 $(OUT)/obj/tests/integration/native_file_io.c.o: | headers
 $(OUT)/native-file-lock.elf: $(OUT)/obj/tests/integration/native_file_lock.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
 $(OUT)/obj/tests/integration/native_file_lock.c.o: CPPFLAGS += -D_POSIX_C_SOURCE=200809L
 $(OUT)/obj/tests/integration/native_file_lock.c.o: | headers
+$(OUT)/file-times.elf: $(OUT)/obj/tests/integration/file_times_probe.c.o $(NATIVE_POSIX_OBJECTS) $(ARM_COMMON_OBJECTS)
+	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
+$(OUT)/obj/tests/integration/file_times_probe.c.o: $(KERNEL)/tests/integration/file_times_probe.c | headers
+	mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L $(CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" -c "$<" -o "$@"
 .PHONY: check-file-locks
 check: check-file-locks
 check-file-locks: $(OUT)/tests/file-lock$(HOSTEXE)

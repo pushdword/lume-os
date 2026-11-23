@@ -1,8 +1,12 @@
 image: all $(OUT)/image-tool$(HOSTEXE)
 	mkdir -p "$(OUT)/root/bin" "$(OUT)/root/usr/bin" "$(OUT)/root/usr/libexec" "$(OUT)/root/etc" "$(OUT)/root/boot"
 	cp "$(KERNEL)/$(KERNEL_OUT)/lume-i686.bin" "$(OUT)/root/boot/kernel.img"
+	$(auth-console-config)
 	rm -f -- "$(OUT)/root/bin/sh"
-	$(foreach app,sysctl ls dir cp touch busybox device video,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(foreach app,sysctl ls dir cp touch busybox device video net netd $(AUTH_IMAGES),cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	cp "$(OUT)/sudo.elf" "$(OUT)/root/usr/libexec/sudo"
+	mkdir -p "$(OUT)/root/usr/share/licenses/mbedtls"
+	cp "$(AUTH_TLS)/LICENSE" "$(OUT)/root/usr/share/licenses/mbedtls/LICENSE"
 	cp "$(OUT)/libctest.elf" "$(OUT)/root/usr/libexec/libctest"
 	cp "$(OUT)/worker.elf" "$(OUT)/root/usr/libexec/worker"
 	rm -f -- "$(OUT)/root/usr/libexec/videotest"

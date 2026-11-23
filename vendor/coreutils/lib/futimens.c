@@ -22,6 +22,7 @@
 
 #include "utimens.h"
 
+#if !defined __lume__ || !HAVE_FUTIMENS
 /* Set the access and modification timestamps of FD to be
    TIMESPEC[0] and TIMESPEC[1], respectively.
    Fail with ENOSYS on systems without futimes (or equivalent).
@@ -35,3 +36,4 @@ futimens (int fd, struct timespec const times[2])
      older than 2.6.32.  */
   return fdutimens (fd, NULL, times);
 }
+#endif

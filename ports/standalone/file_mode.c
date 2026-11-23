@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include <lume/file_mode.h>
-#include "files_client.h"
+#include "file_owner_client.h"
 
 static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t gid)
 {
@@ -20,7 +20,7 @@ static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t
 int chmod(const char *path, mode_t mode)
 {
     struct lume_files_request request = {
-        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 0777u};
+        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 07777u};
     return lume_files_result(lume_native_files_call(LUME_FILES_MODE, &request));
 }
 
@@ -29,22 +29,12 @@ int fchmod(int fd, mode_t mode)
     return change_mode(NULL, fd, mode & ~(mode_t)S_IFMT, 0, 0);
 }
 
-static int change_owner(const char *path, int fd, uid_t uid, gid_t gid)
-{
-    struct stat metadata;
-    if ((uid == (uid_t)-1 || gid == (gid_t)-1) &&
-        (path ? stat(path, &metadata) : fstat(fd, &metadata)))
-        return -1;
-    return change_mode(path, fd, UINT32_MAX, uid == (uid_t)-1 ? metadata.st_uid : uid,
-                       gid == (gid_t)-1 ? metadata.st_gid : gid);
-}
-
 int chown(const char *path, uid_t uid, gid_t gid)
 {
-    return change_owner(path, -1, uid, gid);
+    return lume_files_change_owner(LUME_FILE_MODE_OWNER, path, -1, uid, gid);
 }
 
 int fchown(int fd, uid_t uid, gid_t gid)
 {
-    return change_owner(NULL, fd, uid, gid);
+    return lume_files_change_owner(LUME_FILE_MODE_OWNER_FD, NULL, fd, uid, gid);
 }

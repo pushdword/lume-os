@@ -16,6 +16,12 @@ extern "C"
         char sa_data[14];
     };
 
+    struct linger
+    {
+        int l_onoff;
+        int l_linger;
+    };
+
     struct __attribute__((aligned(4))) sockaddr_storage
     {
         sa_family_t ss_family;
@@ -42,6 +48,7 @@ extern "C"
 #define SO_ERROR 4
 #define SO_BROADCAST 6
 #define SO_KEEPALIVE 9
+#define SO_LINGER 13
 #define SHUT_RD 0
 #define SHUT_WR 1
 #define SHUT_RDWR 2

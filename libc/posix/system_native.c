@@ -5,12 +5,27 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <sys/stat.h>
+#include <sched.h>
 #include <poll.h>
+#include <fcntl.h>
 #include "lume/credential.h"
 
 int sched_yield(void)
 {
     return native_result(native_call(LUME_SYS_SLEEP, 0, 0, 0));
+}
+
+int sched_get_priority_min(int policy)
+{
+    if (policy == SCHED_OTHER)
+        return 0;
+    errno = EINVAL;
+    return -1;
+}
+
+int sched_get_priority_max(int policy)
+{
+    return sched_get_priority_min(policy);
 }
 
 mode_t umask(mode_t mask)
@@ -35,10 +50,7 @@ unsigned sleep(unsigned seconds)
 
 int link(const char *source, const char *target)
 {
-    (void)source;
-    (void)target;
-    errno = ENOTSUP;
-    return -1;
+    return linkat(AT_FDCWD, source, AT_FDCWD, target, 0);
 }
 
 int getentropy(void *buffer, size_t bytes)

@@ -1,9 +1,6 @@
 #define DISABLE_SIGN_COMPARE_WARNINGS
 
 #include "git-compat-util.h"
-#ifdef LUME_ARCH_AARCH64
-#include "lume_git.h"
-#endif
 #include "run-command.h"
 #include "environment.h"
 #include "exec-cmd.h"
@@ -513,7 +510,6 @@ struct atfork_state {
 			BUG("%s: %s", msg, strerror(e)); \
 	} while(0)
 
-#ifndef LUME_ARCH_AARCH64
 static void atfork_prepare(struct atfork_state *as)
 {
 	sigset_t all;
@@ -550,7 +546,6 @@ static void atfork_parent(struct atfork_state *as)
 #endif
 }
 
-#endif
 #endif /* GIT_WINDOWS_NATIVE */
 
 static inline void set_cloexec(int fd)
@@ -750,7 +745,7 @@ fail_pipe:
 	if (cmd->odb_to_close)
 		odb_close(cmd->odb_to_close);
 
-#if !defined(GIT_WINDOWS_NATIVE) && !defined(LUME_ARCH_AARCH64)
+#ifndef GIT_WINDOWS_NATIVE
 {
 	int notify_pipe[2];
 	int null_fd = -1;
@@ -948,11 +943,7 @@ end_of_spawn:
 		cmd->args.v = prepare_shell_cmd(&nargv, sargv);
 
 	trace_argv_printf(cmd->args.v, "trace: start_command:");
-#ifdef LUME_ARCH_AARCH64
-	cmd->pid = lume_git_spawn(cmd->args.v[0], cmd->args.v,
-#else
 	cmd->pid = mingw_spawnvpe(cmd->args.v[0], cmd->args.v,
-#endif
 				  (char**) cmd->env.v,
 				  cmd->dir, fhin, fhout, fherr);
 	failed_errno = errno;
@@ -1052,7 +1043,6 @@ static void *run_thread(void *data)
 	struct async *async = data;
 	intptr_t ret;
 
-#ifndef LUME_ARCH_AARCH64
 	if (async->isolate_sigpipe) {
 		sigset_t mask;
 		sigemptyset(&mask);
@@ -1063,7 +1053,6 @@ static void *run_thread(void *data)
 		}
 	}
 
-#endif
 	pthread_setspecific(async_key, async);
 	ret = async->proc(async->proc_in, async->proc_out, async->data);
 	return (void *)ret;

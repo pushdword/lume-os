@@ -51,6 +51,8 @@ typedef struct
 typedef uint32_t pthread_once_t;
 #define PTHREAD_CREATE_JOINABLE 0
 #define PTHREAD_CREATE_DETACHED 1
+#define PTHREAD_CANCEL_ENABLE 0
+#define PTHREAD_CANCEL_DISABLE 1
 #define PTHREAD_MUTEX_NORMAL 0
 #define PTHREAD_MUTEX_RECURSIVE 1
 #define PTHREAD_MUTEX_ERRORCHECK 2
@@ -91,6 +93,7 @@ extern "C"
     pthread_t pthread_self(void);
     int pthread_equal(pthread_t, pthread_t);
     int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
+    int pthread_setcancelstate(int, int *);
     void __lume_cleanup_push(struct __lume_cleanup_record *, void (*)(void *), void *);
     void __lume_cleanup_pop(struct __lume_cleanup_record *, int);
 #ifdef __cplusplus

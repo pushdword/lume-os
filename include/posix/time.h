@@ -7,4 +7,9 @@
 #define CLOCK_MONOTONIC 4
 #endif
 
+#if defined(__lume__) && (__SVID_VISIBLE || __XSI_VISIBLE)
+#define timezone _timezone
+#define daylight _daylight
+#endif
+
 #endif

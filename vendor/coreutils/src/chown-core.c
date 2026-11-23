@@ -509,10 +509,10 @@ change_file_owner (FTS *fts, FTSENT *ent,
           char *old_grp = (file_stats
                            ? gid_to_name (file_stats->st_gid) : NULL);
           char *new_usr = chopt->user_name
-                          ? chopt->user_name : uid != -1
+                          ? chopt->user_name : uid != (uid_t) -1
                                                ? uid_to_str (uid) : NULL;
           char *new_grp = chopt->group_name
-                          ? chopt->group_name : gid != -1
+                          ? chopt->group_name : gid != (gid_t) -1
                                                ? gid_to_str (gid) : NULL;
           describe_change (file_full_name, ch_status,
                            old_usr, old_grp,

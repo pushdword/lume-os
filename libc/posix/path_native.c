@@ -68,6 +68,20 @@ int openat(int directory, const char *path, int flags, ...)
     return result;
 }
 
+int fchdir(int fd)
+{
+    struct lume_files_request request = {.fd = fd};
+    int64_t status = lume_native_files_call(LUME_FILES_FCHDIR, &request);
+    if (status != -LUME_EINVAL && status != -LUME_ENOSYS)
+        return lume_files_result(status);
+
+    char path[LUME_FILES_PATH_MAX];
+    request.buffer = (uintptr_t)path;
+    request.count = sizeof(path);
+    status = lume_native_files_call(LUME_FILES_FD_PATH, &request);
+    return status < 0 ? lume_files_result(status) : chdir(path);
+}
+
 int fstatat(int directory, const char *path, struct stat *metadata, int flags)
 {
     unsigned allowed = AT_SYMLINK_NOFOLLOW;
@@ -90,27 +104,19 @@ int fstatat(int directory, const char *path, struct stat *metadata, int flags)
 
 int faccessat(int directory, const char *path, int mode, int flags)
 {
-    if (mode & ~(R_OK | W_OK | X_OK))
+    if ((mode & ~(R_OK | W_OK | X_OK)) || (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EACCESS)))
     {
         errno = EINVAL;
         return -1;
     }
-    if (flags & ~AT_SYMLINK_NOFOLLOW)
-    {
-        errno = ENOTSUP;
-        return -1;
-    }
-    struct stat metadata;
-    if (fstatat(directory, path, &metadata, flags))
-        return -1;
-    unsigned permissions = metadata.st_mode;
-    if (((mode & R_OK) && !(permissions & 0444)) || ((mode & W_OK) && !(permissions & 0222)) ||
-        ((mode & X_OK) && !(permissions & 0111)))
-    {
-        errno = EACCES;
-        return -1;
-    }
-    return 0;
+    struct lume_files_request request = {
+        .path = (uintptr_t)path,
+        .fd = directory == AT_FDCWD ? LUME_FILES_AT_CWD : directory,
+        .flags = (flags & AT_SYMLINK_NOFOLLOW ? LUME_FILES_ACCESS_NOFOLLOW : 0) |
+                 (flags & AT_EACCESS ? LUME_FILES_ACCESS_EFFECTIVE : 0),
+        .mode = (unsigned)mode,
+    };
+    return lume_files_result(lume_native_files_call(LUME_FILES_ACCESS, &request));
 }
 
 ssize_t readlinkat(int directory, const char *path, char *buffer, size_t bytes)

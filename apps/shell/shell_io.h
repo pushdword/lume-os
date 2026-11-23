@@ -15,6 +15,13 @@ struct shell_command
     unsigned argc, first, redirects;
 };
 
+struct shell_stage
+{
+    int input, pipe[2];
+    const struct shell_redirect *redirects;
+    unsigned count;
+};
+
 static int shell_parse(const char *line, char *expanded, char **arguments,
                        struct shell_command *commands, struct shell_redirect *redirects)
 {
@@ -77,6 +84,64 @@ static int shell_redirect(const struct shell_redirect *r)
     if (fd != (int)r->fd)
         (void)app_close(fd);
     return result;
+}
+
+static int shell_redirections(const struct shell_stage *stage)
+{
+    for (unsigned i = 0; i < stage->count; ++i)
+    {
+        int error = shell_redirect(&stage->redirects[i]);
+        if (error < 0)
+            return error;
+    }
+    return 0;
+}
+
+static int shell_connect_stage(const struct shell_stage *stage)
+{
+    int error = stage->input < 0 ? 0 : app_fd_dup(stage->input, 0, 1, 0);
+    if (error >= 0 && stage->pipe[1] >= 0)
+        error = app_fd_dup(stage->pipe[1], 1, 1, 0);
+    return error;
+}
+
+#ifdef LUME_SHELL_JOB_CONTROL
+int shell_job_prepare(const struct shell_stage *stage)
+{
+    int error = shell_connect_stage(stage);
+    /* Close the temporary pipeline descriptors before opening redirection paths. */
+    const int inherited[] = {stage->input, stage->pipe[0], stage->pipe[1]};
+    for (unsigned i = 0; i < sizeof(inherited) / sizeof(inherited[0]); ++i)
+        if (inherited[i] >= 0)
+            (void)app_close(inherited[i]);
+    if (error >= 0)
+        error = shell_redirections(stage);
+    if (error < 0)
+        shell_error("shell: redirection", error);
+    return error;
+}
+#endif
+
+static int shell_pipe(int ends[2])
+{
+    int result = app_fd_pair(ends, 0, LUME_FD_CLOEXEC);
+    if (result < 0)
+        return result;
+    for (unsigned i = 0; i < 2; ++i)
+        if (ends[i] < 3)
+        {
+            int fd = app_fd_dup(ends[i], 3, 0, LUME_FD_CLOEXEC);
+            if (fd < 0)
+            {
+                (void)app_close(ends[0]);
+                (void)app_close(ends[1]);
+                ends[0] = ends[1] = -1;
+                return fd;
+            }
+            (void)app_close(ends[i]);
+            ends[i] = fd;
+        }
+    return 0;
 }
 
 static int shell_save(int saved[3])
@@ -158,7 +223,7 @@ static int shell_import(char *state)
             return -22;
         char saved = state[bytes];
         state[bytes] = 0;
-        int result = assignment(state, (int)exported);
+        int result = assignment(state, (int)exported, 0);
         state[bytes] = saved;
         if (result < 0)
             return result;
@@ -167,12 +232,12 @@ static int shell_import(char *state)
     return 0;
 }
 
-static int shell_launch(struct shell_command *c)
+static int shell_launch(struct shell_command *c, const struct shell_stage *stage)
 {
-    if (!strcmp(c->argv[0], "run") && c->argc > 1)
-        return launch((int)c->argc - 1, c->argv + 1);
-    if (!shell_builtin(c->argv[0]))
-        return launch((int)c->argc, c->argv);
+    if (c->argc > 1 && !strcmp(c->argv[0], "run"))
+        return launch_prepared((int)c->argc - 1, c->argv + 1, stage);
+    if (c->argc && !shell_builtin(c->argv[0]))
+        return launch_prepared((int)c->argc, c->argv, stage);
     if (c->argc + 3 > LUME_ARGS)
     {
         last_status = 2;
@@ -203,7 +268,7 @@ static int shell_launch(struct shell_command *c)
     for (unsigned i = 0; i < c->argc; ++i)
         argv[i + 3] = c->argv[i];
     argv[c->argc + 3] = NULL;
-    return launch((int)c->argc + 3, argv);
+    return launch_prepared((int)c->argc + 3, argv, stage);
 }
 
 static int shell_line(const char *line)
@@ -221,9 +286,15 @@ static int shell_line(const char *line)
     if (!count)
         return 0;
     int background = 0;
+    bool prepare_in_child = false;
 #ifdef LUME_SHELL_JOB_CONTROL
     background = background_command;
-    int job_error = shell_jobs_begin(line, background);
+    const struct shell_command *first = &commands[0];
+    prepare_in_child =
+        background || count > 1 ||
+        (first->redirects && first->argc &&
+         (!shell_builtin(first->argv[0]) || (first->argc > 1 && !strcmp(first->argv[0], "run"))));
+    int job_error = shell_jobs_begin(line, background, prepare_in_child);
     if (job_error < 0)
     {
         shell_error("shell: jobs", job_error);
@@ -242,7 +313,7 @@ static int shell_line(const char *line)
         return stop;
     }
     int saved[3], pids[SHELL_STAGES], launched = 0, input = -1, stop = 0;
-    int error = shell_save(saved);
+    int error = prepare_in_child ? 0 : shell_save(saved);
     if (error < 0)
     {
         shell_error("shell: save descriptors", error);
@@ -257,19 +328,25 @@ static int shell_line(const char *line)
     for (int stage = 0; stage < count; ++stage)
     {
         unsigned setup = 1;
-        int pair[2] = {-1, -1};
-        if (stage + 1 < count && (error = app_fd_pair(pair, 0, LUME_FD_CLOEXEC)) < 0)
-            goto stage_done;
-        if (input >= 0 && (error = app_fd_dup(input, 0, 1, 0)) < 0)
-            goto stage_done;
-        if (pair[1] >= 0 && (error = app_fd_dup(pair[1], 1, 1, 0)) < 0)
-            goto stage_done;
-        setup = 0;
         struct shell_command *c = &commands[stage];
-        for (unsigned i = 0; i < c->redirects; ++i)
-            if ((error = shell_redirect(&redirects[c->first + i])) < 0)
+        struct shell_stage io = {
+            .input = input,
+            .pipe = {-1, -1},
+            .redirects = &redirects[c->first],
+            .count = c->redirects,
+        };
+        error = 0;
+        if (stage + 1 < count && (error = shell_pipe(io.pipe)) < 0)
+            goto stage_done;
+        if (!prepare_in_child)
+        {
+            if ((error = shell_connect_stage(&io)) < 0)
                 goto stage_done;
-        if (count == 1 && !background)
+            setup = 0;
+            if ((error = shell_redirections(&io)) < 0)
+                goto stage_done;
+        }
+        if (count == 1 && !prepare_in_child)
         {
             if (c->argc)
                 stop = dispatch((int)c->argc, c->argv);
@@ -279,7 +356,7 @@ static int shell_line(const char *line)
         else
         {
             last_status = 0;
-            int pid = shell_launch(c);
+            int pid = shell_launch(c, prepare_in_child ? &io : NULL);
             if (pid < 0)
             {
                 if (stage + 1 == count)
@@ -300,19 +377,20 @@ static int shell_line(const char *line)
             if (stage + 1 == count)
                 final_status = 1;
         }
-        if (shell_restore(saved, 0) && count == 1 && !last_status)
+        if (!prepare_in_child && shell_restore(saved, 0) && count == 1 && !last_status)
             last_status = 1;
         if (input >= 0)
             (void)app_close(input);
-        if (pair[1] >= 0)
-            (void)app_close(pair[1]);
-        input = pair[0];
+        if (io.pipe[1] >= 0)
+            (void)app_close(io.pipe[1]);
+        input = io.pipe[0];
         if (failed)
             break;
     }
     if (input >= 0)
         (void)app_close(input);
-    shell_restore(saved, 1);
+    if (!prepare_in_child)
+        shell_restore(saved, 1);
     for (int i = 0; i < launched; ++i)
         wait_for(pids[i]);
 #ifdef LUME_SHELL_JOB_CONTROL

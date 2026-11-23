@@ -42,6 +42,15 @@ int sigprocmask(int operation, const sigset_t *set, sigset_t *old)
     return 0;
 }
 
+int sigpending(sigset_t *set)
+{
+    struct lume_signal_request r = {0};
+    if (signal_call(LUME_SIGNAL_PENDING, &r))
+        return -1;
+    *set = r.mask;
+    return 0;
+}
+
 int pthread_sigmask(int operation, const sigset_t *set, sigset_t *old)
 {
     int saved = errno;

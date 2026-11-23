@@ -14,5 +14,6 @@ load /lib/modules/vrng.lkm
 probe q35-virtio-rng
 load /lib/modules/vnet.lkm
 probe q35-virtio-net
+autoload-pci pci,10ec:8168 /lib/modules/rtl8168h.lkm rtl8168h
 load /lib/modules/xhci.lkm
 probe q35-xhci

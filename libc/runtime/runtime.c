@@ -14,6 +14,9 @@ static bool termios_saved;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "errno_map.h"
 #include "files_client.h"
+#include "lume/syscall_native.h"
+#include "lume/syscall_numbers.h"
+#include "lume/tty.h"
 #undef lume_app_call
 #define lume_app_call lume_posix_app_call
 #ifndef app_read
@@ -53,7 +56,7 @@ static unsigned error_used;
  * one-byte requests, and read(0) consumes this queue before touching the FD. */
 static unsigned char input_buffer[512];
 static unsigned input_start, input_used;
-static int input_kind; /* Unknown, terminal, redirected. */
+static int input_kind; /* Unknown, terminal, redirected, invalid. */
 static int out_flush(FILE *stream);
 static int err_flush(FILE *stream);
 
@@ -69,10 +72,28 @@ static int input_is_terminal(void)
     {
         struct lume_stat s;
         int r = lume_app_call(LUME_FSTAT, 0, (uintptr_t)&s, 0);
+        if (r == -EBADF)
+        {
+            input_kind = 3;
+            return 0;
+        }
         /* An older kernel without metadata must keep interactive semantics. */
         input_kind = r < 0 || (s.mode & 0170000) == 0020000 ? 1 : 2;
     }
     return input_kind == 1;
+}
+
+static int zero_descriptor(int fd)
+{
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_stat descriptor, zero;
+    return !lume_app_call(LUME_FSTAT, (uintptr_t)fd, (uintptr_t)&descriptor, 0) &&
+           !lume_app_call(LUME_STAT, (uintptr_t)"/dev/zero", (uintptr_t)&zero, 0) &&
+           descriptor.inode == zero.inode;
+#else
+    (void)fd;
+    return 0;
+#endif
 }
 
 static int output_is_terminal(void)
@@ -204,6 +225,21 @@ ssize_t read(int fd, void *buffer, size_t bytes)
 {
     if (!bytes)
         return result(app_read(fd, buffer, 0));
+    if (bytes > LUME_FILE_IO_LIMIT && zero_descriptor(fd))
+    {
+        size_t done = 0;
+        while (done < bytes)
+        {
+            size_t take = bytes - done;
+            if (take > LUME_FILE_IO_LIMIT)
+                take = LUME_FILE_IO_LIMIT;
+            ssize_t n = read(fd, (unsigned char *)buffer + done, take);
+            if (n <= 0)
+                return done ? (ssize_t)done : n;
+            done += (size_t)n;
+        }
+        return (ssize_t)done;
+    }
     /* Includes read(0) as well as fgetc/scanf: display prompts before waiting. */
     if (fd == 0 && output_used && fflush(stdout) < 0)
         return -1;
@@ -459,6 +495,20 @@ int fstat(int fd, struct stat *out)
 
 int isatty(int fd)
 {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+    struct lume_tty_request request = {
+        .version = LUME_TTY_VERSION, .bytes = sizeof(request), .fd = fd};
+    int64_t status =
+        lume_native_call(LUME_SYS_TTY, LUME_TTY_ISATTY, (uintptr_t)&request, sizeof(request));
+    if (!status)
+        return 1;
+    int error = lume_errno_from_syscall((unsigned)-status);
+    if (error != EINVAL && error != ENOSYS)
+    {
+        errno = error;
+        return 0;
+    }
+#endif
     struct lume_stat s;
     int r = lume_app_call(LUME_FSTAT, (uint32_t)fd, (uintptr_t)&s, 0);
     if (r < 0)
@@ -467,7 +517,24 @@ int isatty(int fd)
         return 0;
     }
     if ((s.mode & 0170000) == 0020000)
+    {
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+        int saved = errno;
+        struct termios attributes;
+        if (tcgetattr(fd, &attributes) == 0)
+            return 1;
+        if (errno != ENOTTY)
+            return 0;
+        struct lume_stat console;
+        if (app_stat("/dev/console", &console) == 0 && s.inode == console.inode)
+        {
+            errno = saved;
+            return 1;
+        }
+#else
         return 1;
+#endif
+    }
     errno = ENOTTY;
     return 0;
 }

@@ -30,14 +30,7 @@ struct dirent
 };
 
 #ifdef LUME_POSIX_DIRECTORY_NATIVE
-typedef struct
-{
-    int fd;
-    unsigned count, next, eof;
-    uint64_t position;
-    unsigned char buffer[4 * sizeof(struct lume_files_dirent)];
-    struct dirent entry;
-} DIR;
+typedef struct lume_dir_stream DIR;
 #else
 typedef struct
 {

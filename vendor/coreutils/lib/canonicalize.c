@@ -49,7 +49,7 @@
 static bool
 file_accessible (char const *file)
 {
-# if HAVE_FACCESSAT
+# if HAVE_FACCESSAT && !defined __lume__
   return faccessat (AT_FDCWD, file, F_OK, AT_EACCESS) == 0;
 # else
   struct stat st;

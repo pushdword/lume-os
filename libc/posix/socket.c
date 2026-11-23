@@ -622,7 +622,7 @@ int getaddrinfo(const char *host, const char *service, const struct addrinfo *hi
     if (!host)
         address.sin_addr.s_addr =
             hints && (hints->ai_flags & AI_PASSIVE) ? 0 : htonl(INADDR_LOOPBACK);
-    else if (!strcmp(host, "localhost"))
+    else if (!(hints && (hints->ai_flags & AI_NUMERICHOST)) && !strcmp(host, "localhost"))
         address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     else if (inet_pton(AF_INET, host, &address.sin_addr) != 1)
     {
@@ -632,8 +632,10 @@ int getaddrinfo(const char *host, const char *service, const struct addrinfo *hi
             length >= sizeof(request.argument))
             return EAI_NONAME;
         memcpy(request.argument, host, length + 1);
-        if (native_call(LUME_SYS_NET, LUME_NET_DNS, (uintptr_t)&request, sizeof(request)) < 0)
-            return EAI_AGAIN;
+        int64_t result =
+            native_call(LUME_SYS_NET, LUME_NET_DNS, (uintptr_t)&request, sizeof(request));
+        if (result < 0)
+            return result == -LUME_ENOENT ? EAI_NONAME : EAI_AGAIN;
         char *end = memchr(request.output, '\n', sizeof(request.output));
         if (!end)
             return EAI_AGAIN;
@@ -676,6 +678,10 @@ void freeaddrinfo(struct addrinfo *address)
 
 const char *gai_strerror(int error)
 {
+    if (error == EAI_NONAME)
+        return "Name or service is unknown";
+    if (error == EAI_AGAIN)
+        return "Temporary name resolution failure";
     return error == EAI_MEMORY ? "Address allocation failed" : "Address is unavailable";
 }
 

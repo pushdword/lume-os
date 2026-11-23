@@ -15,9 +15,9 @@ libc:
 CFLAGS := -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -fno-unwind-tables -fno-asynchronous-unwind-tables $(filter-out --target=%,$(ARCH_CFLAGS)) -ffunction-sections -fdata-sections
 CPPFLAGS := $(ARCH_CPPFLAGS) -Iinclude/lume -Iinclude/posix -Iarch/$(ARCH)/include -Iinclude/internal -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Ilibc/posix -Ilibc/crypto -I"$(KERNEL)/$(KERNEL_OUT)/include" -isystem "$(SYSROOT)/include"
 ARM_LINK := -nostdlib -static -Wl,--gc-sections,--build-id=none,--strip-debug,-z,max-page-size=4096,-T,arch/$(ARCH)/user.ld
-ARM_LIBS := -Wl,--start-group "$(SYSROOT)/lib/libc.a" -Wl,--end-group
+ARM_LIBS := -Wl,--start-group "$(SYSROOT)/lib/libc.a" "$(SYSROOT)/lib/libcompiler-rt.a" -Wl,--end-group
 ARM_LD_FLAGS := --gc-sections --build-id=none --strip-debug -z max-page-size=4096 -T arch/$(ARCH)/user.ld
-ARM_LD_LIBS := --start-group "$(SYSROOT)/lib/libc.a" --end-group
+ARM_LD_LIBS := --start-group "$(SYSROOT)/lib/libc.a" "$(SYSROOT)/lib/libcompiler-rt.a" --end-group
 ifeq ($(DEBUG),1)
 CFLAGS += -g -fno-omit-frame-pointer
 ARM_LD_FLAGS := $(filter-out --strip-debug,$(ARM_LD_FLAGS))
@@ -32,7 +32,7 @@ $(addprefix $(OUT)/obj/,$(addsuffix .o,$(ARM_STRING_SOURCES))): vendor/arm-optim
 $(addprefix $(OUT)/,$(addsuffix .elf,netd net ping nc update fetch device module tests/module-probe tests/module-net-probe)): vendor/arm-optimized-routines/string/aarch64/asmdefs.h
 endif
 ifeq ($(ARCH),i686)
-ARM_COMMON_SOURCES += arch/i686/builtins.c
+ARM_LINK += -fuse-ld=lld
 I686_BUILTINS := $(OUT)/obj/arch/i686/builtins.c.o
 endif
 ifneq ($(filter amd64 i686,$(ARCH)),)
@@ -61,6 +61,9 @@ ARM_APPS := sysctl shell ls dir less top worker probe fstest libctest video smpd
 ARM_APPLETS := basename cat dirname echo false head printenv pwd true wc sort cut cmp cksum crc32 expand unexpand mkdir rmdir
 ARM_APP_TARGETS := $(addprefix $(OUT)/,$(addsuffix .elf,$(ARM_APPS)))
 include mk/vim-native.mk
+include mk/network-native.mk
+include mk/zlib-native.mk
+include mk/git-native.mk
 include mk/shell-tools.mk
 HTOP_SOURCES += $(addprefix ports/htop/,LumeBackend.c curses.c posix.c entry.c runtime.c) $(addprefix libc/posix/,sbrk.c posix_runtime.c errno_map.c)
 BB_OBJECTS := $(addprefix $(OUT)/obj/,$(addsuffix .o,$(BB_SOURCES)))
@@ -138,6 +141,7 @@ $(OUT)/fetch.elf: arch/$(ARCH)/start_bare.S apps/update/fetch.c libc/crypto/sha2
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -Ilibc/lume -Ilibc/crypto -Ilibc/posix $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 NATIVE_SDK ?=
+include mk/auth.mk
 .PHONY: pkg
 ifneq ($(strip $(NATIVE_SDK)),)
 PKG_OBJECTS := $(OUT)/obj/apps/pkg/pkg.c.o $(OUT)/obj/apps/pkg/platform.c.o $(OUT)/obj/libc/crypto/sha256.c.o
@@ -188,14 +192,18 @@ ifneq ($(ARCH),amd64)
 	cp "$(KERNEL)/$(KERNEL_OUT)/modules/bcm2712-hdmi.lkm" "$(OUT)/root/lib/modules/hdmi.lkm"
 	cp root/profiles/native/etc/* "$(OUT)/root/etc/"
 else
-	$(foreach name,ahci vblk vrng vga ps2 xhci lume2d vgpu $(if $(filter recovery,$(PROFILE)),,vnet),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
+	$(foreach name,ahci vblk vrng vga ps2 xhci lume2d vgpu $(if $(filter recovery,$(PROFILE)),,vnet rtl8168h),cp "$(KERNEL)/$(KERNEL_OUT)/modules/$(name).lkm" "$(OUT)/root/lib/modules/";)
 	cp root/profiles/q35/etc/* "$(OUT)/root/etc/"
 ifeq ($(PROFILE),recovery)
 	cp root/profiles/q35-recovery/etc/modules "$(OUT)/root/etc/modules"
 endif
 endif
 	printf 'standalone\n' > "$(OUT)/root/etc/bootmode"
-	$(foreach app,sysctl busybox ls dir net netd update fetch cp touch tar base64 ping nc device module,cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	$(auth-console-config)
+	$(foreach app,sysctl busybox ls dir net netd update fetch cp touch tar base64 ping nc device module $(AUTH_IMAGES),cp "$(OUT)/$(app).elf" "$(OUT)/root/bin/$(app)";)
+	cp "$(OUT)/sudo.elf" "$(OUT)/root/usr/libexec/sudo"
+	mkdir -p "$(OUT)/root/usr/share/licenses/mbedtls"
+	cp "$(AUTH_TLS)/LICENSE" "$(OUT)/root/usr/share/licenses/mbedtls/LICENSE"
 ifneq ($(strip $(NATIVE_SDK)),)
 	cp "$(OUT)/pkg.elf" "$(OUT)/root/bin/pkg"
 	cp "$(OUT)/service.elf" "$(OUT)/root/bin/service"

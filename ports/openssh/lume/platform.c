@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "poll_wait.h"
+#include "file_owner_client.h"
 
 int getentropy(void *data, size_t bytes)
 {
@@ -109,85 +110,36 @@ static struct passwd accounts[] = {{.pw_name = "root",
                                     .pw_gecos = "SSH authentication",
                                     .pw_dir = "/data/var/empty-sshd",
                                     .pw_shell = "/bin/false"}};
-static char *empty_members[] = {NULL};
-static struct group groups[] = {
-    {.gr_name = "root", .gr_passwd = "*", .gr_gid = 0, .gr_mem = empty_members},
-    {.gr_name = "sshd", .gr_passwd = "*", .gr_gid = 65534, .gr_mem = empty_members}};
-static unsigned next_account, next_group;
+extern struct passwd *__real_getpwnam(const char *);
+extern struct passwd *__real_getpwuid(uid_t);
 
-struct passwd *getpwnam(const char *name)
+static struct passwd *login_account(struct passwd *entry)
 {
-    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
-    for (unsigned i = 0; i < 2; ++i)
-        if (!strcmp(name, accounts[i].pw_name))
-            return &accounts[i];
-    return NULL;
+    if (!entry || !entry->pw_uid || entry->pw_uid >= accounts[1].pw_uid ||
+        entry->pw_gid > LUME_ID_MAX || entry->pw_dir[0] != '/' || entry->pw_shell[0] != '/')
+        return NULL;
+    return entry;
 }
 
-struct passwd *getpwuid(uid_t uid)
+struct passwd *__wrap_getpwnam(const char *name)
 {
-    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
-    for (unsigned i = 0; i < 2; ++i)
-        if (accounts[i].pw_uid == uid)
-            return &accounts[i];
-    return NULL;
-}
-
-void setpwent(void)
-{
-    next_account = 0;
-}
-
-void endpwent(void)
-{
-    next_account = 0;
-}
-
-struct passwd *getpwent(void)
-{
-    accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
-    return next_account < 2 ? &accounts[next_account++] : NULL;
-}
-
-struct group *getgrnam(const char *name)
-{
-    for (unsigned i = 0; i < 2; ++i)
-        if (!strcmp(name, groups[i].gr_name))
-            return &groups[i];
-    return NULL;
-}
-
-struct group *getgrgid(gid_t gid)
-{
-    for (unsigned i = 0; i < 2; ++i)
-        if (groups[i].gr_gid == gid)
-            return &groups[i];
-    return NULL;
-}
-
-void setgrent(void)
-{
-    next_group = 0;
-}
-
-void endgrent(void)
-{
-    next_group = 0;
-}
-
-struct group *getgrent(void)
-{
-    return next_group < 2 ? &groups[next_group++] : NULL;
-}
-
-int initgroups(const char *name, gid_t gid)
-{
-    if (!getpwnam(name))
+    if (!strcmp(name, "root"))
     {
-        errno = ENOENT;
-        return -1;
+        accounts[0].pw_shell = access("/data/bin/bash", X_OK) ? "/bin/sh" : "/data/bin/bash";
+        return &accounts[0];
     }
-    return setgroups(1, &gid);
+    if (!strcmp(name, "sshd"))
+        return &accounts[1];
+    return login_account(__real_getpwnam(name));
+}
+
+struct passwd *__wrap_getpwuid(uid_t uid)
+{
+    if (!uid)
+        return __wrap_getpwnam("root");
+    if (uid == accounts[1].pw_uid)
+        return &accounts[1];
+    return login_account(__real_getpwuid(uid));
 }
 
 char *crypt(const char *key, const char *salt)
@@ -207,15 +159,15 @@ int innetgr(const char *group, const char *host, const char *user, const char *d
     return 0;
 }
 
-static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t gid)
+static int change_mode(const char *path, int fd, unsigned mode)
 {
     struct lume_file_mode_request r = {.version = LUME_FILE_MODE_VERSION,
                                        .bytes = sizeof(r),
                                        .path = (uintptr_t)path,
                                        .fd = fd,
                                        .mode = mode,
-                                       .uid = uid,
-                                       .gid = gid};
+                                       .uid = UINT32_MAX,
+                                       .gid = UINT32_MAX};
     return native_result(native_call(LUME_SYS_FILE_MODE,
                                      path ? LUME_FILE_MODE_PATH : LUME_FILE_MODE_FD, (uintptr_t)&r,
                                      sizeof(r)));
@@ -223,24 +175,28 @@ static int change_mode(const char *path, int fd, unsigned mode, uid_t uid, gid_t
 
 int chmod(const char *path, mode_t mode)
 {
-    return change_mode(path, -1, mode, 0, 0);
+    return change_mode(path, -1, mode);
 }
 
 int fchmod(int fd, mode_t mode)
 {
-    return change_mode(NULL, fd, mode, 0, 0);
+    return change_mode(NULL, fd, mode);
 }
 
 int chown(const char *path, uid_t uid, gid_t gid)
 {
-    return change_mode(path, -1, UINT32_MAX, uid == (uid_t)-1 ? 0 : uid,
-                       gid == (gid_t)-1 ? 0 : gid);
+    return lume_files_change_owner(LUME_FILE_MODE_OWNER, path, -1, uid, gid);
 }
 
 int fchown(int fd, uid_t uid, gid_t gid)
 {
-    return change_mode(NULL, fd, UINT32_MAX, uid == (uid_t)-1 ? 0 : uid,
-                       gid == (gid_t)-1 ? 0 : gid);
+    return lume_files_change_owner(LUME_FILE_MODE_OWNER_FD, NULL, fd, uid, gid);
+}
+
+/* Closing the PTY master removes access to the slave path. */
+void __wrap_pty_release(const char *path)
+{
+    (void)path;
 }
 
 int fchownat(int directory, const char *path, uid_t uid, gid_t gid, int flags)

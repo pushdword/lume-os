@@ -16,6 +16,13 @@
 #include <time.h>
 #include "terminal_read.h"
 
+static int tty_fd_flags(int fd, unsigned action, unsigned flags)
+{
+    struct lume_fd_request request = {
+        .version = LUME_FD_VERSION, .bytes = sizeof(request), .fd = fd, .flags = flags};
+    return (int)native_call(LUME_SYS_FD, action, (uintptr_t)&request, sizeof(request));
+}
+
 int posix_openpt(int flags)
 {
     if ((flags & O_ACCMODE) != O_RDWR || flags & ~(O_RDWR | O_NOCTTY | O_CLOEXEC))
@@ -28,13 +35,27 @@ int posix_openpt(int flags)
         return -1;
     close(slave);
     if (flags & O_CLOEXEC)
-        fcntl(master, F_SETFD, FD_CLOEXEC);
+        (void)tty_fd_flags(master, LUME_FD_SETFD, LUME_FD_CLOEXEC);
     return master;
 }
 
 char *ptsname(int master)
 {
     return ttyname(master);
+}
+
+int ttyname_r(int fd, char *buffer, size_t bytes)
+{
+    if (!buffer)
+        return EINVAL;
+    char *name = ttyname(fd);
+    if (!name)
+        return errno ? errno : ENOTTY;
+    size_t length = strlen(name) + 1;
+    if (length > bytes)
+        return ERANGE;
+    memcpy(buffer, name, length);
+    return 0;
 }
 
 int grantpt(int master)
@@ -57,6 +78,17 @@ static int tty_call(unsigned action, struct lume_tty_request *r)
         result = native_call(LUME_SYS_TTY, action, (uintptr_t)r, sizeof(*r));
     } while (result == -LUME_EAGAIN);
     return native_result(result);
+}
+
+static int tty_descriptor_call(unsigned action, struct lume_tty_request *request)
+{
+    int result = tty_call(action, request);
+    if (result < 0 && errno == ENOTTY)
+    {
+        if (tty_fd_flags(request->fd, LUME_FD_GETFD, 0) != -LUME_EBADF)
+            errno = ENOTTY;
+    }
+    return result;
 }
 
 struct terminal_reader_context
@@ -152,7 +184,7 @@ int tcgetattr(int fd, struct termios *termios)
         return -1;
     }
     struct lume_tty_request r = {.fd = fd};
-    if (tty_call(LUME_TTY_GET, &r))
+    if (tty_descriptor_call(LUME_TTY_GET, &r))
         return -1;
     termios->c_iflag = r.termios.input;
     termios->c_oflag = r.termios.output;
@@ -219,6 +251,32 @@ int tcflush(int fd, int action)
 {
     struct lume_tty_request r = {.fd = fd, .value = (unsigned)action};
     return tty_call(LUME_TTY_FLUSH, &r);
+}
+
+static int readable_bytes(int fd)
+{
+    struct lume_fd_request request = {.version = LUME_FD_VERSION, .bytes = sizeof(request), .fd = fd};
+    int64_t available = native_call(LUME_SYS_FD, LUME_FD_AVAILABLE, (uintptr_t)&request,
+                                   sizeof(request));
+    if (available != -LUME_ENOTTY && available != -LUME_ENOSYS && available != -LUME_EINVAL)
+        return native_result(available);
+
+    struct lume_tty_request terminal = {.fd = fd};
+    if (tty_call(LUME_TTY_AVAILABLE, &terminal) == 0)
+        return (int)terminal.value;
+    if (errno != ENOTTY)
+        return -1;
+
+    struct lume_socket_request socket = {
+        .version = LUME_SOCKET_VERSION, .bytes = sizeof(socket), .fd = fd};
+    int64_t result = native_call(LUME_SYS_SOCKET, LUME_SOCKET_PENDING, (uintptr_t)&socket,
+                                 sizeof(socket));
+    if (result == 0)
+        return (int)socket.count;
+    if ((result == -LUME_EBADF || result == -LUME_ENOTSOCK) &&
+        (available == -LUME_ENOTTY || tty_fd_flags(fd, LUME_FD_GETFD, 0) >= 0))
+        result = -LUME_ENOTTY;
+    return native_result(result);
 }
 
 int ioctl(int fd, unsigned long operation, ...)
@@ -299,19 +357,18 @@ int ioctl(int fd, unsigned long operation, ...)
         r.value = (unsigned)*(const pid_t *)argument;
         return tty_call(LUME_TTY_SET_GROUP, &r);
     }
-    if (operation == TIOCGPGRP || operation == FIONREAD)
+    if (operation == FIONREAD)
     {
-        if (tty_call(operation == TIOCGPGRP ? LUME_TTY_GROUP : LUME_TTY_AVAILABLE, &r))
-        {
-            if (operation != FIONREAD || errno != ENOTTY)
-                return -1;
-            struct lume_socket_request socket = {
-                .version = LUME_SOCKET_VERSION, .bytes = sizeof(socket), .fd = fd};
-            if (native_result(native_call(LUME_SYS_SOCKET, LUME_SOCKET_PENDING, (uintptr_t)&socket,
-                                          sizeof(socket))))
-                return -1;
-            r.value = socket.count;
-        }
+        int count = readable_bytes(fd);
+        if (count < 0)
+            return -1;
+        *(int *)argument = count;
+        return 0;
+    }
+    if (operation == TIOCGPGRP)
+    {
+        if (tty_call(LUME_TTY_GROUP, &r))
+            return -1;
         *(int *)argument = (int)r.value;
         return 0;
     }
@@ -334,7 +391,7 @@ char *ttyname(int fd)
 {
     static _Thread_local char name[32];
     struct lume_tty_request r = {.fd = fd};
-    if (tty_call(LUME_TTY_NAME, &r))
+    if (tty_descriptor_call(LUME_TTY_NAME, &r))
         return NULL;
     snprintf(name, sizeof(name), "/dev/pts/%u", r.value);
     return name;

@@ -1085,6 +1085,7 @@ main (int argc, char **argv)
     }
 
   struct argv_iterator *ai;
+  FILE *name_stream = stdin;
   if (files_from)
     {
       /* When using --files0-from=F, you may not specify any files
@@ -1097,11 +1098,13 @@ main (int argc, char **argv)
           usage (EXIT_FAILURE);
         }
 
-      if (! (streq (files_from, "-") || freopen (files_from, "r", stdin)))
+      if (!streq (files_from, "-"))
+        name_stream = fopen (files_from, "r");
+      if (!name_stream)
         error (EXIT_FAILURE, errno, _("cannot open %s for reading"),
                quoteaf (files_from));
 
-      ai = argv_iter_init_stream (stdin);
+      ai = argv_iter_init_stream (name_stream);
 
       /* It's not easy here to count the arguments, so assume the
          worst.  */
@@ -1205,8 +1208,12 @@ main (int argc, char **argv)
   if (di_mnt)
     di_set_free (di_mnt);
 
-  if (files_from && (ferror (stdin) || fclose (stdin) != 0) && ok)
-    error (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (files_from));
+  if (files_from)
+    {
+      bool read_error = ferror (name_stream);
+      if ((fclose (name_stream) != 0 || read_error) && ok)
+        error (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (files_from));
+    }
 
   if (print_grand_total)
     print_size (&tot_dui, _("total"), false);

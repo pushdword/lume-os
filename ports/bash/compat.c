@@ -36,17 +36,6 @@ static int wait_signal(struct lume_signal_request *request)
     return result;
 }
 
-int sigsuspend(const sigset_t *mask)
-{
-    struct lume_signal_request request = {.flags = 1, .mask = *mask};
-    int result = wait_signal(&request);
-    int saved = errno;
-    if (sigprocmask(SIG_SETMASK, &request.mask, NULL) < 0)
-        return -1;
-    errno = saved;
-    return result;
-}
-
 int pause(void)
 {
     struct lume_signal_request request = {0};

@@ -3,6 +3,7 @@
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #include "../utils/sysctl_config.h"
 #include "resource_defaults.h"
+#include "lume/credential.h"
 #include "lume/process.h"
 #endif
 #if defined(LUME_ARCH_AARCH64)
@@ -11,7 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #ifdef LUME_SHELL_JOB_CONTROL
+#include "lume/syscall_native.h"
 #include "jobs.h"
 static int background_command;
 #endif
@@ -152,13 +155,13 @@ static const char *value(const char *name)
     return v ? v->value : "";
 }
 
-static int assignment(char *text, int exported)
+static int assignment(char *text, int exported, int defaults_only)
 {
     char *eq = strchr(text, '=');
     if (!eq)
         return -22;
     *eq = 0;
-    int r = assign(text, eq + 1, exported);
+    int r = defaults_only && find(text) ? 0 : assign(text, eq + 1, exported);
     *eq = '=';
     return r;
 }
@@ -385,10 +388,9 @@ static int executable(const char *path)
     return app_stat(path, &s) == 0 && (s.mode & 0x8000);
 }
 
-static int launch(int argc, char **argv)
+static int prepare_command(const char *command, char path[128], char data[LUME_ENV_BYTES],
+                           const char *env[LUME_ENVS + 1])
 {
-    char path[128];
-    const char *command = argv[0];
     size_t n = strlen(command);
     if (n > 100)
     {
@@ -402,7 +404,7 @@ static int launch(int argc, char **argv)
                           : LUME_APP_SUFFIX;
     if (strchr(command, '/'))
     {
-        snprintf(path, sizeof path, "%s%s", command, ext);
+        snprintf(path, 128, "%s%s", command, ext);
     }
     else
     {
@@ -412,7 +414,7 @@ static int launch(int argc, char **argv)
         {
             const char *end = strchr(p, ':');
             size_t length = end ? (size_t)(end - p) : strlen(p);
-            if (length + n + strlen(ext) + 2 < sizeof path)
+            if (length + n + strlen(ext) + 2 < 128)
             {
                 if (length)
                 {
@@ -422,7 +424,7 @@ static int launch(int argc, char **argv)
                     strcat(path, ext);
                 }
                 else
-                    snprintf(path, sizeof path, "%s%s", command, ext);
+                    snprintf(path, 128, "%s%s", command, ext);
                 if (executable(path))
                 {
                     found = 1;
@@ -441,8 +443,6 @@ static int launch(int argc, char **argv)
             return -1;
         }
     }
-    char data[LUME_ENV_BYTES];
-    const char *env[LUME_ENVS + 1];
     int count = environment(data, env);
     if (count < 0)
     {
@@ -450,21 +450,66 @@ static int launch(int argc, char **argv)
         last_status = 2;
         return -1;
     }
+    return count;
+}
+
+#ifdef LUME_SHELL_JOB_CONTROL
+unsigned shell_job_exec(unsigned argc, const char *const *argv)
+{
+    char path[128], data[LUME_ENV_BYTES];
+    const char *env[LUME_ENVS + 1];
+    int count = prepare_command(argv[0], path, data, env);
+    if (count < 0)
+        return last_status;
+    struct lume_run_request request = {.path = (uintptr_t)path,
+                                       .argv = (uintptr_t)argv,
+                                       .envp = (uintptr_t)env,
+                                       .argc = argc,
+                                       .envc = (unsigned)count};
+    int error = (int)lume_native_call(LUME_SYS_EXEC, (uintptr_t)&request, sizeof(request), 0);
+    shell_error(path, error);
+    return 127;
+}
+#else
+struct shell_stage;
+#endif
+
+static int launch_prepared(int argc, char **argv, const struct shell_stage *stage)
+{
+    const char *const *arguments = (const char *const *)argv;
     int pid;
 #ifdef LUME_SHELL_JOB_CONTROL
-    if (shell_jobs_active())
-        pid =
-            shell_jobs_spawn(path, (unsigned)argc, (const char *const *)argv, (unsigned)count, env);
+    if (stage)
+        pid = shell_jobs_spawn(NULL, (unsigned)argc, arguments, 0, NULL, stage);
     else
 #endif
-        pid = app_spawn_fds(path, (unsigned)argc, (const char *const *)argv, (unsigned)count, env);
+    {
+        char path[128], data[LUME_ENV_BYTES];
+        const char *env[LUME_ENVS + 1];
+        int count = prepare_command(argv[0], path, data, env);
+        if (count < 0)
+            return -1;
+#ifdef LUME_SHELL_JOB_CONTROL
+        if (shell_jobs_active())
+            pid = shell_jobs_spawn(path, (unsigned)argc, arguments, (unsigned)count, env, NULL);
+        else
+#else
+        (void)stage;
+#endif
+            pid = app_spawn_fds(path, (unsigned)argc, arguments, (unsigned)count, env);
+    }
     if (pid < 0)
     {
-        shell_error(command, pid);
+        shell_error(argv[0], pid);
         last_status = 126;
         return -1;
     }
     return pid;
+}
+
+static int launch(int argc, char **argv)
+{
+    return launch_prepared(argc, argv, NULL);
 }
 
 static void wait_for(int pid)
@@ -490,6 +535,30 @@ static void execute(int argc, char **argv)
     if (pid >= 0)
         wait_for(pid);
 }
+
+#if (defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)) && \
+    !defined(LUME_SHELL_FDS)
+static bool console_password_required(void)
+{
+    if (lume_syscall(LUME_PID, 0, 0, 0) != 1)
+        return false;
+    int fd = app_open("/etc/console-login", LUME_RDONLY);
+    if (fd < 0)
+        return false;
+    app_close(fd);
+    return true;
+}
+
+static void console_login(void)
+{
+    for (;;)
+    {
+        char *arguments[] = {"/bin/login", NULL};
+        execute(1, arguments);
+        lume_syscall(LUME_SLEEP, 1000, 0, 0);
+    }
+}
+#endif
 
 static void echo(int argc, char **argv)
 {
@@ -527,7 +596,7 @@ static void echo(int argc, char **argv)
     }
 }
 
-static void profile(void)
+static void profile(int defaults_only)
 {
     int fd = app_open("/etc/profile", LUME_RDONLY);
     if (fd < 0)
@@ -550,7 +619,7 @@ static void profile(void)
             int argc = split(line, expanded, argv);
             if (argc == 2 && app_equal(argv[0], "export"))
             {
-                int r = assignment(argv[1], 1);
+                int r = assignment(argv[1], 1, defaults_only);
                 if (r < 0)
                     shell_error("profile", r);
             }
@@ -573,7 +642,7 @@ static int dispatch(int argc, char **argv)
 #endif
     if (argc == 1 && strchr(cmd, '='))
     {
-        int r = assignment(cmd, -1);
+        int r = assignment(cmd, -1, 0);
         if (r < 0)
             shell_error("assignment", r);
         last_status = r < 0 ? 2 : 0;
@@ -593,7 +662,7 @@ static int dispatch(int argc, char **argv)
         {
             int r;
             if (strchr(argv[i], '='))
-                r = assignment(argv[i], 1);
+                r = assignment(argv[i], 1, 0);
             else
                 r = assign(argv[i], value(argv[i]), 1);
             if (r < 0)
@@ -761,13 +830,14 @@ int app_main(unsigned initial_argc, char **initial_argv)
     if (script >= 0)
         (void)app_fd_flags(script, LUME_FD_SETFD, LUME_FD_CLOEXEC);
     for (char **s = environ; *s; s++)
-        if (assignment(*s, 1) < 0)
+        if (assignment(*s, 1, 0) < 0)
             app_puts("shell: initial environment exceeds limits\n");
-    if (initial_argc >= 4 && !strcmp(initial_argv[1], "--builtin"))
+    if (initial_argc >= 3 && !strcmp(initial_argv[1], "--builtin"))
     {
         if (shell_import(initial_argv[2]) < 0)
             return 2;
-        (void)dispatch((int)initial_argc - 3, initial_argv + 3);
+        if (initial_argc > 3)
+            (void)dispatch((int)initial_argc - 3, initial_argv + 3);
         int failed = fflush(stdout) < 0;
         failed |= fflush(stderr) < 0;
         if (failed && !last_status)
@@ -777,11 +847,30 @@ int app_main(unsigned initial_argc, char **initial_argv)
 #ifdef LUME_SHELL_JOB_CONTROL
     shell_jobs_initialize(!command_mode && script < 0);
 #endif
+    char username[32] = "root";
+    int privileged = 1;
     if (!command_mode && script < 0)
     {
         char terminal_type[128];
         snprintf(terminal_type, sizeof terminal_type, "%s", value("TERM"));
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
+        struct lume_credential_request identity = {.version = LUME_CREDENTIAL_VERSION,
+                                                   .bytes = sizeof(identity)};
+        if (!lume_native_call(LUME_SYS_CREDENTIAL, LUME_CREDENTIAL_GET, (uintptr_t)&identity,
+                              sizeof(identity)) &&
+            identity.euid)
+        {
+            privileged = 0;
+            const char *name = value("USER");
+            if (*name)
+                snprintf(username, sizeof(username), "%s", name);
+            else
+                snprintf(username, sizeof(username), "%u", identity.euid);
+            if (!find("USER"))
+                (void)assign("USER", username, 1);
+            if (!find("LOGNAME"))
+                (void)assign("LOGNAME", username, 1);
+        }
         if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
         {
             (void)lume_sysctl_load("/etc/sysctl.conf", 1, 0);
@@ -789,7 +878,11 @@ int app_main(unsigned initial_argc, char **initial_argv)
             shell_resource_defaults();
         }
 #endif
-        profile();
+        profile(!privileged);
+#if (defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)) && \
+    !defined(LUME_SHELL_FDS)
+        bool require_password = console_password_required();
+#endif
 #if (defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)) && !defined(LUME_SHELL_FDS)
         if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
         {
@@ -800,13 +893,14 @@ int app_main(unsigned initial_argc, char **initial_argv)
                 app_close(fd);
             if (bytes == 10 && !memcmp(mode, "installer\n", 10))
             {
+                require_password = false;
                 char *args[] = {"/bin/install", NULL};
                 execute(1, args);
             }
         }
 #endif
 #if defined(LUME_ARCH_AARCH64) && !defined(LUME_SHELL_FDS)
-        if (shell_boot_menu())
+        if (!require_password && shell_boot_menu())
             return 0;
         if (lume_syscall(LUME_PID, 0, 0, 0) == 1)
         {
@@ -821,15 +915,23 @@ int app_main(unsigned initial_argc, char **initial_argv)
             }
         }
 #endif
+#if (defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)) && \
+    !defined(LUME_SHELL_FDS)
+        if (require_password)
+            console_login();
+#endif
         if (terminal_type[0])
             (void)assign("TERM", terminal_type, 1);
-        (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
+        if (privileged)
+            (void)lume_syscall(LUME_MKDIR, pointer("/root"), 0, 0);
         (void)lume_syscall(LUME_CHDIR, pointer(value("HOME")), 0, 0);
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
         const char *preferred = value("SHELL");
         if (preferred[0] == '/' && strcmp(preferred, "/bin/sh") && executable(preferred))
         {
-            (void)assign("PS1", "root@lume:\\w# ", 1);
+            char prompt[64];
+            snprintf(prompt, sizeof(prompt), "%s@lume:\\w%c ", username, privileged ? '#' : '$');
+            (void)assign("PS1", prompt, 1);
             lume_stdio_raw(0);
             const char *arguments[] = {preferred, "--login", "-i"};
             char data[LUME_ENV_BYTES];
@@ -849,13 +951,23 @@ int app_main(unsigned initial_argc, char **initial_argv)
 #endif
     }
     if (!command_mode && script < 0)
+    {
 #if defined(LUME_ARCH_I686)
-        app_puts("LumeOS i686 shell / root / native ABI 1.0\nType help for commands.\n");
+        app_puts("LumeOS i686 shell / ");
 #elif defined(LUME_SHELL_FDS)
-        app_puts("LumeOS SSH shell / root / syscall ABI0\n");
+        app_puts("LumeOS SSH shell / ");
 #else
-        app_puts("LumeOS shell / root / syscall ABI0\nType help for commands.\n");
+        app_puts("LumeOS shell / ");
 #endif
+        app_puts(username);
+#if defined(LUME_ARCH_I686)
+        app_puts(" / native ABI 1.0\nType help for commands.\n");
+#elif defined(LUME_SHELL_FDS)
+        app_puts(" / syscall ABI0\n");
+#else
+        app_puts(" / syscall ABI0\nType help for commands.\n");
+#endif
+    }
     char pending[SHELL_LINE_BYTES] = {0};
     unsigned condition = 0;
     for (;;)
@@ -898,9 +1010,10 @@ int app_main(unsigned initial_argc, char **initial_argv)
         if (!command_mode && script < 0)
         {
             lume_stdio_raw(1);
-            app_puts("root@lume:");
+            app_puts(username);
+            app_puts("@lume:");
             app_puts(cwd);
-            app_puts("# ");
+            app_puts(privileged ? "# " : "$ ");
         }
         unsigned used = 0, overflow = 0, escape = 0;
         if (command_mode)

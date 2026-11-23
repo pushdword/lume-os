@@ -3,6 +3,27 @@
 #define LUME_POSIX_SYS_STAT_H
 #include_next <sys/stat.h>
 
+#if defined(_PICOLIBC__) &&                                                                      \
+    (defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686))
+/* Lume reports st_blocks in 512-byte units. */
+#undef S_BLKSIZE
+#define S_BLKSIZE 512
+#endif
+
+#if defined(_PICOLIBC__) && !defined(UTIME_NOW)
+#define UTIME_NOW (-2L)
+#define UTIME_OMIT (-1L)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    int futimens(int, const struct timespec[2]);
+    int utimensat(int, const char *, const struct timespec[2], int);
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #if defined(_PICOLIBC__) && __LARGEFILE64_VISIBLE &&                                               \
     (defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686))
 #ifdef __cplusplus

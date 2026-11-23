@@ -4,6 +4,7 @@
 #include <poll.h>
 #include <pty.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -68,6 +69,19 @@ static void terminal_reads(void)
 {
     int master, slave;
     require(!openpty(&master, &slave, NULL, NULL, NULL), "create PTY");
+    require(isatty(master) && isatty(slave), "classify pseudo-terminal");
+    int console = open("/dev/console", O_RDONLY | O_NOCTTY);
+    require(console >= 0 && isatty(console) && !close(console), "classify console");
+    const char *devices[] = {"/dev/null", "/dev/zero"};
+    for (unsigned i = 0; i < sizeof(devices) / sizeof(devices[0]); ++i)
+    {
+        int fd = open(devices[i], O_RDONLY | O_NOCTTY);
+        require(fd >= 0 && !isatty(fd) && errno == ENOTTY, devices[i]);
+        int available;
+        require(ioctl(fd, FIONREAD, &available) == -1 && errno == ENOTTY && !close(fd),
+                "readable bytes on character device");
+    }
+    require(!isatty(-1) && errno == EBADF, "classify invalid descriptor");
     struct termios mode;
     require(!tcgetattr(slave, &mode), "read terminal mode");
     cfmakeraw(&mode);
@@ -76,6 +90,8 @@ static void terminal_reads(void)
     char bytes[16];
     require(read(slave, bytes, sizeof(bytes)) == 0, "empty immediate read");
     require(write(master, "abc", 3) == 3, "immediate input");
+    int available;
+    require(!ioctl(slave, FIONREAD, &available) && available == 3, "readable bytes on PTY");
     require(read(slave, bytes, sizeof(bytes)) == 3 && !memcmp(bytes, "abc", 3), "immediate bytes");
     mode.c_cc[VTIME] = 1;
     require(!tcsetattr(slave, TCSANOW, &mode), "initial timeout mode");
@@ -424,26 +440,176 @@ static void exit_storage(void)
         reaped(child);
         int file = open(path, O_RDONLY);
         require(file >= 0, "storage exit open");
+        int available;
+        require(!ioctl(file, FIONREAD, &available) && available == sizeof(expected),
+                "readable bytes on file");
         require(read(file, actual, sizeof(actual)) == sizeof(actual) &&
                     !memcmp(actual, expected, sizeof(actual)),
                 "storage exit payload");
+        require(!ioctl(file, FIONREAD, &available) && available == 0, "readable bytes at end of file");
         require(read(file, actual, 1) == 0 && !close(file), "storage exit size");
         require(!unlink(path), "storage exit cleanup");
     }
     puts("TERMINAL_STORAGE_EXIT_PASS");
 }
 
-int main(void)
+static void exec_arguments(char *program)
 {
+    char *arguments[LUME_ARG_MAX + 2] = {program, "--check-arguments"};
+    for (unsigned i = 2; i < LUME_ARG_MAX; ++i)
+        arguments[i] = "probe-argument";
+    arguments[LUME_ARG_MAX - 1] = "last-argument";
+    arguments[LUME_ARG_MAX] = "excess-argument";
+
+    char *environment[] = {NULL};
+    require(execve(program, arguments, environment) == -1 && errno == E2BIG,
+            "reject excess arguments");
+    arguments[LUME_ARG_MAX] = NULL;
+    pid_t child = fork();
+    require(child >= 0, "argument probe fork");
+    if (!child)
+    {
+        execve(program, arguments, environment);
+        require(0, "execute argument probe");
+    }
+    reaped(child);
+    puts("TERMINAL_EXEC_ARGUMENTS_PASS");
+}
+
+static void closed_input_command(char *const arguments[])
+{
+    posix_spawn_file_actions_t actions;
+    require(!posix_spawn_file_actions_init(&actions), "initialize closed input actions");
+    require(!posix_spawn_file_actions_addclose(&actions, STDIN_FILENO), "close child input");
+    char *environment[] = {"LC_ALL=C", NULL};
+    pid_t child;
+    require(!posix_spawn(&child, arguments[0], &actions, NULL, arguments, environment),
+            "spawn with closed input");
+    require(!posix_spawn_file_actions_destroy(&actions), "destroy closed input actions");
+    int status;
+    require(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 1,
+            "closed input exit");
+}
+
+#define SCRIPT_DIR "/data/tmp/script-exec"
+#define SCRIPT_DIRECT SCRIPT_DIR "/direct"
+#define SCRIPT_NESTED SCRIPT_DIR "/nested"
+#define SCRIPT_CYCLE SCRIPT_DIR "/cycle"
+#define SCRIPT_INVALID SCRIPT_DIR "/invalid"
+#define SCRIPT_MISSING SCRIPT_DIR "/missing-interpreter"
+
+static void write_script(const char *path, const char *contents)
+{
+    int file = open(path, O_WRONLY | O_CREAT | O_EXCL, 0755);
+    size_t bytes = strlen(contents);
+    require(file >= 0 && write(file, contents, bytes) == (ssize_t)bytes && !close(file),
+            "write script");
+}
+
+static void exec_scripts(void)
+{
+    require(!mkdir("/data/tmp", 0777) || errno == EEXIST, "temporary directory");
+    require(!mkdir(SCRIPT_DIR, 0755), "script fixture directory");
+    write_script(SCRIPT_DIRECT, "#! /bin/native-terminal\t--check-script option\r\n");
+    write_script(SCRIPT_NESTED, "#!" SCRIPT_DIRECT " nested-option\n");
+    write_script(SCRIPT_CYCLE, "#!" SCRIPT_CYCLE "\n");
+    write_script(SCRIPT_INVALID, "#! \t\n");
+    write_script(SCRIPT_MISSING, "#!" SCRIPT_DIR "/absent\n");
+
+    char *arguments[] = {"ignored-argv-zero", "argument value", "tail", NULL};
+    char *environment[] = {"SCRIPT_PROBE=present", NULL};
+    pid_t child;
+    require(!posix_spawn(&child, SCRIPT_NESTED, NULL, NULL, arguments, environment),
+            "spawn nested script");
+    reaped(child);
+    require(posix_spawn(&child, SCRIPT_CYCLE, NULL, NULL, arguments, environment) == ELOOP,
+            "reject interpreter cycle");
+    require(posix_spawn(&child, SCRIPT_INVALID, NULL, NULL, arguments, environment) == ENOEXEC,
+            "reject missing interpreter name");
+    require(posix_spawn(&child, SCRIPT_MISSING, NULL, NULL, arguments, environment) == ENOENT,
+            "reject missing interpreter");
+
+    require(!chmod(SCRIPT_DIRECT, 0644), "remove script execute permission");
+    require(posix_spawn(&child, SCRIPT_DIRECT, NULL, NULL, arguments, environment) == EACCES,
+            "check script execute permission");
+    require(!chmod(SCRIPT_DIRECT, 04755), "set script mode");
+    child = fork();
+    require(child >= 0, "script probe fork");
+    if (!child)
+    {
+        require(!setgid(65534) && !setuid(65534), "select script credentials");
+        execve(SCRIPT_DIRECT, arguments, environment);
+        require(0, "execute script");
+    }
+    reaped(child);
+    require(!unlink(SCRIPT_DIRECT) && !unlink(SCRIPT_NESTED) && !unlink(SCRIPT_CYCLE) &&
+                !unlink(SCRIPT_INVALID) && !unlink(SCRIPT_MISSING) && !rmdir(SCRIPT_DIR),
+            "script fixture cleanup");
+    puts("TERMINAL_EXEC_SCRIPTS_PASS");
+}
+
+int main(int argc, char **argv)
+{
+    if (argc == 2 && !strcmp(argv[1], "--closed-input-only"))
+    {
+        char *checksum[] = {"/bin/core-cksum", "-c", "-", NULL};
+        char *terminal[] = {"/bin/core-stty", NULL};
+        closed_input_command(checksum);
+        closed_input_command(terminal);
+        puts("TERMINAL_CLOSED_INPUT_PASS");
+        return 0;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--check-script option"))
+    {
+        require(argc == 5 || argc == 7, "script argument count");
+        require(!strcmp(argv[0], "/bin/native-terminal") && !strcmp(argv[2], SCRIPT_DIRECT),
+                "script path and interpreter");
+        require(!strcmp(argv[argc - 2], "argument value") && !strcmp(argv[argc - 1], "tail"),
+                "script original arguments");
+        const char *value = getenv("SCRIPT_PROBE");
+        require(value && !strcmp(value, "present"), "script environment");
+        if (argc == 7)
+            require(!strcmp(argv[3], "nested-option") && !strcmp(argv[4], SCRIPT_NESTED),
+                    "nested interpreter arguments");
+        else
+            require(getuid() == 65534 && geteuid() == 65534 && getgid() == 65534 &&
+                        getegid() == 65534,
+                    "script credentials");
+        return 0;
+    }
+    if (argc == 2 && !strcmp(argv[1], "--script-only"))
+    {
+        exec_scripts();
+        return 0;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--check-arguments"))
+    {
+        require((unsigned)argc == LUME_ARG_MAX, "received argument count");
+        for (unsigned i = 2; i < LUME_ARG_MAX - 1; ++i)
+            require(!strcmp(argv[i], "probe-argument"), "received argument");
+        require(!strcmp(argv[LUME_ARG_MAX - 1], "last-argument") && !argv[LUME_ARG_MAX],
+                "received final argument");
+        return 0;
+    }
+    if (argc == 2 && !strcmp(argv[1], "--exec-only"))
+    {
+        exec_arguments(argv[0]);
+        return 0;
+    }
     require(!atexit(close_test_shell), "test cleanup");
     require(!mkdir("/data/tmp", 0777) || errno == EEXIST, "temporary directory");
     exit_storage();
     int descriptors[2];
     require(!pipe(descriptors), "select pipe");
+    require(!isatty(descriptors[0]) && errno == ENOTTY, "classify pipe");
     int high = LUME_FD_LIMIT - 1;
     require(dup2(descriptors[0], high) == high, "high descriptor");
-    require(getdtablesize() == LUME_FD_LIMIT, "descriptor capacity");
+    int descriptors_limit = getdtablesize();
+    require(descriptors_limit > high && descriptors_limit <= LUME_FD_DESCRIPTOR_LIMIT,
+            "descriptor capacity");
     require(write(descriptors[1], "x", 1) == 1, "select payload");
+    int available;
+    require(!ioctl(high, FIONREAD, &available) && available == 1, "readable bytes on pipe");
     fd_set ready;
     FD_ZERO(&ready);
     FD_SET(high, &ready);
@@ -461,7 +627,13 @@ int main(void)
     close(descriptors[1]);
     puts("TERMINAL_SELECT_CAPACITY_PASS");
     terminal_reads();
+    if (argc == 2 && !strcmp(argv[1], "--io-only"))
+    {
+        puts("TERMINAL_IO_PASS");
+        return 0;
+    }
     process_states();
+    exec_arguments(argv[0]);
     foreground_terminal();
     shell_jobs();
     puts("TERMINAL_NATIVE_PASS");

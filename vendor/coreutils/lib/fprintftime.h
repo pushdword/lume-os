@@ -16,6 +16,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <time.h>
 
@@ -23,6 +24,13 @@
 extern "C" {
 #endif
 
+
+#if defined LUME_NATIVE_ABI
+/* The signed count must represent failure and unspecified field widths. */
+typedef int64_t fprintftime_count_t;
+#else
+typedef off64_t fprintftime_count_t;
+#endif
 
 /* A cross between fprintf and nstrftime, that prints directly
    to the output stream, without the need for the potentially
@@ -34,8 +42,8 @@ extern "C" {
 
    Return the number of bytes written to the stream.
    Upon failure, return -1 with errno set.  */
-off64_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
-                     timezone_t zone, int nanoseconds);
+fprintftime_count_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
+                                timezone_t zone, int nanoseconds);
 
 
 #ifdef __cplusplus

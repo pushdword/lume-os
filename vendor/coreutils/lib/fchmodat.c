@@ -90,7 +90,7 @@ fchmodat (int dir, char const *file, mode_t mode, int flags)
     }
 # endif
 
-# if NEED_FCHMODAT_NONSYMLINK_FIX
+# if NEED_FCHMODAT_NONSYMLINK_FIX && !defined LUME_NATIVE_CHMOD_NOFOLLOW
   if ((flags & ~AT_EMPTY_PATH) == AT_SYMLINK_NOFOLLOW)
     {
 #  if HAVE_READLINKAT

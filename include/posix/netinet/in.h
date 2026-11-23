@@ -45,6 +45,10 @@ struct sockaddr_in6
 #define IP_MULTICAST_LOOP 34
 #define IP_ADD_MEMBERSHIP 35
 #define IP_DROP_MEMBERSHIP 36
+#define IP_ADD_SOURCE_MEMBERSHIP 39
+#define IP_DROP_SOURCE_MEMBERSHIP 40
+#define MCAST_JOIN_SOURCE_GROUP 46
+#define MCAST_LEAVE_SOURCE_GROUP 47
 #define IPV6_UNICAST_HOPS 16
 #define IPV6_MULTICAST_IF 17
 #define IPV6_MULTICAST_HOPS 18
@@ -77,6 +81,20 @@ static inline uint32_t htonl(uint32_t v)
 struct ip_mreq
 {
     struct in_addr imr_multiaddr, imr_interface;
+};
+
+struct ip_mreq_source
+{
+    struct in_addr imr_multiaddr;
+    struct in_addr imr_interface;
+    struct in_addr imr_sourceaddr;
+};
+
+struct group_source_req
+{
+    uint32_t gsr_interface;
+    struct sockaddr_storage gsr_group;
+    struct sockaddr_storage gsr_source;
 };
 
 struct ipv6_mreq

@@ -7,9 +7,11 @@
 #include "files_client.h"
 #include "../../libc/runtime/stat64.h"
 #include <fcntl.h>
+#include <stdbool.h>
 #include <string.h>
 static uint64_t inode, bytes;
 static int status, calls;
+static bool support_allocation;
 static struct lume_files_request observed;
 
 int64_t lume_abi_host_call(unsigned number, uint64_t action, uint64_t pointer, uint64_t count)
@@ -23,6 +25,16 @@ int64_t lume_abi_host_call(unsigned number, uint64_t action, uint64_t pointer, u
     ++calls;
     if (status < 0)
         return status;
+    if (request->count == sizeof(struct lume_files_stat_allocation))
+    {
+        if (!support_allocation)
+            return -LUME_EINVAL;
+        *(struct lume_files_stat_allocation *)(uintptr_t)request->buffer =
+            (struct lume_files_stat_allocation){
+                .metadata.stat = {.inode = inode, .size = bytes, .kind = LUME_NODE_FILE},
+                .allocation = {.sectors = 8, .block_bytes = 4096}};
+        return status;
+    }
     *(struct lume_native_stat *)(uintptr_t)request->buffer =
         (struct lume_native_stat){inode, bytes, LUME_NODE_CHAR, 0};
     return status;
@@ -57,6 +69,10 @@ int main(void)
     CHECK(value.st_ino == inode && value.st_size == bytes &&
           value.st_blocks == (bytes + 511) / 512);
     CHECK(observed.fd == LUME_FILES_AT_CWD && !observed.flags);
+    support_allocation = true;
+    CHECK(!fstat64(3, &value));
+    CHECK(value.st_size == bytes && value.st_blocks == 8 && value.st_blksize == 4096);
+    support_allocation = false;
     CHECK(!lstat64("/data/link", &value));
     CHECK(observed.flags == LUME_FILES_STAT_NOFOLLOW);
     CHECK(!fstatat64(AT_FDCWD, "/data/file", &value, AT_SYMLINK_NOFOLLOW));

@@ -1676,7 +1676,9 @@ scanargs (int argc, char *const *argv)
   iread_fnc = ((input_flags & O_FULLBLOCK)
                ? iread_fullblock
                : iread);
-  input_flags &= ~O_FULLBLOCK;
+  int byte_flags = O_COUNT_BYTES | O_SKIP_BYTES | O_SEEK_BYTES;
+  input_flags &= ~(O_FULLBLOCK | byte_flags);
+  output_flags &= ~byte_flags;
 
   if (multiple_bits_set (conversions_mask & (C_ASCII | C_EBCDIC | C_IBM)))
     error (EXIT_FAILURE, 0, _("cannot combine any two of {ascii,ebcdic,ibm}"));

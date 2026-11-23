@@ -352,6 +352,7 @@ static const struct xdg_positioner_interface weston_desktop_xdg_positioner_imple
     .set_parent_configure = weston_desktop_xdg_positioner_protocol_set_parent_configure,
 };
 
+static void weston_desktop_xdg_surface_send_configure(void *user_data);
 static void
 weston_desktop_xdg_surface_schedule_configure(struct weston_desktop_xdg_surface *surface);
 
@@ -990,7 +991,13 @@ static void weston_desktop_xdg_popup_committed(struct weston_desktop_xdg_popup *
     wl_list_for_each(view, &wsurface->views, surface_link) weston_view_update_transform(view);
 
     if (!popup->committed)
-        weston_desktop_xdg_surface_schedule_configure(&popup->base);
+    {
+        /* Send the initial layer popup configure in the client's commit round trip. */
+        if (popup->layer_parent)
+            weston_desktop_xdg_surface_send_configure(&popup->base);
+        else
+            weston_desktop_xdg_surface_schedule_configure(&popup->base);
+    }
     popup->committed = true;
     weston_desktop_xdg_popup_update_position(popup->base.desktop_surface, popup);
 

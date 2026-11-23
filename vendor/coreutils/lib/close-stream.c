@@ -54,6 +54,16 @@
 int
 close_stream (FILE *stream)
 {
+#if defined(__lume__) && defined(_PICOLIBC__)
+  /* The runtime buffers the standard output streams outside of Picolibc.  */
+  if ((stream == stdout || stream == stderr) && fflush (stream) == EOF)
+    {
+      int const flush_errno = errno;
+      fclose (stream);
+      errno = flush_errno;
+      return EOF;
+    }
+#endif
   const bool some_pending = (__fpending (stream) != 0);
   const bool prev_fail = (ferror (stream) != 0);
   const bool fclose_fail = (fclose (stream) != 0);

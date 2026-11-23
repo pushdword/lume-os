@@ -9,8 +9,8 @@ PubkeyAuthentication yes
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
-AllowUsers root
-AuthorizedKeysFile /data/etc/ssh/authorized_keys
+DenyUsers sshd
+AuthorizedKeysFile .ssh/authorized_keys
 StrictModes yes
 UseDNS no
 DisableForwarding yes
@@ -21,3 +21,6 @@ MaxStartups 2:30:2
 LoginGraceTime 30
 PidFile /data/var/run/sshd.pid
 Subsystem sftp /data/libexec/sftp-server
+
+Match User root
+    AuthorizedKeysFile /data/etc/ssh/authorized_keys

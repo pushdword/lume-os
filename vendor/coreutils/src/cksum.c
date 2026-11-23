@@ -1374,6 +1374,7 @@ digest_check (char const *checkfile_name)
   intmax_t line_number;
   char *line;
   size_t line_chars_allocated;
+  int read_errno;
   bool is_stdin = streq (checkfile_name, "-");
 
   if (is_stdin)
@@ -1407,7 +1408,9 @@ digest_check (char const *checkfile_name)
         error (EXIT_FAILURE, 0, _("%s: too many checksum lines"),
                quotef (checkfile_name));
 
+      errno = 0;
       line_length = getline (&line, &line_chars_allocated, checkfile_stream);
+      read_errno = errno;
       if (line_length <= 0)
         break;
 
@@ -1498,7 +1501,8 @@ digest_check (char const *checkfile_name)
 
   free (line);
 
-  int err = ferror (checkfile_stream) ? 0 : -1;
+  int err = (ferror (checkfile_stream) || !feof (checkfile_stream)
+             ? read_errno : -1);
   if (is_stdin)
     clearerr (checkfile_stream);
   else if (fclose (checkfile_stream) != 0 && err < 0)

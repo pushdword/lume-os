@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <poll.h>
 #include "lume/abi.h"
+#include "lume/ddk_version.h"
 #include "lume/process.h"
 #include "lume/service.h"
 #include "lume/io.h"
@@ -16,7 +17,7 @@
 
 #define SDK_USER_CAPABILITIES                                                                      \
     (LUME_CAP_NET_ADMIN | LUME_CAP_BOOT_UPDATE | LUME_CAP_DRIVER_ADMIN | LUME_CAP_HW_DIAGNOSTIC |  \
-     LUME_CAP_SERVICE_CONTROL)
+     LUME_CAP_SERVICE_CONTROL | LUME_CAP_CLOCK_ADMIN)
 
 static int64_t invoke(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
 {
@@ -47,7 +48,7 @@ int main(int argc, char **argv)
     CHECK(!features(&info));
     CHECK(info.abi == LUME_ABI_VERSION && info.pointer_bits == 64 &&
           info.compat_pointer_bits == 32);
-    CHECK(info.ddk_version == 3 && (info.features & LUME_FEATURE_SPAWN_ACTIONS) &&
+    CHECK(info.ddk_version == LUME_DDK_VERSION && (info.features & LUME_FEATURE_SPAWN_ACTIONS) &&
           (info.features & LUME_FEATURE_HARDWARE) && (info.features & LUME_FEATURE_MODULES) &&
           (info.features & LUME_FEATURE_SUPERVISION));
     if (argc == 2 && !strcmp(argv[1], "--child"))

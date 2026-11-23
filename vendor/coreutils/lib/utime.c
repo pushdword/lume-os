@@ -256,7 +256,7 @@ utime (const char *name, const struct utimbuf *ts)
     }
 }
 
-#else
+#elif !defined __lume__ || !HAVE_UTIME
 
 # include <errno.h>
 # include <sys/stat.h>

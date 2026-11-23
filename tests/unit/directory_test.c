@@ -47,11 +47,11 @@ static void directory_free(void *p)
 
 static struct
 {
-    uint64_t inode;
+    uint64_t inode, position;
     uint32_t kind;
     char name[48];
     bool linked;
-} entries[41];
+} entries[43];
 
 static unsigned entry_count, opens, stats, closes, fetches, seeks;
 static uint64_t descriptor_cookie;
@@ -72,22 +72,6 @@ int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
         const struct lume_fd_request *request = (const void *)(uintptr_t)b;
         assert(request->fd == 9 && descriptor_live);
         return descriptor_access;
-    }
-    if (number == LUME_SYS_FILE_MODE)
-    {
-        assert(a == LUME_FILE_MODE_OPEN && c == sizeof(struct lume_file_mode_request));
-        const struct lume_file_mode_request *r = (const void *)(uintptr_t)b;
-        assert(r->version == LUME_FILE_MODE_VERSION && r->bytes == sizeof(*r));
-        assert(r->path == (uintptr_t)expected_path && !r->flags);
-        assert(r->descriptor_flags == LUME_FD_CLOEXEC);
-        ++opens;
-        if (open_error)
-            return open_error;
-        assert(!descriptor_live);
-        descriptor_live = true;
-        descriptor_cookie = 0;
-        descriptor_flags = r->descriptor_flags;
-        return 9;
     }
     assert(a == 9 && descriptor_live);
     if (number == LUME_SYS_STAT)
@@ -116,26 +100,54 @@ int64_t lume_abi_host_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
         descriptor_cookie = c ? descriptor_cookie + b : b;
         return (int64_t)descriptor_cookie;
     }
-    assert(number == LUME_SYS_GETDENTS && c == sizeof(((DIR *)0)->buffer));
+    assert(0);
+    return -LUME_EIO;
+}
+
+int64_t lume_native_files_call(unsigned operation, struct lume_files_request *request)
+{
+    if (operation == LUME_FILES_OPEN)
+    {
+        assert(request->path == (uintptr_t)expected_path && request->fd == LUME_FILES_AT_CWD);
+        assert(request->flags == (LUME_O_RDONLY | LUME_FILES_OPEN_DIRECTORY));
+        assert(request->descriptor_flags == LUME_FD_CLOEXEC);
+        ++opens;
+        if (open_error)
+            return open_error;
+        assert(!descriptor_live);
+        descriptor_live = true;
+        descriptor_cookie = 0;
+        descriptor_flags = request->descriptor_flags;
+        return 9;
+    }
+    assert(operation == LUME_FILES_GETDENTS && request->flags == LUME_FILES_GETDENTS_POSIX);
+    assert(request->fd == 9 && descriptor_live && request->count == sizeof(((DIR *)0)->buffer));
     ++fetches;
     if (fetch_error)
         return fetch_error;
     if (malformed_count)
         return malformed_count;
     uint64_t used = 0;
-    for (unsigned i = 0; i < entry_count && c - used >= sizeof(struct lume_dirent); ++i)
+    unsigned first = descriptor_cookie == LUME_FILES_DIR_AFTER_DOT ? 1 : descriptor_cookie ? 2 : 0;
+    for (unsigned i = first;
+         i < entry_count && request->count - used >= sizeof(struct lume_files_dirent_posix); ++i)
     {
-        if (!entries[i].linked || entries[i].inode <= descriptor_cookie)
+        if (!entries[i].linked ||
+            (i >= 2 && descriptor_cookie < LUME_FILES_DIR_AFTER_DOT &&
+             entries[i].position <= descriptor_cookie))
             continue;
-        struct lume_dirent entry = {.inode = entries[i].inode, .kind = entries[i].kind};
-        memcpy(entry.name, entries[i].name, sizeof(entry.name));
+        struct lume_files_dirent_posix entry = {.inode = entries[i].inode,
+                                                .position = entries[i].position,
+                                                .kind = entries[i].kind,
+                                                .name_bytes = (uint32_t)strlen(entries[i].name)};
+        memcpy(entry.name, entries[i].name, entry.name_bytes + 1);
         if (malformed_name)
             memset(entry.name, 'x', sizeof(entry.name));
         if (malformed_cookie)
-            entry.inode = 0;
-        memcpy((unsigned char *)(uintptr_t)b + used, &entry, sizeof(entry));
+            entry.position = 0;
+        memcpy((unsigned char *)(uintptr_t)request->buffer + used, &entry, sizeof(entry));
         used += sizeof(entry);
-        descriptor_cookie = entries[i].inode;
+        descriptor_cookie = entries[i].position;
     }
     return (int64_t)used;
 }
@@ -166,10 +178,21 @@ static void reset(void)
     malformed_name = malformed_cookie = allocation_failure = false;
     metadata_kind = LUME_NODE_DIR;
     expected_path = "relative-directory";
-    entry_count = 40;
-    for (unsigned i = 0; i < entry_count; ++i)
+    entry_count = 42;
+    entries[0].inode = 1;
+    entries[0].position = LUME_FILES_DIR_AFTER_DOT;
+    entries[0].kind = LUME_NODE_DIR;
+    entries[0].linked = true;
+    strcpy(entries[0].name, ".");
+    entries[1].inode = 2;
+    entries[1].position = LUME_FILES_DIR_AFTER_DOTDOT;
+    entries[1].kind = LUME_NODE_DIR;
+    entries[1].linked = true;
+    strcpy(entries[1].name, "..");
+    for (unsigned i = 2; i < entry_count; ++i)
     {
         entries[i].inode = 5 + i * 3;
+        entries[i].position = 10 + i * 2;
         entries[i].kind = i % 7 + 1;
         entries[i].linked = true;
         snprintf(entries[i].name, sizeof(entries[i].name), "entry-%u", i);
@@ -185,11 +208,12 @@ static void enumeration(void)
     assert(directory && opens == 1 && stats == 1 && !fetches && !closes);
     assert(descriptor_flags == LUME_FD_CLOEXEC && !telldir(directory));
     struct dirent *entry = readdir(directory);
-    assert(entry && entry->d_ino == entries[0].inode && fetches == 1);
+    assert(entry && !strcmp(entry->d_name, ".") && entry->d_ino == entries[0].inode);
     long first = telldir(directory);
-    assert(first == (long)entries[0].inode && descriptor_cookie == entries[15].inode);
+    assert(first == (long)entries[0].position && descriptor_cookie == entries[3].position);
     entry = readdir(directory);
-    assert(entry && entry->d_ino == entries[1].inode && fetches == 1);
+    assert(entry && !strcmp(entry->d_name, "..") && entry->d_ino == entries[1].inode &&
+           fetches == 1);
     seekdir(directory, first);
     assert(seeks == 1 && telldir(directory) == first);
     entry = readdir(directory);
@@ -197,27 +221,28 @@ static void enumeration(void)
 
     expected_path = "another-working-directory";
     strcpy(entries[20].name, "renamed-entry");
-    entries[40].inode = 200;
-    entries[40].kind = LUME_NODE_SOCKET;
-    entries[40].linked = true;
-    strcpy(entries[40].name, "new-entry");
-    entry_count = 41;
+    entries[42].inode = 200;
+    entries[42].position = 300;
+    entries[42].kind = LUME_NODE_SOCKET;
+    entries[42].linked = true;
+    strcpy(entries[42].name, "new-entry");
+    entry_count = 43;
     rewinddir(directory);
     assert(!telldir(directory));
     fetches = 0;
     static const unsigned types[] = {DT_UNKNOWN, DT_REG, DT_DIR,  DT_CHR,
-                                     DT_FIFO,    DT_BLK, DT_SOCK, DT_UNKNOWN};
+                                     DT_FIFO,    DT_BLK, DT_SOCK, DT_LNK};
     for (unsigned i = 0; i < entry_count; ++i)
     {
         entry = readdir(directory);
         assert(entry && entry->d_ino == entries[i].inode);
         assert(entry->d_reclen == sizeof(*entry) && entry->d_type == types[entries[i].kind]);
         assert(!strcmp(entry->d_name, entries[i].name));
-        assert(telldir(directory) == (long)entries[i].inode);
+        assert(telldir(directory) == (long)entries[i].position);
     }
     errno = ERANGE;
-    assert(!readdir(directory) && errno == ERANGE && fetches == 4);
-    assert(!readdir(directory) && errno == ERANGE && fetches == 4);
+    assert(!readdir(directory) && errno == ERANGE && fetches == 12);
+    assert(!readdir(directory) && errno == ERANGE && fetches == 12);
     assert(opens == 1 && stats == 1);
 
     entries[3].linked = false;
@@ -256,7 +281,7 @@ static void failures(void)
     fetch_error = 0;
     malformed_count = 1;
     assert(!readdir(directory) && errno == EIO);
-    malformed_count = sizeof(directory->buffer) + sizeof(struct lume_dirent);
+    malformed_count = sizeof(directory->buffer) + sizeof(struct lume_files_dirent_posix);
     assert(!readdir(directory) && errno == EIO);
     malformed_count = 0;
     malformed_name = true;
@@ -292,7 +317,7 @@ static void descriptor_directory(void)
 {
     reset();
     descriptor_live = true;
-    descriptor_cookie = entries[2].inode;
+    descriptor_cookie = entries[2].position;
     assert(!fdopendir(-1) && errno == EBADF && descriptor_live && !closes);
     metadata_kind = LUME_NODE_FILE;
     assert(!fdopendir(9) && errno == ENOTDIR && descriptor_live && !closes);
@@ -307,7 +332,7 @@ static void descriptor_directory(void)
     assert(!fdopendir(9) && errno == EIO && descriptor_live && !closes);
     seek_error = 0;
     DIR *directory = fdopendir(9);
-    assert(directory && dirfd(directory) == 9 && telldir(directory) == (long)entries[2].inode);
+    assert(directory && dirfd(directory) == 9 && telldir(directory) == (long)entries[2].position);
     struct dirent *entry = readdir(directory);
     assert(entry && entry->d_ino == entries[3].inode);
     assert(!closedir(directory) && !descriptor_live && closes == 1 && !allocations);

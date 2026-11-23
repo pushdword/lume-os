@@ -72,13 +72,13 @@ char *xasprintf(const char *format, ...)
     return result;
 }
 
-char *xasprintf_and_free(char *format, ...)
+char *xasprintf_and_free(char *allocated, const char *format, ...)
 {
     va_list arguments;
     va_start(arguments, format);
     char *result = format_string(format, arguments);
     va_end(arguments);
-    free(format);
+    free(allocated);
     return result;
 }
 

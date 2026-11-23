@@ -19,7 +19,7 @@ CORE := $(addprefix $(OUT)/obj/,$(LIBSSH_OBJS))
 COMPAT_OBJS := $(addprefix $(OUT)/obj/compat/,$(OPENBSD) $(COMPAT) $(PORTS))
 LIBRARIES := $(OUT)/libssh.a $(OUT)/libcompat.a $(SDK)/lib/liblume.a $(SDK)/lib/libc.a
 LINK_INPUTS := $(SDK)/lib/crt0.o $(SDK)/native.ld
-LINK = $(LD) --wrap=main --wrap=poll --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld $(SDK)/lib/crt0.o
+LINK = $(LD) --wrap=main --wrap=poll --wrap=getpwnam --wrap=getpwuid --wrap=pty_release --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld $(SDK)/lib/crt0.o
 HEADERS := $(wildcard $(OS_ROOT)/arch/$(ARCH)/include/lume/*.h) $(wildcard $(PORT)/*.h $(PORT)/lume/*.h $(PORT)/lume/include/*.h $(PORT)/lume/include/sys/*.h $(PORT)/lume/include/netinet/*.h $(PORT)/lume/include/arpa/*.h $(SOURCE)/*.h $(SOURCE)/openbsd-compat/*.h)
 .PHONY: all
 all: $(addprefix $(OUT)/,sshd sshd-session sshd-auth ssh-keygen sftp-server sshd-setup)

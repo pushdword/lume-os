@@ -18,6 +18,8 @@ extern "C"
 {
 #endif
     time_t lume_tls_time(time_t *result);
+    int mbedtls_hardware_poll(void *context, unsigned char *output, size_t bytes,
+                              size_t *received);
     struct mbedtls_x509_crt;
     int lume_tls_parse_file(struct mbedtls_x509_crt *chain, const char *path);
 #ifdef __cplusplus

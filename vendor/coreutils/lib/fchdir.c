@@ -188,6 +188,7 @@ _gl_directory_name (int fd)
 }
 
 
+#ifndef LUME_SDK_FCHDIR
 /* Implement fchdir() in terms of chdir().  */
 
 int
@@ -196,3 +197,4 @@ fchdir (int fd)
   const char *name = _gl_directory_name (fd);
   return name ? chdir (name) : -1;
 }
+#endif

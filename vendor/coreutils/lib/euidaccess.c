@@ -78,7 +78,15 @@ int
 euidaccess (const char *file, int mode)
 {
 #if HAVE_FACCESSAT                   /* glibc, AIX 7, Solaris 11, Cygwin 1.7 */
+# if defined __lume__
+  int result = faccessat (AT_FDCWD, file, mode, AT_EACCESS);
+  if (result < 0 && errno == ENOTSUP && getuid () == geteuid ()
+      && getgid () == getegid ())
+    return access (file, mode);
+  return result;
+# else
   return faccessat (AT_FDCWD, file, mode, AT_EACCESS);
+# endif
 #elif defined EFF_ONLY_OK               /* Interix */
   return access (file, mode | EFF_ONLY_OK);
 #elif defined ACC_SELF                  /* AIX */

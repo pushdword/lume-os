@@ -20,12 +20,23 @@
 extern int64_t lume_thread_call(unsigned, struct lume_thread_request *);
 extern void native_cxx_thread_finalize(void) __attribute__((weak));
 static _Thread_local pthread_t identity;
+static _Thread_local int cancel_state = PTHREAD_CANCEL_ENABLE;
 static _Thread_local struct __lume_cleanup_record *cleanup_stack;
 static pthread_t fork_identity, fork_native_identity;
 
 static pthread_t native_thread(pthread_t thread)
 {
     return fork_identity && thread == fork_identity ? fork_native_identity : thread;
+}
+
+int pthread_setcancelstate(int state, int *previous)
+{
+    if (state != PTHREAD_CANCEL_ENABLE && state != PTHREAD_CANCEL_DISABLE)
+        return EINVAL;
+    int old = __atomic_exchange_n(&cancel_state, state, __ATOMIC_RELAXED);
+    if (previous)
+        *previous = old;
+    return 0;
 }
 
 void __lume_cleanup_push(struct __lume_cleanup_record *record, void (*routine)(void *),
@@ -82,28 +93,6 @@ static _Thread_local struct thread_value_segment *key_values[KEY_SEGMENT_SIZE];
 static _Thread_local unsigned destructor_pass;
 static pthread_mutex_t key_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void lume_pthread_fork_prepare(void)
-{
-    pthread_mutex_lock(&key_lock);
-}
-
-void lume_pthread_fork_parent(void)
-{
-    pthread_mutex_unlock(&key_lock);
-}
-
-void lume_pthread_fork_child(void)
-{
-    key_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    int64_t native = lume_thread_call(LUME_THREAD_SELF, NULL);
-    if (native < 0)
-        return;
-    if (!identity)
-        identity = (pthread_t)native;
-    fork_identity = identity;
-    fork_native_identity = (pthread_t)native;
-}
-
 static struct thread_start
 {
     struct thread_start *next;
@@ -124,6 +113,36 @@ static struct stack_attribute
 } *stack_attributes;
 
 static pthread_mutex_t attribute_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void lume_pthread_fork_prepare(void)
+{
+    pthread_mutex_lock(&key_lock);
+    pthread_mutex_lock(&start_lock);
+    pthread_mutex_lock(&attribute_lock);
+}
+
+void lume_pthread_fork_parent(void)
+{
+    pthread_mutex_unlock(&attribute_lock);
+    pthread_mutex_unlock(&start_lock);
+    pthread_mutex_unlock(&key_lock);
+}
+
+void lume_pthread_fork_child(void)
+{
+    key_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    start_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    attribute_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    starts = NULL;
+    current_start = NULL;
+    int64_t native = lume_thread_call(LUME_THREAD_SELF, NULL);
+    if (native < 0)
+        return;
+    if (!identity)
+        identity = (pthread_t)native;
+    fork_identity = identity;
+    fork_native_identity = (pthread_t)native;
+}
 
 static void release_stack_attribute(const pthread_attr_t *attribute)
 {

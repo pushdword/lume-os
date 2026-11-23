@@ -203,13 +203,14 @@ enum pad_style
 #endif
 
 /* For functions that fill an in-memory string, the number of bytes fits in a
-   size_t.  For functions that write to a stream, the number of bytes fits in
-   an off64_t (a type that is always at least 64 bits large).  */
+   size_t.  Functions that write to a stream use the fprintftime count type.  */
 #if FPRINTFTIME
+# include "fprintftime.h"
 # define STREAM_OR_CHAR_T FILE
 # define STRFTIME_ARG(x) /* empty */
-typedef off64_t byte_count_t;
-typedef off64_t sbyte_count_t;
+/* Formatting uses negative widths even when the C library has unsigned file offsets.  */
+typedef fprintftime_count_t byte_count_t;
+typedef fprintftime_count_t sbyte_count_t;
 #else
 # define STREAM_OR_CHAR_T CHAR_T
 # define STRFTIME_ARG(x) x,

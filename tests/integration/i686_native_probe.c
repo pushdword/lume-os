@@ -4,6 +4,7 @@
 #include "lume/syscall_native.h"
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -60,7 +61,7 @@ static void *worker(void *argument)
     return NULL;
 }
 
-static int jit_memory(void)
+static int jit_memory(bool test_fork)
 {
     unsigned char *code = mmap(NULL, 4096, PROT_READ | PROT_WRITE | PROT_EXEC,
                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
@@ -73,15 +74,42 @@ static int jit_memory(void)
     errno = 0;
     if (lume_jit_write_end() != -1 || errno != EINVAL)
         return 3;
-    pid_t child = fork();
-    if (child < 0)
-        return 4;
-    if (!child)
-        _exit(((int (*)(void))code)() == 42 ? 0 : 1);
-    int status;
-    if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status))
-        return 5;
-    return munmap(code, 4096) ? 6 : 0;
+    if (test_fork)
+    {
+        pid_t child = fork();
+        if (child < 0)
+            return 4;
+        if (!child)
+            _exit(((int (*)(void))code)() == 42 ? 0 : 1);
+        int status;
+        if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status))
+            return 5;
+    }
+    if (munmap(code, 4096))
+        return 6;
+
+    unsigned char *reservation =
+        mmap(NULL, 3 * 4096, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
+    if (reservation == MAP_FAILED)
+        return 7;
+    code = reservation + 4096;
+    if (mprotect(code, 4096, PROT_READ | PROT_WRITE | PROT_EXEC) || lume_jit_write_begin())
+        return 8;
+    memcpy(code, instructions, sizeof(instructions));
+    if (lume_jit_write_end() || ((int (*)(void))code)() != 42)
+        return 9;
+    if (lume_jit_write_begin())
+        return 10;
+    code[1] = 43;
+    if (lume_jit_write_end() || ((int (*)(void))code)() != 43)
+        return 11;
+    return munmap(reservation, 3 * 4096) ? 12 : 0;
+}
+
+static void *jit_worker(void *argument)
+{
+    (void)argument;
+    return (void *)(uintptr_t)jit_memory(false);
 }
 
 int main(void)
@@ -111,11 +139,20 @@ int main(void)
     if (local_value != 17)
         return 4;
     puts("I686_NATIVE_JIT_BEGIN");
-    int jit = jit_memory();
+    int jit = jit_memory(true);
     if (jit)
     {
         printf("FAIL_NATIVE_I686_JIT %d errno %d\n", jit, errno);
         return 5;
+    }
+    pthread_t jit_thread;
+    void *jit_result = NULL;
+    if (pthread_create(&jit_thread, NULL, jit_worker, NULL) ||
+        pthread_join(jit_thread, &jit_result) || jit_result)
+    {
+        printf("FAIL_NATIVE_I686_JIT_THREAD %u errno %d\n", (unsigned)(uintptr_t)jit_result,
+               errno);
+        return 6;
     }
     printf("PASS_NATIVE_I686_RUNTIME threads, TLS, pipes, JIT, fork and SIMD=%u\n", simd);
     return 0;

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdbool.h>
 
 #ifdef LUME_POSIX_DIRECTORY_NATIVE
 #define lume_stat lume_native_stat
@@ -25,6 +26,15 @@
 #ifndef LUME_USER_HOST_TEST
 #include "lume/syscall_native.h"
 #endif
+
+struct lume_dir_stream
+{
+    int fd;
+    unsigned count, next, eof;
+    uint64_t position;
+    unsigned char buffer[4 * sizeof(struct lume_files_dirent_posix)];
+    struct dirent entry;
+};
 
 static int64_t directory_call(unsigned number, uint64_t a, uint64_t b, uint64_t c)
 {
@@ -132,6 +142,7 @@ struct dirent *readdir(DIR *directory)
         if (directory->eof)
             return NULL;
         struct lume_files_request request = {.fd = directory->fd,
+                                             .flags = LUME_FILES_GETDENTS_POSIX,
                                              .buffer = (uintptr_t)directory->buffer,
                                              .count = sizeof(directory->buffer)};
         int64_t result = lume_native_files_call(LUME_FILES_GETDENTS, &request);
@@ -141,12 +152,12 @@ struct dirent *readdir(DIR *directory)
             return NULL;
         }
         if ((uint64_t)result > sizeof(directory->buffer) ||
-            result % (int64_t)sizeof(struct lume_files_dirent))
+            result % (int64_t)sizeof(struct lume_files_dirent_posix))
         {
             errno = EIO;
             return NULL;
         }
-        directory->count = (unsigned)((uint64_t)result / sizeof(struct lume_files_dirent));
+        directory->count = (unsigned)((uint64_t)result / sizeof(struct lume_files_dirent_posix));
         directory->next = 0;
         if (!result)
         {
@@ -154,13 +165,24 @@ struct dirent *readdir(DIR *directory)
             return NULL;
         }
     }
-    struct lume_files_dirent entry;
+    struct lume_files_dirent_posix entry;
     memcpy(&entry, directory->buffer + directory->next * sizeof(entry), sizeof(entry));
+    uint64_t previous = directory->position;
+    bool dot_position = (!previous && entry.position == LUME_FILES_DIR_AFTER_DOT) ||
+                        (previous == LUME_FILES_DIR_AFTER_DOT &&
+                         entry.position == LUME_FILES_DIR_AFTER_DOTDOT);
+    bool child_position = entry.position && entry.position < LUME_FILES_DIR_AFTER_DOT &&
+                          (previous == LUME_FILES_DIR_AFTER_DOTDOT || entry.position > previous);
     if (!entry.name_bytes || entry.name_bytes >= sizeof(entry.name) ||
         entry.name[entry.name_bytes] || memchr(entry.name, 0, entry.name_bytes) ||
-        entry.inode <= directory->position || (uint64_t)(ino_t)entry.inode != entry.inode)
+        !(dot_position || child_position))
     {
         errno = EIO;
+        return NULL;
+    }
+    if ((uint64_t)(ino_t)entry.inode != entry.inode)
+    {
+        errno = EOVERFLOW;
         return NULL;
     }
     unsigned type = entry.kind == LUME_NODE_FILE     ? DT_REG
@@ -176,8 +198,7 @@ struct dirent *readdir(DIR *directory)
                                        .d_type = (unsigned char)type};
     memcpy(directory->entry.d_name, entry.name, entry.name_bytes + 1);
     ++directory->next;
-    /* The VFS inode is also the cursor immediately following this entry. */
-    directory->position = entry.inode;
+    directory->position = entry.position;
     return &directory->entry;
 }
 

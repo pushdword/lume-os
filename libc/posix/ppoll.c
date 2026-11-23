@@ -76,3 +76,13 @@ int ppoll(struct pollfd *fds, nfds_t count, const struct timespec *timeout, cons
                              (records[i].revents & LUME_POLLNVAL ? POLLNVAL : 0);
     return ready;
 }
+
+int sigsuspend(const sigset_t *mask)
+{
+    if (!mask)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    return ppoll(NULL, 0, NULL, mask);
+}

@@ -55,11 +55,12 @@ int execve(const char *path, char *const argv[], char *const envp[])
 {
     struct lume_run_request request = {
         .path = (uintptr_t)path, .argv = (uintptr_t)argv, .envp = (uintptr_t)envp};
-    while (argv && argv[request.argc] && request.argc < LUME_ARG_MAX)
+    while (argv && request.argc < LUME_ARG_MAX && argv[request.argc])
         ++request.argc;
-    while (envp && envp[request.envc] && request.envc < LUME_ENV_MAX)
+    while (envp && request.envc < LUME_ENV_MAX && envp[request.envc])
         ++request.envc;
-    if (!request.argc || request.argc == LUME_ARG_MAX || request.envc == LUME_ENV_MAX)
+    if (!request.argc || (request.argc == LUME_ARG_MAX && argv[request.argc]) ||
+        (request.envc == LUME_ENV_MAX && envp[request.envc]))
     {
         errno = E2BIG;
         return -1;
@@ -84,9 +85,15 @@ static int exec_search(const char *file, char *const argv[])
     {
         const char *end = strchr(path, ':');
         size_t count = end ? (size_t)(end - path) : strlen(path);
-        char name[LUME_PATH_MAX];
-        if (snprintf(name, sizeof(name), "%.*s%s%s", (int)count, path, count ? "/" : "", file) >=
-            (int)sizeof(name))
+        char name[PATH_MAX];
+        if (count >= sizeof(name))
+        {
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        int length = snprintf(name, sizeof(name), "%.*s%s%s", (int)count, path, count ? "/" : "",
+                              file);
+        if (length < 0 || (size_t)length >= sizeof(name))
         {
             errno = ENAMETOOLONG;
             return -1;
@@ -107,9 +114,9 @@ int execvp(const char *file, char *const argv[])
 
 static int exec_variadic(const char *path, const char *arg, va_list ap, int search)
 {
-    char *argv[LUME_ARG_MAX];
+    char *argv[LUME_ARG_MAX + 1];
     unsigned count = 0;
-    for (; arg && count + 1 < LUME_ARG_MAX; arg = va_arg(ap, const char *))
+    for (; arg && count < LUME_ARG_MAX; arg = va_arg(ap, const char *))
         argv[count++] = (char *)arg;
     if (arg)
     {

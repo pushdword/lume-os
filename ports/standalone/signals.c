@@ -44,6 +44,15 @@ int sigprocmask(int operation, const sigset_t *set, sigset_t *old)
     return 0;
 }
 
+int sigpending(sigset_t *set)
+{
+    struct lume_signal_request request = {0};
+    if (signal_request(LUME_SIGNAL_PENDING, &request))
+        return -1;
+    *set = request.mask;
+    return 0;
+}
+
 unsigned alarm(unsigned seconds)
 {
     struct lume_signal_request request = {.delay_ms = (uint64_t)seconds * 1000u};

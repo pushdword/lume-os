@@ -205,7 +205,7 @@
 
 /* Define this to 1 if getgroups(0,NULL) does not return the number of groups.
    */
-#define GETGROUPS_ZERO_BUG 1
+/* #undef GETGROUPS_ZERO_BUG */
 
 /* Define this to 'void' or 'struct timezone' to match the system's
    declaration of the second argument to gettimeofday. */
@@ -2195,7 +2195,7 @@
 /* #undef HAVE_GETGROUPLIST */
 
 /* Define to 1 if your system has a working `getgroups' function. */
-/* #undef HAVE_GETGROUPS */
+#define HAVE_GETGROUPS 1
 
 /* Define to 1 if you have the 'gethostbyname' function. */
 #define HAVE_GETHOSTBYNAME 1
@@ -4075,7 +4075,7 @@
 
 /* Define to 1 if open() should work around the inability to open a directory.
    */
-#define REPLACE_OPEN_DIRECTORY 1
+#define REPLACE_OPEN_DIRECTORY 0
 
 /* Define if gnulib uses its own posix_spawn and posix_spawnp functions. */
 #define REPLACE_POSIX_SPAWN 1

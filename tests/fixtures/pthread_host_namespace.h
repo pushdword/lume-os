@@ -27,6 +27,7 @@
 #define pthread_exit lume_test_pthread_exit
 #define pthread_getattr_np lume_test_pthread_getattr_np
 #define pthread_getname_np lume_test_pthread_getname_np
+#define pthread_setcancelstate lume_test_pthread_setcancelstate
 #define pthread_getschedparam lume_test_pthread_getschedparam
 #define pthread_getspecific lume_test_pthread_getspecific
 #define pthread_join lume_test_pthread_join

@@ -1,3 +1,14 @@
+--- a/lib/config.h
++++ b/lib/config.h
+@@ -4075,7 +4075,7 @@
+ 
+ /* Define to 1 if open() should work around the inability to open a directory.
+    */
+-#define REPLACE_OPEN_DIRECTORY 1
++#define REPLACE_OPEN_DIRECTORY 0
+ 
+ /* Define if gnulib uses its own posix_spawn and posix_spawnp functions. */
+ #define REPLACE_POSIX_SPAWN 1
 --- a/lib/sys/stat.h
 +++ b/lib/sys/stat.h
 @@ -1374,7 +1374,10 @@
@@ -12,3 +23,17 @@
       /* With _LARGE_FILES defined, AIX (only) defines stat to stat64,
          so we have to replace stat64() instead of stat(). */
  #    undef stat64
+--- a/lib/fcntl.h
++++ b/lib/fcntl.h
+@@ -960,6 +960,11 @@
+ # undef O_SEARCH /* musl mistakenly #defines O_SEARCH to O_PATH.  */
+ #endif
+ 
++#if defined __lume__
++/* The native open modes do not include search-only access.  */
++# undef O_SEARCH
++#endif
++
+ #ifndef O_SEARCH
+ # define O_SEARCH O_RDONLY /* Often close enough in non-POSIX systems.  */
+ #endif

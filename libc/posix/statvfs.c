@@ -1,4 +1,5 @@
 #include <sys/statvfs.h>
+#include <sys/statfs.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdint.h>
@@ -70,4 +71,47 @@ int statvfs(const char *path, struct statvfs *out)
 int fstatvfs(int fd, struct statvfs *out)
 {
     return volume_query(NULL, fd, out);
+}
+
+static void convert_statfs(const struct statvfs *source, struct statfs *target)
+{
+    *target = (struct statfs){.f_type = 0,
+                              .f_bsize = source->f_bsize,
+                              .f_blocks = source->f_blocks,
+                              .f_bfree = source->f_bfree,
+                              .f_bavail = source->f_bavail,
+                              .f_files = source->f_files,
+                              .f_ffree = source->f_ffree,
+                              .f_fsid = source->f_fsid,
+                              .f_namelen = source->f_namemax,
+                              .f_frsize = source->f_frsize,
+                              .f_flags = source->f_flag};
+}
+
+int statfs(const char *path, struct statfs *out)
+{
+    if (!out)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    struct statvfs source;
+    if (statvfs(path, &source))
+        return -1;
+    convert_statfs(&source, out);
+    return 0;
+}
+
+int fstatfs(int fd, struct statfs *out)
+{
+    if (!out)
+    {
+        errno = EFAULT;
+        return -1;
+    }
+    struct statvfs source;
+    if (fstatvfs(fd, &source))
+        return -1;
+    convert_statfs(&source, out);
+    return 0;
 }

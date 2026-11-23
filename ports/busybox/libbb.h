@@ -90,7 +90,7 @@ void overlapping_strcpy(char *, const char *);
 char *safe_strncpy(char *, const char *, size_t);
 const char *bb_basename(const char *);
 char *xasprintf(const char *, ...);
-char *xasprintf_and_free(char *, ...);
+char *xasprintf_and_free(char *allocated, const char *format, ...);
 #define xasprintf_inplace(allocated, ...)                                                          \
     ((allocated) = xasprintf_and_free((allocated), __VA_ARGS__))
 void llist_add_to_end(struct llist_t **, void *);

@@ -11,6 +11,11 @@ extern "C"
 #endif
 
     const char *getprogname(void);
+    int getloadavg(double *, int);
+    int posix_openpt(int);
+    int grantpt(int);
+    int unlockpt(int);
+    char *ptsname(int);
 
 #ifdef __cplusplus
 }

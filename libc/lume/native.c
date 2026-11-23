@@ -25,6 +25,7 @@
 #include "fd.h"
 #include <stddef.h>
 #include <string.h>
+#include <sys/types.h>
 
 int32_t lume_aarch64_open_mode(const char *, unsigned, unsigned, unsigned);
 int32_t lume_aarch64_mkdir_mode(const char *, unsigned);
@@ -123,7 +124,7 @@ int32_t lume_aarch64_open_mode(const char *path, unsigned flags, unsigned mode,
 int32_t lume_aarch64_mkdir_mode(const char *path, unsigned mode)
 {
     struct lume_files_request request = {
-        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 0777u};
+        .path = (uintptr_t)path, .fd = LUME_FILES_AT_CWD, .mode = mode & 01777u};
     return (int32_t)lume_native_files_call(LUME_FILES_MKDIR, &request);
 }
 
@@ -134,31 +135,78 @@ int64_t lume_native_files_call(unsigned operation, struct lume_files_request *re
     return native(LUME_SYS_FILES, operation, (uintptr_t)request, sizeof(*request));
 }
 
+static int64_t stat_metadata(int64_t directory, const char *path, unsigned flags,
+                             struct lume_files_stat_allocation *details)
+{
+    *details = (struct lume_files_stat_allocation){0};
+    struct lume_files_request request = {.path = (uintptr_t)path,
+                                         .fd = directory,
+                                         .buffer = (uintptr_t)details,
+                                         .count = sizeof(*details),
+                                         .flags = flags};
+    int64_t mode = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (mode != -LUME_EINVAL)
+        return mode;
+    struct lume_files_stat_times *metadata = &details->metadata;
+    request.buffer = (uintptr_t)metadata;
+    request.count = sizeof(*metadata);
+    mode = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (mode != -LUME_EINVAL)
+        return mode;
+    request.buffer = (uintptr_t)&metadata->stat;
+    request.count = sizeof(metadata->stat);
+    mode = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (mode != -LUME_EINVAL)
+        return mode;
+    struct lume_native_stat legacy;
+    request.buffer = (uintptr_t)&legacy;
+    request.count = sizeof(legacy);
+    mode = lume_native_files_call(LUME_FILES_STAT, &request);
+    if (mode >= 0)
+        metadata->stat = (struct lume_files_stat){
+            .inode = legacy.inode, .size = legacy.size, .kind = legacy.kind};
+    return mode;
+}
+
 int32_t lume_native_stat_at(int64_t directory, const char *path, unsigned flags,
                             struct stat *output)
 {
     if (!output)
         return -LUME_EFAULT;
-    struct lume_native_stat metadata;
-    struct lume_files_request request = {.path = (uintptr_t)path,
-                                         .fd = directory,
-                                         .buffer = (uintptr_t)&metadata,
-                                         .count = sizeof(metadata),
-                                         .flags = flags};
-    int64_t result = lume_native_files_call(LUME_FILES_STAT, &request);
+    struct lume_files_stat_allocation details;
+    int64_t result = stat_metadata(directory, path, flags, &details);
     if (result < 0)
         return (int32_t)result;
+    struct lume_files_stat metadata = details.metadata.stat;
+    struct lume_file_times times = details.metadata.times;
+    uint32_t block_bytes = details.allocation.block_bytes;
+    uint64_t sectors = block_bytes ? details.allocation.sectors
+                                   : metadata.size / 512 + !!(metadata.size % 512);
     off_t bytes = (off_t)metadata.size;
+    blkcnt_t blocks = (blkcnt_t)sectors;
     if (bytes < 0 || (uint64_t)bytes != metadata.size ||
-        (uint64_t)(ino_t)metadata.inode != metadata.inode)
+        (uint64_t)(ino_t)metadata.inode != metadata.inode ||
+        blocks < 0 || (uint64_t)blocks != sectors)
         return -LUME_EOVERFLOW;
     memset(output, 0, sizeof(*output));
     output->st_size = bytes;
     output->st_ino = (ino_t)metadata.inode;
     output->st_mode = (mode_t)result;
-    output->st_nlink = 1;
-    output->st_blksize = 512;
-    output->st_blocks = (blkcnt_t)(metadata.size / 512 + !!(metadata.size % 512));
+    output->st_uid = (uid_t)metadata.uid;
+    output->st_gid = (gid_t)metadata.gid;
+    output->st_nlink = (nlink_t)(metadata.links ? metadata.links : 1);
+#if defined(_PICOLIBC__) || (defined(__linux__) && defined(st_atime))
+    output->st_atim = (struct timespec){times.access.seconds, times.access.nanoseconds};
+    output->st_mtim =
+        (struct timespec){times.modification.seconds, times.modification.nanoseconds};
+    output->st_ctim = (struct timespec){times.change.seconds, times.change.nanoseconds};
+#else
+    output->st_atime = (time_t)times.access.seconds;
+    output->st_mtime = (time_t)times.modification.seconds;
+    output->st_ctime = (time_t)times.change.seconds;
+#endif
+    output->st_blksize = block_bytes ? block_bytes : 512;
+    output->st_blocks = blocks;
     return 0;
 }
 
@@ -168,15 +216,13 @@ int32_t lume_native_stat64_at(int64_t directory, const char *path, unsigned flag
 {
     if (!output)
         return -LUME_EFAULT;
-    struct lume_native_stat metadata;
-    struct lume_files_request request = {.path = (uintptr_t)path,
-                                         .fd = directory,
-                                         .buffer = (uintptr_t)&metadata,
-                                         .count = sizeof(metadata),
-                                         .flags = flags};
-    int64_t result = lume_native_files_call(LUME_FILES_STAT, &request);
+    struct lume_files_stat_allocation details;
+    int64_t result = stat_metadata(directory, path, flags, &details);
     if (result < 0)
         return (int32_t)result;
+    struct lume_files_stat metadata = details.metadata.stat;
+    struct lume_file_times times = details.metadata.times;
+    uint32_t block_bytes = details.allocation.block_bytes;
     if (metadata.size > INT64_MAX)
         return -LUME_EOVERFLOW;
     _Static_assert(sizeof(output->st_ino) == sizeof(metadata.inode), "64-bit inode identity");
@@ -185,9 +231,16 @@ int32_t lume_native_stat64_at(int64_t directory, const char *path, unsigned flag
     output->st_size = (int64_t)metadata.size;
     output->st_ino = metadata.inode;
     output->st_mode = (mode_t)result;
-    output->st_nlink = 1;
-    output->st_blksize = 512;
-    output->st_blocks = metadata.size / 512 + !!(metadata.size % 512);
+    output->st_uid = (uid_t)metadata.uid;
+    output->st_gid = (gid_t)metadata.gid;
+    output->st_nlink = (nlink_t)(metadata.links ? metadata.links : 1);
+    output->st_atim = (struct timespec){times.access.seconds, times.access.nanoseconds};
+    output->st_mtim =
+        (struct timespec){times.modification.seconds, times.modification.nanoseconds};
+    output->st_ctim = (struct timespec){times.change.seconds, times.change.nanoseconds};
+    output->st_blksize = block_bytes ? block_bytes : 512;
+    output->st_blocks = block_bytes ? details.allocation.sectors
+                                   : metadata.size / 512 + !!(metadata.size % 512);
     return 0;
 }
 #endif

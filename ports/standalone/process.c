@@ -24,7 +24,8 @@ int execve(const char *path, char *const argv[], char *const envp[])
         ++request.argc;
     while (envp && request.envc < LUME_ENV_MAX && envp[request.envc])
         ++request.envc;
-    if (!request.argc || request.argc == LUME_ARG_MAX || request.envc == LUME_ENV_MAX)
+    if (!request.argc || (request.argc == LUME_ARG_MAX && argv[request.argc]) ||
+        (request.envc == LUME_ENV_MAX && envp[request.envc]))
     {
         errno = E2BIG;
         return -1;

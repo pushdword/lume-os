@@ -45,6 +45,9 @@ int main(void)
     assert(format(buffer, sizeof(buffer), "%2$.2f %1$d", 7, 1.25) == 6);
     assert(!strcmp(buffer, "1.25 7"));
     puts("PRINTF_POSITIONAL_PASS");
+    assert(format(buffer, sizeof(buffer), "%.1Lf", 1.5L) == 3);
+    assert(!strcmp(buffer, "1.5"));
+    puts("PRINTF_LONG_DOUBLE_PASS");
     puts("PRINTF_NATIVE_PASS");
     return 0;
 }

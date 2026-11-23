@@ -1,3 +1,14 @@
+--- a/lib/canonicalize.c
++++ b/lib/canonicalize.c
+@@ -49,7 +49,7 @@
+ static bool
+ file_accessible (char const *file)
+ {
+-# if HAVE_FACCESSAT
++# if HAVE_FACCESSAT && !defined __lume__
+   return faccessat (AT_FDCWD, file, F_OK, AT_EACCESS) == 0;
+ # else
+   struct stat st;
 --- a/lib/dev-ino.h
 +++ b/lib/dev-ino.h
 @@ -19,6 +19,7 @@
@@ -68,9 +79,56 @@
    _GL_ATTRIBUTE_NONNULL ((1));
  
  
+--- a/lib/euidaccess.c
++++ b/lib/euidaccess.c
+@@ -78,7 +78,15 @@
+ euidaccess (const char *file, int mode)
+ {
+ #if HAVE_FACCESSAT                   /* glibc, AIX 7, Solaris 11, Cygwin 1.7 */
++# if defined __lume__
++  int result = faccessat (AT_FDCWD, file, mode, AT_EACCESS);
++  if (result < 0 && errno == ENOTSUP && getuid () == geteuid ()
++      && getgid () == getegid ())
++    return access (file, mode);
++  return result;
++# else
+   return faccessat (AT_FDCWD, file, mode, AT_EACCESS);
++# endif
+ #elif defined EFF_ONLY_OK               /* Interix */
+   return access (file, mode | EFF_ONLY_OK);
+ #elif defined ACC_SELF                  /* AIX */
+--- a/lib/fchmodat.c
++++ b/lib/fchmodat.c
+@@ -90,7 +90,7 @@
+     }
+ # endif
+ 
+-# if NEED_FCHMODAT_NONSYMLINK_FIX
++# if NEED_FCHMODAT_NONSYMLINK_FIX && !defined LUME_NATIVE_CHMOD_NOFOLLOW
+   if ((flags & ~AT_EMPTY_PATH) == AT_SYMLINK_NOFOLLOW)
+     {
+ #  if HAVE_READLINKAT
+--- a/lib/fcntl.in.h
++++ b/lib/fcntl.in.h
+@@ -413,6 +413,11 @@
+ # undef O_SEARCH /* musl mistakenly #defines O_SEARCH to O_PATH.  */
+ #endif
+ 
++#if defined __lume__
++/* The native open modes do not include search-only access.  */
++# undef O_SEARCH
++#endif
++
+ #ifndef O_SEARCH
+ # define O_SEARCH O_RDONLY /* Often close enough in non-POSIX systems.  */
+ #endif
 --- a/lib/fflush.c
 +++ b/lib/fflush.c
-@@ -154,2 +154,12 @@ rpl_fflush (FILE *stream)
+@@ -150,6 +150,16 @@
+      mingw this is indicated by _IOREAD, regardless of _IOWRT.  */
+   if (stream == NULL || ! freading (stream))
+     return fflush (stream);
++
 +#if defined(__lume__) && defined(_PICOLIBC__)
 +  if (stream == stdin)
 +    {
@@ -80,7 +138,7 @@
 +      return fpurge (stream);
 +    }
 +#endif
-+
+ 
  #if defined _IO_EOF_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
    /* GNU libc, BeOS, Haiku, Linux libc5 */
 --- a/lib/fpending.c
@@ -113,6 +171,25 @@
 +
 +#endif
  }
+--- a/lib/fprintftime.h
++++ b/lib/fprintftime.h
+@@ -15,6 +15,7 @@
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
++#include <stdint.h>
+ #include <stdio.h>
+ #include <sys/types.h>
+ #include <time.h>
+@@ -34,7 +35,7 @@
+ 
+    Return the number of bytes written to the stream.
+    Upon failure, return -1 with errno set.  */
+-off64_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
++int64_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
+                      timezone_t zone, int nanoseconds);
+ 
+ 
 --- a/lib/fpurge.c
 +++ b/lib/fpurge.c
 @@ -15,6 +15,9 @@
@@ -284,6 +361,21 @@
    FTSENT *fts_ent;
  };
  
+--- a/lib/futimens.c
++++ b/lib/futimens.c
+@@ -22,6 +22,7 @@
+ 
+ #include "utimens.h"
+ 
++#if !defined __lume__ || !HAVE_FUTIMENS
+ /* Set the access and modification timestamps of FD to be
+    TIMESPEC[0] and TIMESPEC[1], respectively.
+    Fail with ENOSYS on systems without futimes (or equivalent).
+@@ -35,3 +36,4 @@
+      older than 2.6.32.  */
+   return fdutimens (fd, NULL, times);
+ }
++#endif
 --- a/lib/getcwd.c
 +++ b/lib/getcwd.c
 @@ -26,6 +26,7 @@
@@ -456,6 +548,20 @@
  #endif
  
  /* The POSIX version that utilities should conform to.  The default is
+--- a/lib/readlinkat.c
++++ b/lib/readlinkat.c
+@@ -108,6 +108,11 @@
+    then readlink/restore_cwd.  If either the save_cwd or the restore_cwd
+    fails, then give a diagnostic and exit nonzero.  */
+ 
++# if defined __lume__
++/* A native SDK definition takes precedence over this legacy fallback.  */
++#  pragma weak readlinkat
++# endif
++
+ # define AT_FUNC_NAME readlinkat
+ # define AT_FUNC_F1 readlink
+ # define AT_FUNC_POST_FILE_PARAM_DECLS , char *buf, size_t bufsize
 --- a/lib/savedir.c
 +++ b/lib/savedir.c
 @@ -19,6 +19,7 @@
@@ -475,6 +581,23 @@
  #endif
  } direntry_t;
  
+--- a/lib/strftime.c
++++ b/lib/strftime.c
+@@ -206,10 +206,12 @@
+    size_t.  For functions that write to a stream, the number of bytes fits in
+    an off64_t (a type that is always at least 64 bits large).  */
+ #if FPRINTFTIME
++# include "fprintftime.h"
+ # define STREAM_OR_CHAR_T FILE
+ # define STRFTIME_ARG(x) /* empty */
+-typedef off64_t byte_count_t;
+-typedef off64_t sbyte_count_t;
++/* Formatting uses negative widths even when the C library has unsigned file offsets.  */
++typedef int64_t byte_count_t;
++typedef int64_t sbyte_count_t;
+ #else
+ # define STREAM_OR_CHAR_T CHAR_T
+ # define STRFTIME_ARG(x) x,
 --- a/lib/sys_stat.in.h
 +++ b/lib/sys_stat.in.h
 @@ -827,7 +827,10 @@
@@ -489,6 +612,60 @@
       /* With _LARGE_FILES defined, AIX (only) defines stat to stat64,
          so we have to replace stat64() instead of stat(). */
  #    undef stat64
+--- a/lib/utime.c
++++ b/lib/utime.c
+@@ -256,7 +256,7 @@
+     }
+ }
+ 
+-#else
++#elif !defined __lume__ || !HAVE_UTIME
+ 
+ # include <errno.h>
+ # include <sys/stat.h>
+--- a/src/cat.c
++++ b/src/cat.c
+@@ -309,6 +309,10 @@
+                      Irix-5 returns ENOSYS on pipes.  */
+                   if (errno == EOPNOTSUPP || errno == ENOTTY
+                       || errno == EINVAL || errno == ENODEV
++#if defined __lume__
++                      /* FIONREAD can return EBADF for valid nonterminal files.  */
++                      || errno == EBADF
++#endif
+                       || errno == ENOSYS)
+                     use_fionread = false;
+                   else
+--- a/src/cksum.c
++++ b/src/cksum.c
+@@ -1374,6 +1374,7 @@
+   intmax_t line_number;
+   char *line;
+   size_t line_chars_allocated;
++  int read_errno;
+   bool is_stdin = streq (checkfile_name, "-");
+ 
+   if (is_stdin)
+@@ -1407,7 +1408,9 @@
+         error (EXIT_FAILURE, 0, _("%s: too many checksum lines"),
+                quotef (checkfile_name));
+ 
++      errno = 0;
+       line_length = getline (&line, &line_chars_allocated, checkfile_stream);
++      read_errno = errno;
+       if (line_length <= 0)
+         break;
+ 
+@@ -1498,7 +1501,8 @@
+ 
+   free (line);
+ 
+-  int err = ferror (checkfile_stream) ? 0 : -1;
++  int err = (ferror (checkfile_stream) || !feof (checkfile_stream)
++             ? read_errno : -1);
+   if (is_stdin)
+     clearerr (checkfile_stream);
+   else if (fclose (checkfile_stream) != 0 && err < 0)
 --- a/src/copy.c
 +++ b/src/copy.c
 @@ -17,6 +17,7 @@
@@ -740,3 +917,88 @@
    mode_t mode;
  
    /* If a regular file, the file's read position the last time we
+--- a/lib/close-stream.c
++++ b/lib/close-stream.c
+@@ -54,6 +54,16 @@
+ int
+ close_stream (FILE *stream)
+ {
++#if defined(__lume__) && defined(_PICOLIBC__)
++  /* The runtime buffers the standard output streams outside of Picolibc.  */
++  if ((stream == stdout || stream == stderr) && fflush (stream) == EOF)
++    {
++      int const flush_errno = errno;
++      fclose (stream);
++      errno = flush_errno;
++      return EOF;
++    }
++#endif
+   const bool some_pending = (__fpending (stream) != 0);
+   const bool prev_fail = (ferror (stream) != 0);
+   const bool fclose_fail = (fclose (stream) != 0);
+--- a/lib/fprintftime.h
++++ b/lib/fprintftime.h
+@@ -16,6 +16,7 @@
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+ 
+ #include <stdio.h>
++#include <stdint.h>
+ #include <sys/types.h>
+ #include <time.h>
+ 
+@@ -24,6 +25,13 @@ extern "C" {
+ #endif
+ 
+ 
++#if defined LUME_NATIVE_ABI
++/* The signed count must represent failure and unspecified field widths. */
++typedef int64_t fprintftime_count_t;
++#else
++typedef off64_t fprintftime_count_t;
++#endif
++
+ /* A cross between fprintf and nstrftime, that prints directly
+    to the output stream, without the need for the potentially
+    large buffer that nstrftime would require.
+@@ -34,8 +42,8 @@ extern "C" {
+ 
+    Return the number of bytes written to the stream.
+    Upon failure, return -1 with errno set.  */
+-off64_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
+-                     timezone_t zone, int nanoseconds);
++fprintftime_count_t fprintftime (FILE *fp, char const *fmt, struct tm const *tm,
++                                timezone_t zone, int nanoseconds);
+ 
+ 
+ #ifdef __cplusplus
+--- a/lib/strftime.c
++++ b/lib/strftime.c
+@@ -203,13 +203,13 @@ enum pad_style
+ #endif
+ 
+ /* For functions that fill an in-memory string, the number of bytes fits in a
+-   size_t.  For functions that write to a stream, the number of bytes fits in
+-   an off64_t (a type that is always at least 64 bits large).  */
++   size_t.  Functions that write to a stream use the fprintftime count type.  */
+ #if FPRINTFTIME
++# include "fprintftime.h"
+ # define STREAM_OR_CHAR_T FILE
+ # define STRFTIME_ARG(x) /* empty */
+-typedef off64_t byte_count_t;
+-typedef off64_t sbyte_count_t;
++typedef fprintftime_count_t byte_count_t;
++typedef fprintftime_count_t sbyte_count_t;
+ #else
+ # define STREAM_OR_CHAR_T CHAR_T
+ # define STRFTIME_ARG(x) x,
+--- a/lib/stat-size.h
++++ b/lib/stat-size.h
+@@ -82,5 +82,7 @@
+ #ifndef ST_NBLOCKSIZE
+-# ifdef S_BLKSIZE
++# if defined LUME_NATIVE_ABI
++#  define ST_NBLOCKSIZE 512
++# elif defined S_BLKSIZE
+ #  define ST_NBLOCKSIZE S_BLKSIZE
+ # else
+ #  define ST_NBLOCKSIZE 512

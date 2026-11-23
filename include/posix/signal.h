@@ -20,6 +20,30 @@ typedef uint32_t sigset_t;
 #endif
 typedef int sig_atomic_t;
 typedef void (*sighandler_t)(int);
+
+union sigval
+{
+    int sival_int;
+    void *sival_ptr;
+};
+
+typedef struct
+{
+    int si_signo;
+    int si_code;
+    int si_errno;
+    pid_t si_pid;
+    uid_t si_uid;
+    void *si_addr;
+    int si_status;
+    union sigval si_value;
+} siginfo_t;
+
+#define SI_USER 1
+#define SI_QUEUE 2
+#define SI_TIMER 3
+#define SI_ASYNCIO 4
+#define SI_MESGQ 5
 #define SIG_DFL ((sighandler_t)0)
 #define SIG_IGN ((sighandler_t)1)
 #define SIG_ERR ((sighandler_t) - 1)
@@ -65,11 +89,16 @@ typedef void (*sighandler_t)(int);
 #define SA_NOCLDSTOP 1
 #define SA_RESETHAND 4
 #define SA_RESTART 8
+#define SA_SIGINFO 16
 #define SA_NODEFER 64
 
 struct sigaction
 {
-    sighandler_t sa_handler;
+    union
+    {
+        sighandler_t sa_handler;
+        void (*sa_sigaction)(int, siginfo_t *, void *);
+    };
     sigset_t sa_mask;
     int sa_flags;
 };
@@ -79,6 +108,7 @@ extern "C"
 #endif
     int sigaction(int, const struct sigaction *, struct sigaction *);
     int sigprocmask(int, const sigset_t *, sigset_t *);
+    int sigpending(sigset_t *);
     int pthread_sigmask(int, const sigset_t *, sigset_t *);
     int sigwait(const sigset_t *, int *);
     int sigemptyset(sigset_t *);

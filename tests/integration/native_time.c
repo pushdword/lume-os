@@ -12,10 +12,14 @@
 int main(void)
 {
     struct timeval value = {.tv_sec = 123, .tv_usec = 456};
-    assert(gettimeofday(&value, NULL) < 0 && errno == EAGAIN);
-    assert(!value.tv_sec && !value.tv_usec);
+    assert(!gettimeofday(&value, NULL));
+    assert(value.tv_sec >= 0 && value.tv_sec < 1700000000);
+    assert(value.tv_usec >= 0 && value.tv_usec < 1000000);
     struct timespec mono;
     assert(!clock_gettime(CLOCK_MONOTONIC, &mono));
+    struct timespec boot;
+    assert(!clock_gettime(CLOCK_REALTIME, &boot));
+    assert(boot.tv_sec >= value.tv_sec && boot.tv_sec < 1700000000);
     struct lume_realtime_request request = {.version = LUME_REALTIME_VERSION,
                                             .bytes = sizeof(request),
                                             .seconds = UINT64_C(1793664000),
@@ -28,6 +32,6 @@ int main(void)
     struct timespec real;
     assert(!clock_gettime(CLOCK_REALTIME, &real));
     assert(real.tv_sec >= value.tv_sec && real.tv_nsec >= 0 && real.tv_nsec < 1000000000);
-    puts("TIME_UNSET_ZERO_AND_VALID_WALL_CLOCK_PASS");
+    puts("TIME_BOOT_EPOCH_AND_VALID_WALL_CLOCK_PASS");
     return 0;
 }

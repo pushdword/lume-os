@@ -9,18 +9,22 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include "lume/spawn.h"
 #include "fd.h"
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
 #define SPAWN_FD_LIMIT LUME_FD_DESCRIPTOR_LIMIT
+#define SPAWN_PATH_LIMIT PATH_MAX
 #else
 #define SPAWN_FD_LIMIT 16
+#define SPAWN_PATH_LIMIT 128
 #endif
 
 struct __posix_spawnattr
 {
     short flags;
+    pid_t group;
     sigset_t defaults, mask;
 };
 
@@ -47,7 +51,7 @@ uid_t getuid(void)
 
 uid_t geteuid(void)
 {
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     return (uid_t)lume_app_call(LUME_UID, 1, 0, 0);
 #else
     return getuid();
@@ -56,7 +60,7 @@ uid_t geteuid(void)
 
 gid_t getgid(void)
 {
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     return (gid_t)lume_app_call(LUME_UID, 2, 0, 0);
 #else
     return 0;
@@ -65,7 +69,7 @@ gid_t getgid(void)
 
 gid_t getegid(void)
 {
-#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64)
+#if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
     return (gid_t)lume_app_call(LUME_UID, 3, 0, 0);
 #else
     return getgid();
@@ -133,8 +137,8 @@ int posix_spawnattr_setflags(posix_spawnattr_t *attribute, short flags)
         return EINVAL;
     unsigned supported = 0;
 #if defined(LUME_ARCH_AARCH64) || defined(LUME_ARCH_AMD64) || defined(LUME_ARCH_I686)
-    supported = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSID |
-                POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_DRIVER_ADMIN_NP;
+    supported = POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK |
+                POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_DRIVER_ADMIN_NP;
 #endif
     if ((unsigned)(unsigned short)flags & ~supported)
         return ENOTSUP;
@@ -147,6 +151,22 @@ int posix_spawnattr_getflags(const posix_spawnattr_t *attribute, short *flags)
     if (!attribute || !*attribute || !flags)
         return EINVAL;
     *flags = (*attribute)->flags;
+    return 0;
+}
+
+int posix_spawnattr_setpgroup(posix_spawnattr_t *attribute, pid_t group)
+{
+    if (!attribute || !*attribute || group < 0)
+        return EINVAL;
+    (*attribute)->group = group;
+    return 0;
+}
+
+int posix_spawnattr_getpgroup(const posix_spawnattr_t *attribute, pid_t *group)
+{
+    if (!attribute || !*attribute || !group)
+        return EINVAL;
+    *group = (*attribute)->group;
     return 0;
 }
 
@@ -322,10 +342,13 @@ int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *
         request.flags |= LUME_SPAWN_CLOEXEC_DEFAULT;
     if (flags & POSIX_SPAWN_DRIVER_ADMIN_NP)
         request.flags |= LUME_SPAWN_DRIVER_ADMIN;
+    if (flags & POSIX_SPAWN_SETPGROUP)
+        request.flags |= LUME_SPAWN_SETPGROUP;
     if (attribute)
     {
         request.signal_default = (*attribute)->defaults;
         request.signal_mask = (*attribute)->mask;
+        request.process_group = (*attribute)->group;
     }
     bool extended = flags != 0;
     for (unsigned i = 0; i < request.base.count; ++i)
@@ -376,7 +399,9 @@ int posix_spawnp(pid_t *pid, const char *file, const posix_spawn_file_actions_t 
     {
         const char *end = strchr(path, ':');
         size_t bytes = end ? (size_t)(end - path) : strlen(path);
-        char name[128];
+        char name[SPAWN_PATH_LIMIT];
+        if (bytes >= sizeof(name))
+            return ENAMETOOLONG;
         int length = bytes ? snprintf(name, sizeof(name), "%.*s/%s", (int)bytes, path, file)
                            : snprintf(name, sizeof(name), "./%s", file);
         if (length < 0 || (unsigned)length >= sizeof(name))
