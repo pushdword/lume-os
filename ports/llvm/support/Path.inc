@@ -664,8 +664,15 @@ bool cache_directory(SmallVectorImpl<char> &R)
 void system_temp_directory(bool, SmallVectorImpl<char> &R)
 {
     const char *T = ::getenv("TMPDIR");
-    if (!T)
+    if (!T || !*T)
+    {
         T = "/tmp";
+        const char *DataTemp = "/data/tmp";
+        struct stat Info;
+        if (::stat(DataTemp, &Info) == 0 && S_ISDIR(Info.st_mode) &&
+            ::access(DataTemp, W_OK | X_OK) == 0)
+            T = DataTemp;
+    }
     R.assign(T, T + strlen(T));
 }
 }

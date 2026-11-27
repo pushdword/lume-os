@@ -18,5 +18,6 @@ endif
 LUME_SDK_CRT := $(LUME_SDK_ROOT)/lib/crt0.o
 LUME_SDK_CXX_CRT := $(LUME_SDK_ROOT)/lib/crt0-cxx.o
 LUME_SDK_LDFLAGS := --gc-sections -z max-page-size=4096 -T $(LUME_SDK_ROOT)/native.ld
+LUME_SDK_BUILTINS := $(wildcard $(LUME_SDK_ROOT)/lib/libcompiler-rt.a $(LUME_SDK_ROOT)/lib/libcrt.a)
 LUME_SDK_LIBS := --start-group $(LUME_SDK_ROOT)/lib/liblume.a \
-    $(LUME_SDK_ROOT)/lib/libc.a $(wildcard $(LUME_SDK_ROOT)/lib/libcompiler-rt.a) --end-group
+    $(LUME_SDK_ROOT)/lib/libc.a $(LUME_SDK_BUILTINS) --end-group

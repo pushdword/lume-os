@@ -309,9 +309,10 @@ extern "C" int app_main(unsigned argc, char **argv, char **)
                 if (fs->exists(LUME_NATIVE_PREFIX "/lib/libunwind.a"))
                     args.push_back("-lunwind");
                 args.push_back("-lc");
-                args.push_back(fs->exists(LUME_NATIVE_PREFIX "/lib/libcompiler-rt.a")
-                                   ? "-lcompiler-rt"
-                                   : "-lcrt");
+                if (fs->exists(LUME_NATIVE_PREFIX "/lib/libcompiler-rt.a"))
+                    args.push_back("-lcompiler-rt");
+                if (fs->exists(LUME_NATIVE_PREFIX "/lib/libcrt.a"))
+                    args.push_back("-lcrt");
                 args.push_back("-Wl,--end-group");
             }
         }

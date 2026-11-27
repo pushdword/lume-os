@@ -17,7 +17,7 @@ ifneq ($(filter aarch64 i686,$(ARCH)),)
 NATIVE_CORE_SOURCES += libc/string/transfer.c
 endif
 ifeq ($(ARCH),aarch64)
-NATIVE_CORE_SOURCES += libc/posix/ucontext.c libc/runtime/ucontext.S
+NATIVE_CORE_SOURCES += arch/aarch64/builtins.c libc/posix/ucontext.c libc/runtime/ucontext.S
 endif
 ifeq ($(ARCH),i686)
 NATIVE_CORE_SOURCES += arch/i686/builtins.c
