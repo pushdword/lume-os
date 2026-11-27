@@ -34,20 +34,28 @@
  */
 
 #include "streams.h"
+#include "lume/abi.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-static size_t stream_buffer_size(int fd)
+static size_t stream_buffer_size(int fd, bool writable)
 {
+    bool use_metadata = writable;
 #if defined(__FSTAT_BUFSIZ) && defined(_STAT_HAS_ST_BLKSIZE)
-    struct stat metadata;
-    if (!fstat(fd, &metadata) && metadata.st_blksize > 0)
-        return (size_t)metadata.st_blksize;
-#else
-    (void)fd;
+    use_metadata = true;
 #endif
+    struct stat metadata;
+    if (use_metadata && !fstat(fd, &metadata))
+    {
+        if (writable && S_ISREG(metadata.st_mode))
+            return LUME_FILE_IO_MAX;
+#if defined(__FSTAT_BUFSIZ) && defined(_STAT_HAS_ST_BLKSIZE)
+        if (metadata.st_blksize > 0)
+            return (size_t)metadata.st_blksize;
+#endif
+    }
     return BUFSIZ;
 }
 
@@ -64,10 +72,15 @@ fdopen(int fd, const char *mode)
     if (stdio_flags == 0)
         return NULL;
 
-    buf_size = stream_buffer_size(fd);
+    buf_size = stream_buffer_size(fd, (stdio_flags & __SWR) != 0);
 
     /* Allocate file structure and necessary buffers */
     struct lume_stdio_bufio *stream = calloc(1, sizeof(*stream) + buf_size);
+    if (!stream && buf_size > BUFSIZ)
+    {
+        buf_size = BUFSIZ;
+        stream = calloc(1, sizeof(*stream) + buf_size);
+    }
     if (stream == NULL)
         return NULL;
 

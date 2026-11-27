@@ -11,6 +11,7 @@ NATIVE_CORE_SOURCES := libc/lume/api.c libc/runtime/runtime.c libc/lume/native.c
     libc/posix/positioned_io.c libc/posix/semaphore.c libc/posix/file_lock.c \
     libc/posix/statvfs.c libc/posix/tty.c libc/posix/eventfd.c \
     ports/picolibc/native-stdio/flush.c ports/picolibc/native-stdio/fdopen.c \
+    ports/picolibc/native-stdio/fread.c \
     ports/picolibc/native-stdio/funopen.c ports/picolibc/native-stdio/fmemopen.c \
     ports/picolibc/native-stdio/fdevopen.c
 ifneq ($(filter aarch64 i686,$(ARCH)),)
