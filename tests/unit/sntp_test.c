@@ -2,6 +2,7 @@
 #include "../../apps/clock/sntp.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 static void word(unsigned char *output, uint32_t value)
 {

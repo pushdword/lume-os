@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 static inline uint32_t sntp_word(const unsigned char *value)
 {
@@ -16,8 +15,11 @@ static inline bool sntp_reply(const unsigned char *packet, size_t bytes,
                               uint32_t *nanoseconds)
 {
     if (bytes < 48 || (packet[0] >> 6) == 3 || (packet[0] & 7) != 4 || ((packet[0] >> 3) & 7) < 3 ||
-        ((packet[0] >> 3) & 7) > 4 || !packet[1] || packet[1] > 15 || memcmp(packet + 24, nonce, 8))
+        ((packet[0] >> 3) & 7) > 4 || !packet[1] || packet[1] > 15)
         return false;
+    for (unsigned i = 0; i < 8; ++i)
+        if (packet[24 + i] != nonce[i])
+            return false;
     uint64_t timestamp = sntp_word(packet + 40);
     if (!timestamp && !sntp_word(packet + 44))
         return false;

@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 static int stream(unsigned operation, struct lume_stream_request *request)

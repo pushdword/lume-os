@@ -18,6 +18,9 @@ static unsigned ethernet_dhcps;
 static bool test_loop, old_wait;
 static unsigned pending_commands, receives, acknowledgements, event_waits, sleeps;
 static uint64_t command_sequence, published_sequence;
+static bool test_clock, utc_valid, time_reply, wrong_nonce;
+static unsigned time_connects, time_sends, time_closes, time_sets;
+static unsigned char time_nonce[8];
 
 static struct
 {
@@ -49,6 +52,72 @@ int64_t call(uint64_t number, uint64_t a, uint64_t b, uint64_t c)
         return (int64_t)milliseconds;
     if (number == LUME_SYS_GETPID)
         return 3;
+    if (number == LUME_SYS_REALTIME)
+    {
+        if (!test_clock)
+            return -LUME_ENOSYS;
+        struct lume_realtime_request *utc = (void *)(uintptr_t)b;
+        T(utc->version == LUME_REALTIME_VERSION && utc->bytes == sizeof(*utc) &&
+          c == sizeof(*utc));
+        if (a == LUME_REALTIME_GET)
+            return utc_valid ? 0 : -LUME_EAGAIN;
+        T(a == LUME_REALTIME_INITIALIZE && !utc_valid && utc->seconds == 1793628000 &&
+          !utc->nanoseconds);
+        ++time_sets;
+        utc_valid = true;
+        return 0;
+    }
+    if (number == LUME_SYS_RANDOM && test_clock)
+    {
+        T(b == sizeof(time_nonce) && !c);
+        memset((void *)(uintptr_t)a, 0x42, b);
+        return (int64_t)b;
+    }
+    if (number == LUME_SYS_STREAM && test_clock)
+    {
+        struct lume_stream_request *packet = (void *)(uintptr_t)b;
+        T(packet->version == LUME_IO_VERSION && c == sizeof(*packet));
+        if (a == LUME_DATAGRAM_CONNECT)
+        {
+            T(packet->port == 123 && packet->address[0] == 162);
+            T(packet->address[3] == (time_connects == 1 ? 123 : 1));
+            ++time_connects;
+            packet->handle = 19;
+            return 0;
+        }
+        T(packet->handle == 19);
+        if (a == LUME_STREAM_SEND)
+        {
+            T(packet->count == 48 && packet->data[0] == 0x23);
+            memcpy(time_nonce, packet->data + 40, sizeof(time_nonce));
+            ++time_sends;
+            return (int64_t)packet->count;
+        }
+        if (a == LUME_STREAM_POLL)
+        {
+            packet->count = time_reply ? LUME_STREAM_READABLE : 0;
+            return (int64_t)packet->count;
+        }
+        if (a == LUME_STREAM_RECEIVE)
+        {
+            T(time_reply && packet->count >= 48);
+            memset(packet->data, 0, 48);
+            packet->data[0] = 0x24;
+            packet->data[1] = 2;
+            memcpy(packet->data + 24, time_nonce, sizeof(time_nonce));
+            if (wrong_nonce)
+                packet->data[24] ^= 1;
+            uint32_t timestamp = UINT32_C(2208988800) + UINT32_C(1793628000);
+            for (unsigned i = 0; i < 4; ++i)
+                packet->data[40 + i] = (unsigned char)(timestamp >> (24 - 8 * i));
+            packet->count = 48;
+            time_reply = false;
+            return 48;
+        }
+        T(a == LUME_STREAM_CLOSE);
+        ++time_closes;
+        return 0;
+    }
     if (number == LUME_SYS_FILE_MODE)
     {
         const struct lume_file_mode_request *request = (void *)(uintptr_t)b;
@@ -458,6 +527,37 @@ int main(void)
       sleeps == 1 && event_waits == 1);
     old_wait = true;
     T(!manager_step(false) && sleeps == 2 && event_waits == 2);
+
+    test_clock = true;
+    memset(&boot_clock, 0, sizeof(boot_clock));
+    clock_step(10, false);
+    T(!time_connects && !time_sets);
+    clock_step(20, true);
+    T(time_connects == 1 && time_sends == 1 && boot_clock.handle == 19);
+    time_reply = wrong_nonce = true;
+    clock_step(30, true);
+    T(!time_sets && !time_closes && boot_clock.handle == 19);
+    clock_step(5020, true);
+    T(time_closes == 1 && !boot_clock.handle && boot_clock.retry_at == 6020);
+    clock_step(6019, true);
+    T(time_connects == 1);
+    clock_step(6020, true);
+    T(time_connects == 2 && time_sends == 2);
+    time_reply = true;
+    wrong_nonce = false;
+    clock_step(6030, true);
+    T(time_sets == 1 && time_closes == 2 && utc_valid && boot_clock.settled);
+    clock_step(9000, true);
+    T(time_connects == 2 && time_sets == 1);
+    memset(&boot_clock, 0, sizeof(boot_clock));
+    clock_step(10000, true);
+    T(boot_clock.settled && time_connects == 2 && time_sets == 1);
+    memset(&boot_clock, 0, sizeof(boot_clock));
+    utc_valid = false;
+    clock_step(11000, true);
+    utc_valid = true;
+    clock_step(11001, true);
+    T(boot_clock.settled && time_connects == 3 && time_closes == 3 && time_sets == 1);
     printf("PASS_NET_USERSPACE_MANAGER checks=%u\n", checks);
     return 0;
 }

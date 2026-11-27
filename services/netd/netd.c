@@ -1,8 +1,11 @@
 /* The EL0 network manager selects persistent profiles and controls automatic connection and
  * retry. Drivers and the network stack expose the operations it uses. */
 #include "../../include/internal/lume/app_support.h"
+#include "../../apps/clock/sntp.h"
 #include "lume/service.h"
 #include "lume/file_mode.h"
+#include "lume/io.h"
+#include "lume/realtime_abi.h"
 #include "net_policy.h"
 static struct net_profiles profiles;
 static struct lume_net_service_status status;
@@ -568,6 +571,92 @@ static void step(uint64_t now)
         failed((uint64_t)call(LUME_SYS_CLOCK, 0, 0, 0));
 }
 
+static struct
+{
+    uint64_t deadline, retry_at;
+    unsigned handle, failures, server;
+    unsigned char nonce[8];
+    bool settled;
+} boot_clock;
+
+static int clock_stream(unsigned operation, struct lume_stream_request *packet)
+{
+    return (int)call(LUME_SYS_STREAM, operation, (uintptr_t)packet, sizeof(*packet));
+}
+
+static void close_clock_stream(struct lume_stream_request *packet)
+{
+    if (boot_clock.handle)
+    {
+        (void)clock_stream(LUME_STREAM_CLOSE, packet);
+        boot_clock.handle = 0;
+    }
+}
+
+static void clock_step(uint64_t now, bool online)
+{
+    static const unsigned char servers[][4] = {{162, 159, 200, 1}, {162, 159, 200, 123}};
+    if (boot_clock.settled || now < boot_clock.retry_at || (!online && !boot_clock.handle))
+        return;
+    struct lume_stream_request packet = {.version = LUME_IO_VERSION, .handle = boot_clock.handle};
+    struct lume_realtime_request utc = {.version = LUME_REALTIME_VERSION, .bytes = sizeof(utc)};
+    int result = (int)call(LUME_SYS_REALTIME, LUME_REALTIME_GET, (uintptr_t)&utc, sizeof(utc));
+    if (result != -LUME_EAGAIN || !online)
+    {
+        close_clock_stream(&packet);
+        boot_clock.settled = result != -LUME_EAGAIN;
+        return;
+    }
+    if (!boot_clock.handle)
+    {
+        for (unsigned i = 0; i < sizeof(packet.address); ++i)
+            packet.address[i] = servers[boot_clock.server][i];
+        packet.port = 123;
+        if (call(LUME_SYS_RANDOM, (uintptr_t)boot_clock.nonce, sizeof(boot_clock.nonce), 0) ==
+                sizeof(boot_clock.nonce) &&
+            !clock_stream(LUME_DATAGRAM_CONNECT, &packet))
+        {
+            boot_clock.handle = packet.handle;
+            packet.data[0] = 0x23;
+            for (unsigned i = 0; i < sizeof(boot_clock.nonce); ++i)
+                packet.data[40 + i] = boot_clock.nonce[i];
+            packet.count = 48;
+            if (clock_stream(LUME_STREAM_SEND, &packet) >= 0)
+            {
+                boot_clock.deadline = now + 5000;
+                return;
+            }
+        }
+    }
+    else if (now < boot_clock.deadline && clock_stream(LUME_STREAM_POLL, &packet) >= 0)
+    {
+        unsigned events = packet.count;
+        if (events & LUME_STREAM_READABLE)
+        {
+            packet.count = sizeof(packet.data);
+            if (clock_stream(LUME_STREAM_RECEIVE, &packet) >= 0 &&
+                sntp_reply(packet.data, packet.count, boot_clock.nonce, &utc.seconds,
+                           &utc.nanoseconds))
+            {
+                result = (int)call(LUME_SYS_REALTIME, LUME_REALTIME_INITIALIZE, (uintptr_t)&utc,
+                                   sizeof(utc));
+                boot_clock.settled = true;
+                if (!result)
+                    puts("clock: UTC synchronized\n");
+                close_clock_stream(&packet);
+                return;
+            }
+        }
+        if (!(events & (LUME_STREAM_ERROR | LUME_STREAM_HANGUP)))
+            return;
+    }
+    close_clock_stream(&packet);
+    boot_clock.retry_at = net_retry(now, boot_clock.failures);
+    if (boot_clock.failures < 5)
+        ++boot_clock.failures;
+    boot_clock.server = (boot_clock.server + 1) % (sizeof(servers) / sizeof(*servers));
+}
+
 static int manager_step(bool loaded)
 {
     unsigned handled;
@@ -587,6 +676,10 @@ static int manager_step(bool loaded)
     ethernet_step(now);
     if (loaded || profiles.generation)
         step(now);
+    bool online = status.state == NETD_ONLINE;
+    for (unsigned i = 0; i < LUME_NET_INTERFACES && !online; ++i)
+        online = ethernet[i].online;
+    clock_step(now, online);
     publish();
     if (handled == 8)
         (void)call(LUME_SYS_SLEEP, 0, 0, 0);

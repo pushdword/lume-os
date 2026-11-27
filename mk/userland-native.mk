@@ -125,7 +125,7 @@ $(OUT)/busybox.elf: $(BB_OBJECTS) $(ARM_COMMON_OBJECTS)
 	$(LD) $(ARM_LD_FLAGS) $^ --defsym=__d_vfprintf=__l_vfprintf --defsym=vfprintf=__l_vfprintf $(ARM_LD_LIBS) -o "$@"
 $(OUT)/htop.elf: $(HTOP_OBJECTS) $(filter-out $(OUT)/obj/libc/runtime/runtime.c.o $(OUT)/obj/libc/posix/sbrk.c.o $(OUT)/obj/libc/posix/errno_map.c.o,$(ARM_COMMON_OBJECTS))
 	$(LD) $(ARM_LD_FLAGS) $^ $(ARM_LD_LIBS) -o "$@"
-$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers
+$(OUT)/netd.elf: arch/$(ARCH)/start_bare.S services/netd/netd.c services/netd/net_policy.c apps/clock/sntp.h libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h $(KERNEL)/include/abi/native/lume/realtime_abi.h | headers
 	mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $(CFLAGS) $(ARM_LINK) $(filter %.c %.S %.o,$^) -o "$@"
 $(OUT)/net.elf: arch/$(ARCH)/start_bare.S apps/net/net.c apps/net/net_client.h apps/net/net_service_client.h libc/string/memory.c libc/string/transfer.c $(ARM_STRING_SOURCES) $(I686_BUILTINS) $(KERNEL)/include/abi/native/lume/service.h | headers

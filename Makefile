@@ -266,7 +266,7 @@ $(OUT)/tests/net-client$(HOSTEXE): tests/unit/net_client_test.c apps/net/net_cli
 $(OUT)/tests/net-policy$(HOSTEXE): tests/unit/net_policy_test.c services/netd/net_policy.c
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal $^ -o "$@"
-$(OUT)/tests/netd$(HOSTEXE): tests/unit/netd_test.c services/netd/net_policy.c services/netd/netd.c services/netd/net_policy.h $(KERNEL)/include/abi/native/lume/service.h
+$(OUT)/tests/netd$(HOSTEXE): tests/unit/netd_test.c services/netd/net_policy.c services/netd/netd.c services/netd/net_policy.h apps/clock/sntp.h $(KERNEL)/include/abi/native/lume/service.h $(KERNEL)/include/abi/native/lume/realtime_abi.h
 	mkdir -p "$(@D)"
 	$(HOSTCC) $(HOSTCFLAGS) -Iapps/net -Iservices/netd -Iservices/svcd -Iapps/pkg -Iarch/$(ARCH)/include -Iinclude/internal -I"$(KERNEL)/include/abi/native" $(filter %netd_test.c %net_policy.c,$^) -o "$@"
 .PHONY: check-vector-io
