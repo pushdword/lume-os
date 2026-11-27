@@ -5,10 +5,39 @@
 #include <cstdlib>
 #include <csetjmp>
 #include <cmath>
+#include <cerrno>
+#include <pthread.h>
 
 static unsigned constructed;
 static unsigned callbacks_completed;
 static unsigned onexit_completed;
+static thread_local volatile unsigned zero_tls;
+static thread_local volatile unsigned initialized_tls = 19;
+
+static void *check_child_tls(void *failure)
+{
+    if (zero_tls || initialized_tls != 19)
+        return failure;
+    errno = ERANGE;
+    zero_tls = 37;
+    initialized_tls = 41;
+    return errno == ERANGE ? nullptr : failure;
+}
+
+static bool check_tls()
+{
+    if (zero_tls || initialized_tls != 19)
+        return false;
+    errno = EDOM;
+    zero_tls = 23;
+    initialized_tls = 29;
+    pthread_t thread;
+    void *result;
+    if (pthread_create(&thread, nullptr, check_child_tls, &thread) ||
+        pthread_join(thread, &result))
+        return false;
+    return !result && errno == EDOM && zero_tls == 23 && initialized_tls == 29;
+}
 
 static void count_callback()
 {
@@ -82,6 +111,9 @@ extern "C" int app_main(unsigned, char **, char **)
     volatile long double value = std::strtold("1.25", &end);
     if (*end || value != 1.25L || std::fpclassify(value) != FP_NORMAL)
         return 7;
+    if (!check_tls())
+        return 10;
+    std::puts("NATIVE_CXX_TLS_PASS");
     std::puts(
         "NATIVE_CXX_RUNTIME_PASS constructors/containers/streams/heap/stack/setjmp/binary128");
     return 0;

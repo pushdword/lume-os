@@ -266,6 +266,10 @@ extern "C" int app_main(unsigned argc, char **argv, char **)
     args.push_back("-static");
     args.push_back("-fno-pic");
     args.push_back("-fno-pie");
+    const bool cxx =
+        clang::driver::getDriverMode(userArgs.front(), llvm::ArrayRef(userArgs).drop_front()) == "g++";
+    if (cxx)
+        args.push_back("-D_GNU_SOURCE");
     bool links = true, printOnly = false, runtime = true, startFiles = true,
          defaultLibraries = true;
     for (unsigned i = 1; i < userArgs.size(); ++i)
@@ -291,15 +295,23 @@ extern "C" int app_main(unsigned argc, char **argv, char **)
             args.push_back("-Wl,-T," LUME_NATIVE_PREFIX
                            "/native.ld,--gc-sections,-z,max-page-size=4096");
             if (startFiles)
-                args.push_back("" LUME_NATIVE_PREFIX "/lib/crt0.o");
+                args.push_back(cxx && fs->exists(LUME_NATIVE_PREFIX "/lib/crt0-cxx.o")
+                                   ? LUME_NATIVE_PREFIX "/lib/crt0-cxx.o"
+                                   : LUME_NATIVE_PREFIX "/lib/crt0.o");
             if (defaultLibraries)
             {
                 args.push_back("-L" LUME_NATIVE_PREFIX "/lib");
                 args.push_back("-Wl,--start-group");
                 args.push_back("-llume");
                 args.push_back("-lc++");
+                if (fs->exists(LUME_NATIVE_PREFIX "/lib/libc++abi.a"))
+                    args.push_back("-lc++abi");
+                if (fs->exists(LUME_NATIVE_PREFIX "/lib/libunwind.a"))
+                    args.push_back("-lunwind");
                 args.push_back("-lc");
-                args.push_back("-lcrt");
+                args.push_back(fs->exists(LUME_NATIVE_PREFIX "/lib/libcompiler-rt.a")
+                                   ? "-lcompiler-rt"
+                                   : "-lcrt");
                 args.push_back("-Wl,--end-group");
             }
         }

@@ -56,49 +56,22 @@ if(LUME_SUPPORT_PATH_SOURCE)
     target_compile_definitions(LLVMSupport PRIVATE LUME_ARCH_AARCH64=1)
 endif()
 
-enable_language(ASM)
-add_library(lume_native_crt OBJECT
-    ${LUME_OS_ROOT}/libc/runtime/init.c
-    ${LUME_OS_ROOT}/libc/posix/getrandom.c
-    ${LUME_OS_ROOT}/libc/posix/atfork.c
-    ${LUME_OS_ROOT}/libc/posix/sigwait.c
-    ${LUME_OS_ROOT}/libc/posix/ucontext.c
-    ${LUME_OS_ROOT}/libc/runtime/ucontext.S
-    ${LUME_OS_ROOT}/arch/aarch64/crt0.S
-    ${LUME_OS_ROOT}/arch/aarch64/setjmp.S
-    ${LUME_OS_ROOT}/arch/aarch64/float.c
-    ../cxxabi.cpp ../thread_compat.cpp
-    ${LUME_OS_ROOT}/libc/lume/api.c
-    ${LUME_OS_ROOT}/libc/lume/native.c
-    ${LUME_OS_ROOT}/libc/lume/thread.c
-    ${LUME_OS_ROOT}/arch/aarch64/tls.c
-    ${LUME_OS_ROOT}/libc/runtime/locks.c
-    ${LUME_OS_ROOT}/libc/posix/pthread.c
-    ${LUME_OS_ROOT}/libc/posix/semaphore.c
-    ${LUME_OS_ROOT}/libc/posix/mman.c
-    ${LUME_OS_ROOT}/libc/posix/posix_runtime.c
-    ${LUME_OS_ROOT}/libc/posix/errno_map.c
-    ${LUME_OS_ROOT}/libc/posix/sbrk.c
-    ${LUME_OS_ROOT}/libc/posix/directory.c
-    ${LUME_OS_ROOT}/libc/posix/filesystem.c
-    ${LUME_OS_ROOT}/libc/posix/positioned_io.c
-    ${LUME_OS_ROOT}/libc/posix/file_lock.c
-    ${LUME_OS_ROOT}/libc/posix/process.c
-    ${LUME_OS_ROOT}/libc/posix/fd.c
-    ${LUME_OS_ROOT}/libc/posix/time.c)
-target_include_directories(lume_native_crt PRIVATE
-    ../include ${LUME_OS_ROOT}/arch/aarch64/include ${LUME_OS_ROOT}/include/internal
-    ${LUME_OS_ROOT}/include/lume ${LUME_OS_ROOT}/include/posix
-    ${LUME_KERNEL_ROOT}/include/uapi ${LUME_KERNEL_ROOT}/include/abi/native)
-target_compile_definitions(lume_native_crt PRIVATE LUME_ARCH_AARCH64=1 LUME_NATIVE_CXX=1
-    _GNU_SOURCE _DEFAULT_SOURCE _POSIX_C_SOURCE=200809L _POSIX_MONOTONIC_CLOCK=200809L)
-target_sources(lumec PRIVATE $<TARGET_OBJECTS:lume_native_crt>)
-target_link_options(lumec PRIVATE -nostdlib -static
-    -Wl,--gc-sections,--icf=safe,--build-id=none,--strip-all,-z,max-page-size=4096
-    -Wl,-T,${LUME_OS_ROOT}/arch/aarch64/native.ld)
-target_link_libraries(lumec PRIVATE ${LUME_CXX_ROOT}/lib/libc++.a
-    ${CMAKE_SYSROOT}/lib/libc.a ${LUME_BUILTINS})
+set(LUME_NATIVE_SDK "${CMAKE_SYSROOT}" CACHE PATH "Lume native SDK")
+set(LUME_BUILTINS "${LUME_NATIVE_SDK}/lib/libcompiler-rt.a" CACHE FILEPATH "Compiler runtime archive")
+set(lume_sdk_crt "${LUME_NATIVE_SDK}/lib/crt0-cxx.o")
+set(lume_sdk_libraries)
+foreach(archive liblume.a libc++.a libc++abi.a libunwind.a libc.a)
+    list(APPEND lume_sdk_libraries "${LUME_NATIVE_SDK}/lib/${archive}")
+endforeach()
+list(APPEND lume_sdk_libraries "${LUME_BUILTINS}")
+foreach(input IN ITEMS "${lume_sdk_crt}" "${LUME_NATIVE_SDK}/native.ld" ${lume_sdk_libraries})
+    if(NOT EXISTS "${input}")
+        message(FATAL_ERROR "Missing Lume native SDK input: ${input}")
+    endif()
+endforeach()
+set_source_files_properties("${lume_sdk_crt}" PROPERTIES EXTERNAL_OBJECT TRUE)
 
+set(LLVM_LINK_COMPONENTS)
 add_llvm_executable(native-runtime ${LUME_OS_ROOT}/tests/integration/native_runtime.cpp PARTIAL_SOURCES_INTENDED)
 add_executable(lume-tool launcher.c)
 target_include_directories(lume-tool PRIVATE ${LUME_OS_ROOT}/arch/aarch64/include
@@ -110,13 +83,14 @@ set(LLVM_LINK_COMPONENTS Support Option TargetParser)
 add_llvm_executable(lumeld lld.cpp PARTIAL_SOURCES_INTENDED)
 target_include_directories(lumeld PRIVATE ${CMAKE_SOURCE_DIR}/../lld/include)
 target_link_libraries(lumeld PRIVATE lldELF lldCommon)
-foreach(lume_tool llvm-ar llvm-objcopy llvm-nm llvm-readobj native-runtime lumeld lume-tool)
-    target_sources(${lume_tool} PRIVATE $<TARGET_OBJECTS:lume_native_crt>)
+foreach(lume_tool lumec llvm-ar llvm-objcopy llvm-nm llvm-readobj native-runtime lumeld lume-tool)
+    target_sources(${lume_tool} PRIVATE "${lume_sdk_crt}")
     target_link_options(${lume_tool} PRIVATE -nostdlib -static
         -Wl,--gc-sections,--icf=safe,--build-id=none,--strip-all,-z,max-page-size=4096
-        -Wl,-T,${LUME_OS_ROOT}/arch/aarch64/native.ld)
-    target_link_libraries(${lume_tool} PRIVATE ${LUME_CXX_ROOT}/lib/libc++.a
-        ${CMAKE_SYSROOT}/lib/libc.a ${LUME_BUILTINS})
+        "-Wl,-T,${LUME_NATIVE_SDK}/native.ld")
+    set_property(TARGET ${lume_tool} APPEND PROPERTY LINK_DEPENDS "${LUME_NATIVE_SDK}/native.ld")
+    target_link_libraries(${lume_tool} PRIVATE -Wl,--start-group ${lume_sdk_libraries}
+        -Wl,--end-group)
 endforeach()
 target_sources(llvm-ar PRIVATE tool_entry.cpp)
 target_sources(llvm-objcopy PRIVATE tool_entry.cpp)

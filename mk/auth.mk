@@ -14,9 +14,11 @@ AUTH_CPPFLAGS += -DLUME_NATIVE_LFS64=1
 endif
 ifneq ($(strip $(NATIVE_SDK)),)
 AUTH_RUNTIME := $(NATIVE_SDK)/lib/crt0.o $(NATIVE_SDK)/lib/liblume.a $(NATIVE_SDK)/lib/libc.a
+AUTH_RUNTIME += $(wildcard $(NATIVE_SDK)/lib/libcompiler-rt.a)
 AUTH_SCRIPT := $(NATIVE_SDK)/native.ld
 else
 AUTH_RUNTIME := $(NATIVE_SDK_BUILD)/crt0.o $(NATIVE_SDK_BUILD)/liblume.a $(SYSROOT)/lib/libc.a
+AUTH_RUNTIME += $(wildcard $(SYSROOT)/lib/libcompiler-rt.a)
 AUTH_SCRIPT := arch/$(ARCH)/native.ld
 endif
 

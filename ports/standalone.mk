@@ -16,7 +16,9 @@ CXXFLAGS += -ffile-prefix-map=$(OS_ROOT)=lume-os -ffile-prefix-map=$(KERNEL)=lum
 LDFLAGS += --gc-sections --build-id=none -z max-page-size=4096 -T $(SDK)/native.ld
 RUNTIME := $(SDK)/lib/crt0.o
 SDK_BUILTINS := $(or $(wildcard $(SDK)/lib/libcrt.a),$(wildcard $(SDK)/lib/libcompiler-rt.a),$(SDK)/lib/libcrt.a)
-LIBS := --start-group $(SDK)/lib/liblume.a $(SDK)/lib/libc.a $(SDK_BUILTINS) --end-group
+SDK_RUNTIME ?= $(SDK)/lib/liblume.a
+sdk_link_libraries = --start-group $(SDK_RUNTIME) $(1) $(SDK)/lib/libc.a $(SDK_BUILTINS) --end-group
+LIBS := $(call sdk_link_libraries)
 $(OUT)/obj/%.o: $(SOURCE)/%.c
 	mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

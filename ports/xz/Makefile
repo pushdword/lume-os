@@ -12,4 +12,5 @@ $(OUT)/liblzma.a: $(OBJECTS)
 	rm -f $@
 	$(AR) rcs $@ $^
 $(OUT)/xz: $(OUT)/obj/src/xz/../common/tuklib_exit.o $(OUT)/obj/src/xz/../common/tuklib_mbstr_fw.o $(OUT)/obj/src/xz/../common/tuklib_mbstr_nonprint.o $(OUT)/obj/src/xz/../common/tuklib_mbstr_width.o $(OUT)/obj/src/xz/../common/tuklib_mbstr_wrap.o $(OUT)/obj/src/xz/../common/tuklib_open_stdxxx.o $(OUT)/obj/src/xz/../common/tuklib_progname.o $(OUT)/obj/src/xz/args.o $(OUT)/obj/src/xz/coder.o $(OUT)/obj/src/xz/file_io.o $(OUT)/obj/src/xz/hardware.o $(OUT)/obj/src/xz/list.o $(OUT)/obj/src/xz/main.o $(OUT)/obj/src/xz/message.o $(OUT)/obj/src/xz/mytime.o $(OUT)/obj/src/xz/options.o $(OUT)/obj/src/xz/sandbox.o $(OUT)/obj/src/xz/signals.o $(OUT)/obj/src/xz/suffix.o $(OUT)/obj/src/xz/util.o $(OUT)/liblzma.a
-	$(LD) $(LDFLAGS) $(RUNTIME) $^ $(LIBS) -o $@
+	$(LD) $(LDFLAGS) $(RUNTIME) $(filter %.o,$^) $(call sdk_link_libraries,$(filter %.a,$^)) -o $@
+$(OUT)/xz: $(PORT)/Makefile $(PORT)/../standalone.mk

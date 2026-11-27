@@ -619,8 +619,11 @@
 /* Define to 1 if you have the <error.h> header file. */
 /* #undef HAVE_ERROR_H */
 
+/* Select decompression mode when invoked as gunzip or zcat. */
+#define GNU_STANDARD 0
+
 /* Define to 1 if you have the 'fchdir' function. */
-/* #undef HAVE_FCHDIR */
+#define HAVE_FCHDIR 1
 
 /* Define to 1 if you have the 'fchmod' function. */
 #define HAVE_FCHMOD 1
@@ -1279,7 +1282,7 @@
 /* #undef PTRDIFF_T_SUFFIX */
 
 /* Define to 1 if gnulib's fchdir() replacement is used. */
-#define REPLACE_FCHDIR 1
+/* #undef REPLACE_FCHDIR */
 
 /* Define if fprintf is overridden by a POSIX compliant gnulib implementation.
    */
@@ -1295,7 +1298,7 @@
 
 /* Define to 1 if open() should work around the inability to open a directory.
    */
-#define REPLACE_OPEN_DIRECTORY 1
+/* #undef REPLACE_OPEN_DIRECTORY */
 
 /* Define if printf is overridden by a POSIX compliant gnulib implementation.
    */

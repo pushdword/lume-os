@@ -19,7 +19,8 @@ MemoryBlock Memory::allocateMappedMemory(size_t N, const MemoryBlock *, unsigned
         E.clear();
         return {};
     }
-    void *P = ::malloc(N);
+    // Anonymous mappings start with zero-filled contents.
+    void *P = ::calloc(1, N);
     if (!P)
     {
         E = errc::not_enough_memory;
